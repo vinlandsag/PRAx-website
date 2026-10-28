@@ -23,6 +23,8 @@ export interface Submission {
   checklist?: string[];
   status: SubmissionStatus;
   pointsAwarded?: number;
+  rubricVersion?: string;
+  transactionId?: string;
   feedback?: string;
   reviewedById?: string;
   reviewedAt?: string;

@@ -137,6 +137,14 @@ Security threats and mitigations. Never store passwords, API keys, access tokens
 - **Mandatory Feedback:** Rejection and revision requests require a reason of at least 3 characters, enforced server-side.
 - **Audit Trail:** All review actions emit typed audit events (`SUBMISSION_APPROVED`, `SUBMISSION_REJECTED`, `SUBMISSION_REVISION_REQUESTED`, `POINTS_ASSIGNED`) with actor ID, target submission ID, points, and feedback recorded for accountability.
 
+## Points Boundary & Rubric Security (Phase 7)
+
+- **Status:** Implemented (Phase 7).
+- **Point Constraints Enforcement:** Server-side validation rejects any points that are non-numeric (`"abc"`, `NaN`, `Infinity`), fractional (`12.5`), negative (`< 0`), or exceed task maximum (`> maxPoints`).
+- **No Double Points / Idempotency:** Duplicate approval requests on an already approved submission are rejected with `422 INVALID_STATE_TRANSITION`, ensuring points cannot be disbursed multiple times. Idempotency keys (`pts_${submissionId}_${rubricVersion}`) are registered at the transaction boundary.
+- **Rubric Authorization:** Editing rubric (`PUT /api/rubric`) is restricted to Admins. Non-admins receive `403 FORBIDDEN`. All criteria updates bump version numbers and emit `RUBRIC_UPDATED` audit events.
+- **Transactional Rollback:** If the points persistence boundary fails, submission status remains uncommitted (`SUBMITTED`), preventing orphaned approved submissions with missing points.
+
 ## Secrets Management
 
 - **Rule:** No secrets in source code, logs, screenshots, or memory files.
@@ -180,4 +188,4 @@ Security threats and mitigations. Never store passwords, API keys, access tokens
 
 ---
 
-_Last updated: 2026-10-28 · Phase 6 Admin Review Queue Complete_
+_Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete_

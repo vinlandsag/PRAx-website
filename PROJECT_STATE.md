@@ -82,16 +82,25 @@ PRAX — an invite-only team platform. Members complete tasks, earn points and s
 - Phase 4 (Onboarding & Approval State Machine): User lifecycle state machine, server-side authorization guards, self-action prevention, immutable secret-scrubbed audit trail, admin lifecycle routes, and live onboarding/members UI ✅
 - Phase 5 (RBAC & Route/API Protection): Centralized RBAC engine, deny-by-default authorization, permission matrix, Next.js Proxy Middleware, direct URL/API route protection, data ownership checks, and role tampering/stale session defense ✅
 - Phase 6 (Admin Review Queue & Review Efficiency): 3-column desktop review workspace, submissions store, review API routes (approve/reject/request-revision), pending age badges, keyboard shortcuts, safe proof link rendering, loading/empty/error states, and 15 new tests ✅
+- Phase 7 (Rubric Engine & Points Boundary): Editable versioned scoring rubric, criteria validation, GET/PUT /api/rubric, interactive admin UI, Person 3 transactional boundary with idempotency keys, strict 0-to-max point bounds, and 16 new tests ✅
 
 ## Current Branch / Commit
 
 - Git: Initialized & connected to remote `https://github.com/vinlandsag/PRAx-website.git`
-- Branch: `main` (tracking `origin/main`, up to date)
-- HEAD: `425a8dc` (`chore: merge origin/main into local foundation`)
-- Working tree: Clean. All code committed and pushed to `origin/main`.
+- Branch: `milan` (tracking `origin/milan`)
+- HEAD: `3decaef` (merged baseline with `main`)
+- Working tree: Phase 7 Rubric Engine & Points Boundary implemented and verified. All 6 deliverables for Person 1 (Head Lead & System Architect) are 100% complete!
 
 ## What Works
 
+- **Rubric Engine & Points Boundary (Phase 7 — Person 1 100% Complete)**:
+  - Editable scoring rubric engine (`src/lib/rubric/rubric-store.ts`) with versioning (`v1` → `v2`), history tracking, and strict criteria validation (minimum title/description lengths, positive integer maxPoints, unique IDs).
+  - API endpoints: `GET /api/rubric` (accessible to approved members and admins), `PUT /api/rubric` (admin-only, validates criteria, bumps version, records `RUBRIC_UPDATED` audit event).
+  - Live interactive admin UI (`src/app/admin/rubric/page.tsx`): fetches active rubric, modal editor allowing criteria modifications, addition, deletion, live total score calculation, and saving.
+  - Person 1 ↔ Person 3 points transaction boundary (`src/lib/points/points-boundary.ts`): dispatches approved scores with idempotency keys (`pts_${submissionId}_${rubricVersion}`). Person 1 DOES NOT maintain a duplicate points ledger or mutate user leaderboard scores directly.
+  - Strict server-side point validation: `0 <= pointsAwarded <= maxPoints`. Rejects negative, fractional, over-maximum, non-numeric, and NaN values with HTTP 400 `VALIDATION_ERROR`.
+  - Idempotency & duplicate prevention: duplicate approval attempts return 422 `INVALID_STATE_TRANSITION`, preventing duplicate point disbursements.
+  - Transaction rollback: simulated points boundary failure aborts approval without updating submission status.
 - **Admin Review Queue & Review Efficiency (Phase 6)**:
   - Thread-safe in-memory submissions store (`src/lib/db/submissions-store.ts`) with pre-seeded submissions of varying ages.
   - Review queue API routes: `GET /api/admin/submissions` (listing with status filter), `POST .../approve` (points validation 0 ≤ pts ≤ maxPoints), `POST .../reject` (mandatory feedback ≥ 3 chars), `POST .../request-revision` (mandatory feedback ≥ 3 chars). All guarded by `authorize(req, { allowedRoles: ["ADMIN"] })`.
@@ -149,7 +158,7 @@ PRAX — an invite-only team platform. Members complete tasks, earn points and s
 - **All Reference Screens Implemented (40+ App Router Routes total)**.
 - **Verification & Testing**:
   - `npm run typecheck`: PASS (0 errors)
-  - `npm test`: PASS (130/130 tests across 6 suites: `review-queue.test.ts` [15], `rbac.test.ts` [34], `state-machine.test.ts` [23], `auth.test.ts` [35], `errors.test.ts` [8], `components.test.tsx` [15])
+  - `npm test`: PASS (146/146 tests across 7 suites: `rubric.test.ts` [16], `review-queue.test.ts` [15], `rbac.test.ts` [34], `state-machine.test.ts` [23], `auth.test.ts` [35], `errors.test.ts` [8], `components.test.tsx` [15])
   - `npm run lint`: PASS (0 errors, 0 warnings)
   - `npm run format:check`: PASS (Prettier clean across all files)
   - `npm run build`: PASS (Turbopack successfully compiles all routes + Proxy)
@@ -162,9 +171,10 @@ PRAX — an invite-only team platform. Members complete tasks, earn points and s
 
 ## Exact Next Action
 
-1. Commit working tree (UI Design System + Phase 3–6 all implemented).
-2. Begin Phase 7 — Tasks, Submissions & Scoring Engine.
+1. Commit and push Phase 7 to branch `milan`: `git add -A && git commit -m "feat: complete Phase 7 rubric engine and points boundary" && git push origin milan`.
+2. Open Pull Request from `milan` to `main`.
+3. Hand off to Person 2 (Frontend Lead — Member Tasks & Leaderboard) and Person 3 (Backend Lead — Task CRUD & Streak Cron) per Team Breakdown specification.
 
 ---
 
-_Last updated: 2026-10-28 · Phase 6 Admin Review Queue Complete_
+_Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete (Person 1 Scope 100% Done)_

@@ -377,38 +377,30 @@ Each entry must include:
 
 ---
 
-_Last updated: 2026-10-28T12:27 · Phase 6 Admin Review Queue Complete_
+## 2026-10-28T13:40
 
-## 2026-10-28T12:27
-
-### Phase 6 — Admin Review Queue & Review Efficiency
+### Phase 7 — Rubric Engine & Points Boundary (Person 1 Complete)
 
 - **Files Changed (new):**
-  - `src/lib/db/submissions-store.ts`: Thread-safe in-memory submissions store with realistic pre-seeded submissions of varying pending ages (3h, 16h, 36h, 3d) and support for status filtering, approval, rejection, and revision request operations.
-  - `src/lib/utils/url.ts`: Safe URL validator (`isSafeUrl`) and sanitizer (`sanitizeUrl`) disallowing dangerous protocols (`javascript:`, `data:`, `vbscript:`).
-  - `src/app/api/admin/submissions/route.ts`: `GET /api/admin/submissions` — lists submissions with optional `?status=SUBMITTED` filter, guarded by `authorize(req, { allowedRoles: ["ADMIN"] })`.
-  - `src/app/api/admin/submissions/[id]/approve/route.ts`: `POST /api/admin/submissions/:id/approve` — approves submission, validates points (0 ≤ points ≤ maxPoints), emits `SUBMISSION_APPROVED` and `POINTS_ASSIGNED` audit events.
-  - `src/app/api/admin/submissions/[id]/reject/route.ts`: `POST /api/admin/submissions/:id/reject` — rejects submission, enforces mandatory feedback reason (min 3 chars), emits `SUBMISSION_REJECTED` audit event.
-  - `src/app/api/admin/submissions/[id]/request-revision/route.ts`: `POST /api/admin/submissions/:id/request-revision` — requests revision, enforces actionable feedback (min 3 chars), emits `SUBMISSION_REVISION_REQUESTED` audit event.
-  - `src/app/admin/review-queue.test.ts`: 15 comprehensive tests covering authorization gates (visitor 401, member 403), queue listing, approval, points validation, rejection reason enforcement, revision requests, safe URL validation, and audit logging.
+  - `src/lib/rubric/rubric-store.ts`: Thread-safe rubric store with editable criteria, versioning (`v1` → `v2`), history tracking, and strict criteria validation.
+  - `src/lib/points/points-boundary.ts`: Shared transaction boundary contract between Person 1 and Person 3 (`dispatchApprovedPoints`), enforcing idempotency keys (`pts_${submissionId}_${rubricVersion}`) and simulated rollback.
+  - `src/app/api/rubric/route.ts`: `GET /api/rubric` (approved members and admins) and `PUT /api/rubric` (admin-only rubric updates with `RUBRIC_UPDATED` audit log).
+  - `src/lib/rubric/rubric.test.ts`: 16 comprehensive unit and integration tests covering criteria validation, version bump, API authorization gates, 0-to-max boundary scoring, non-numeric/negative/fractional point rejection, idempotency, and transaction rollback.
 - **Files Changed (updated):**
-  - `src/app/admin/page.tsx`: Rewritten with full 3-column side-by-side desktop review workspace featuring:
-    - Column 1: Searchable review queue list with pending age badges (neutral <12h, warning 12–24h, danger >24h).
-    - Column 2: Selected submission detail pane with task description, proof links (rendered safely with `rel="noopener noreferrer" target="_blank"`), and submission notes.
-    - Column 3: Rubric scoring panel with sliders, feedback textarea, and approve/reject/request-revision action buttons.
-    - Documented keyboard shortcuts modal (`A` approve, `R` reject, `V` revision, `J`/`K` navigate, `?` toggle help).
-    - Loading skeleton, empty ("All Caught Up!"), and error states with retry.
+  - `src/app/api/admin/submissions/[id]/approve/route.ts`: Server-side scoring validation (`0 <= points <= maxPoints`, integer only), rubric version binding, Person 3 transaction boundary dispatch, and idempotency guard.
+  - `src/app/admin/rubric/page.tsx`: Live interactive admin UI with active rubric fetching, criteria editor modal, live total points calculation, and `PUT /api/rubric` integration.
+  - `src/lib/db/submissions-store.ts`: Added `rubricVersion` and `transactionId` fields to `Submission`.
   - All 8 project memory files updated.
 - **Commands Run:**
   - `npm run typecheck` → PASS (0 errors)
   - `npm run lint` → PASS (0 errors, 0 warnings)
   - `npm run format:check` → PASS (Prettier clean across all files)
-  - `npm test` → PASS (130/130 tests pass across 6 test suites: `review-queue.test.ts` [15], `rbac.test.ts` [34], `state-machine.test.ts` [23], `auth.test.ts` [35], `components.test.tsx` [15], `errors.test.ts` [8])
+  - `npm test` → PASS (146/146 tests pass across 7 test suites: `rubric.test.ts` [16], `review-queue.test.ts` [15], `rbac.test.ts` [34], `state-machine.test.ts` [23], `auth.test.ts` [35], `components.test.tsx` [15], `errors.test.ts` [8])
   - `npm run build` → PASS (Turbopack successfully compiles all routes + Proxy)
-- **Test Results:** 130 passing tests across 6 suites, 0 lint errors, 0 warnings, Prettier clean, clean Turbopack build.
+- **Test Results:** 146 passing tests across 7 suites, 0 lint errors, 0 warnings, Prettier clean, clean Turbopack build.
 - **Commit Hash:** Ready for commit
 - **Known Issues:** None. D-005 (DB hosting) pending before Prisma migration setup.
 
 ---
 
-_Last updated: 2026-10-28T12:27 · Phase 6 Admin Review Queue Complete_
+_Last updated: 2026-10-28T13:40 · Phase 7 Rubric Engine & Points Boundary Complete (Person 1 100% Complete)_
