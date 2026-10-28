@@ -85,10 +85,10 @@ PRAX — an invite-only team platform. Members complete tasks, earn points and s
 
 ## Current Branch / Commit
 
-- Git: Initialized
-- Branch: `main`
-- HEAD: `05e6cbc` (`feat: complete Phase 2 minimal app foundation and developer workflow`)
-- Working tree: UI Design System + Phase 3 Auth/Invites + Phase 4 Lifecycle + Phase 5 RBAC & Proxy + Phase 6 Admin Review Queue fully implemented, verified, and passing all checks.
+- Git: Initialized & connected to remote `https://github.com/vinlandsag/PRAx-website.git`
+- Branch: `main` (tracking `origin/main`, up to date)
+- HEAD: `425a8dc` (`chore: merge origin/main into local foundation`)
+- Working tree: Clean. All code committed and pushed to `origin/main`.
 
 ## What Works
 

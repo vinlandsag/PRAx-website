@@ -167,24 +167,19 @@ All checks executed locally on macOS (Darwin 24.3.0, Node.js v24.15.0):
 
 ## 8. Current Branch, Commit, and Uncommitted Changes
 
-- **Current Branch:** `main`
-- **Current HEAD Commit:** `05e6cbc` (`feat: complete Phase 2 minimal app foundation and developer workflow`)
-- **Uncommitted Changes Status:**
-  - 16 tracked files modified (see Section 3).
-  - 65+ untracked files added (see Section 3).
-  - All changes are clean, formatted with Prettier, pass all 130 tests, lint with 0 errors/warnings, typecheck with 0 errors, and compile without errors. Ready for git commit.
+- **Current Branch:** `main` (tracking `origin/main`, up to date)
+- **Current HEAD Commit:** `425a8dc` (`chore: merge origin/main into local foundation`)
+- **Remote:** `https://github.com/vinlandsag/PRAx-website.git`
+- **Working Tree Status:** Clean. All 90 files committed and pushed to `origin/main`.
 
 ---
 
 ## 9. Exact Next 3 Actions in Order
 
-1. **Commit the full working tree to git:**
-   ```bash
-   git add -A && git commit -m "feat: implement Phase 3–6 (auth, onboarding, RBAC, admin review queue)"
-   ```
-2. **Sign off D-005 (Database Hosting)** in `DECISIONS.md` — blocks Prisma ORM setup.
-3. **Begin Phase 7 — Tasks, Submissions & Scoring Engine:**
+1. **Sign off D-005 (Database Hosting)** in `DECISIONS.md` — blocks Prisma ORM migration setup.
+2. **Begin Phase 7 — Tasks, Submissions & Scoring Engine:**
    Implement Task CRUD APIs (`GET /api/tasks`, `GET /api/tasks/:id`, `POST /api/tasks`), Submission lifecycle (`DRAFT` -> `SUBMITTED` -> `UNDER_REVIEW`), Rubric criteria management (`GET /api/rubric`, `PUT /api/rubric`), and Points & Streaks engine with audit logging.
+3. **Collaborators clone and branch:** Teammates clone `https://github.com/vinlandsag/PRAx-website.git`, create feature branches for their respective modules according to `MVP_SPEC.md §9`, and open PRs against `main`.
 
 ---
 
