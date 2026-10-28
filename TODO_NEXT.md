@@ -8,24 +8,23 @@ Prioritized task list. Each task has a status, owner, dependency, and acceptance
 
 ## Active Tasks
 
-### Phase 6 Close-out / Phase 7 Prerequisites
+### Phase 7 Close-out / Phase 8 Tasks & Submissions (Person 3)
 
-| Priority | Task                                            | Status | Owner | Depends On     | Acceptance Criteria                                                                            |
-| -------- | ----------------------------------------------- | ------ | ----- | -------------- | ---------------------------------------------------------------------------------------------- |
-| P0       | Implement Phase 6 Admin Review Queue            | DONE   | P1    | Phase 5        | 3-col review workspace, keyboard shortcuts, safe links, server-validated actions, 130/130 pass |
-| P0       | Decide DB hosting (D-005)                       | TODO   | P3    | —              | D-005 row updated in `DECISIONS.md`                                                            |
-| P1       | Sign off `MVP_SPEC.md` assumptions A-003, A-006 | TODO   | All   | Phase 1 output | A-001, A-002, A-004, A-005 AGREED; remaining marked AGREED                                     |
-| P1       | Sign off integration contracts IC-01 to IC-08   | IN_PRG | All   | —              | IC-01, IC-04, IC-Admin-Review AGREED; remaining IC rows marked AGREED                          |
-| P1       | Decide real-time approach (D-003)               | TODO   | P4    | —              | D-003 row updated in `DECISIONS.md`                                                            |
+| Priority | Task                                              | Status | Owner | Depends On | Acceptance Criteria                                                                              |
+| -------- | ------------------------------------------------- | ------ | ----- | ---------- | ------------------------------------------------------------------------------------------------ |
+| P0       | Implement Phase 7 Rubric Engine & Points Boundary | DONE   | P1    | Phase 6    | Editable rubric, versioning, contract with Person 3, boundary validation, 146/146 pass (P1 100%) |
+| P0       | Decide DB hosting (D-005)                         | TODO   | P3    | —          | D-005 row updated in `DECISIONS.md`                                                              |
+| P1       | Sign off `MVP_SPEC.md` assumptions A-003, A-006   | TODO   | All   | Phase 1    | A-001, A-002, A-004, A-005 AGREED; remaining marked AGREED                                       |
+| P1       | Sign off integration contracts IC-01 to IC-08     | IN_PRG | All   | —          | IC-01, IC-04, IC-06, IC-06B, IC-Admin-Review AGREED                                              |
+| P1       | Decide real-time approach (D-003)                 | TODO   | P4    | —          | D-003 row updated in `DECISIONS.md`                                                              |
 
-### Phase 7 — Tasks, Submissions & Scoring Engine
+### Phase 8 — Person 2 (Frontend) & Person 3 (Backend) Tasks & Submissions
 
 | Priority | Task                                                                                                          | Status | Owner | Depends On   | Acceptance Criteria                                         |
 | -------- | ------------------------------------------------------------------------------------------------------------- | ------ | ----- | ------------ | ----------------------------------------------------------- |
-| P1       | Implement Task creation, listing, and detail APIs (`GET /api/tasks`, `GET /api/tasks/:id`, `POST /api/tasks`) | TODO   | P3    | Phase 6      | Member/Admin access controls, active task list              |
-| P1       | Implement Submission workflow (`DRAFT` -> `SUBMITTED` -> `UNDER_REVIEW` -> `APPROVED`/`REJECTED`)             | TODO   | P3/P5 | Tasks API    | Server-side state validation, single active submission rule |
-| P1       | Implement Rubric Management (`GET /api/rubric`, `PUT /api/rubric`)                                            | TODO   | P1/P5 | Phase 6      | Criteria validation, versioning, audit logging              |
-| P1       | Implement Points & Streaks Engine                                                                             | TODO   | P3    | Submissions  | Non-negative points ledger, streak computation, IC-07       |
+| P1       | Implement Task creation, listing, and detail APIs (`GET /api/tasks`, `GET /api/tasks/:id`, `POST /api/tasks`) | TODO   | P3    | Phase 7      | Member/Admin access controls, active task list              |
+| P1       | Implement Submission workflow (`DRAFT` -> `SUBMITTED` -> `UNDER_REVIEW` -> `APPROVED`/`REJECTED`)             | TODO   | P3/P2 | Tasks API    | Server-side state validation, single active submission rule |
+| P1       | Implement Points Calculation Engine & Streaks Cron                                                            | TODO   | P3    | Submissions  | Non-negative points ledger, streak computation, IC-07       |
 | P1       | Install Prisma ORM and generate schema v1                                                                     | TODO   | P3    | D-005 AGREED | `prisma migrate dev` runs; IC-02 fulfilled                  |
 
 ---
@@ -59,7 +58,8 @@ Prioritized task list. Each task has a status, owner, dependency, and acceptance
 | Implement Phase 4 State Machine & Onboarding (D-011)  | 2026-10-28 | Lifecycle state machine, self-action guards, secret-scrubbed audit trail, admin user routes, live UI on /admin/members & /onboarding, 23 new tests (81 total pass)  |
 | Implement Phase 5 RBAC & Route/API Protection (D-012) | 2026-10-28 | Centralized RBAC engine, deny-by-default, permission matrix, Next.js 16 Proxy Middleware, resource ownership, role tampering/stale session defense (115 total pass) |
 | Implement Phase 6 Admin Review Queue (D-013)          | 2026-10-28 | 3-col review workspace, pending age badges, keyboard shortcuts, safe proof links, server-validated approve/reject/revision, 15 new tests (130 total pass)           |
+| Implement Phase 7 Rubric Engine & Points (D-014)      | 2026-10-28 | Versioned rubric store, GET/PUT /api/rubric, interactive admin UI, Person 3 transaction boundary, idempotency, strict bounds, 16 new tests (146 total pass)         |
 
 ---
 
-_Last updated: 2026-10-28 · Phase 6 Admin Review Queue Complete_
+_Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete (Person 1 Scope 100% Done)_

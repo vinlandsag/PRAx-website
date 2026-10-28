@@ -133,20 +133,21 @@ interface SessionUser {
 
 ### IC-06 — Rubric data shape
 
-| Field    | Value               |
-| -------- | ------------------- |
-| Producer | **P1** (Rubric API) |
-| Consumer | **P2** (task UI)    |
-| Status   | 🟡 PROPOSED         |
+| Field    | Value                                                                                         |
+| -------- | --------------------------------------------------------------------------------------------- |
+| Producer | **P1** (Rubric API & System Architect)                                                        |
+| Consumer | **P2** (task UI), **P5** (admin review scoring)                                               |
+| Status   | 🟢 AGREED (Phase 7) — Implemented via `src/lib/rubric/rubric-store.ts` & `src/app/api/rubric` |
 
 #### `GET /api/rubric`
 
 - Auth: APPROVED member or ADMIN
-- Response: `{ rubric: { id, version, criteria: RubricCriterion[], updatedAt } }`
+- Response: `{ rubric: { id, version, criteria: RubricCriterion[], totalMaxPoints, updatedAt } }`
 
 ```typescript
 interface RubricCriterion {
   id: string;
+  num: string;
   title: string;
   description: string;
   maxPoints: number;
@@ -155,10 +156,23 @@ interface RubricCriterion {
 
 #### `PUT /api/rubric`
 
-- Auth: ADMIN only
+- Auth: ADMIN only (`authorize(req, { allowedRoles: ["ADMIN"] })`)
 - Body: `{ criteria: RubricCriterion[] }`
+- Validation: Criteria array non-empty, title ≥ 2 chars, description ≥ 5 chars, `1 <= maxPoints <= 1000` integer, unique IDs
 - Response: `{ rubric: Rubric }`
-- Side-effects: Creates `RubricVersion` record; emits `RUBRIC_UPDATED` audit event
+- Side-effects: Increments version (`v1` → `v2`); creates immutable history; emits `RUBRIC_UPDATED` audit event
+
+---
+
+### IC-06B — Person 1 ↔ Person 3 Points Transaction Boundary
+
+| Field     | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Boundary  | **P1** (Review/Scoring Engine) ↔ **P3** (Points Calculation & Score Persistence)                                                                                                                                                                                                                                                                                                                                                                      |
+| Producer  | **P1** (`src/app/api/admin/submissions/[id]/approve/route.ts`)                                                                                                                                                                                                                                                                                                                                                                                        |
+| Consumer  | **P3** (`src/lib/points/points-boundary.ts`)                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Status    | 🟢 AGREED (Phase 7)                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Agreement | P1 strictly validates scores (`0 <= pointsAwarded <= maxPoints`), binds the active rubric version, and dispatches via `dispatchApprovedPoints(payload)` using an idempotency key (`pts_${submissionId}_${rubricVersion}`). P1 DOES NOT create a second ledger or mutate leaderboard totals. P3 processes and stores the immutable `PointTransaction`. Duplicate calls return idempotent status (preventing double awards); failure triggers rollback. |
 
 ---
 
@@ -383,4 +397,4 @@ Owner: **P5**
 
 ---
 
-_Last updated: 2026-10-28 · Phase 6 Admin Review Queue complete_
+_Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary complete_
