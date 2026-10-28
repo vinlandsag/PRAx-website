@@ -20,6 +20,7 @@ export type ApiErrorCode =
   | "NOT_FOUND"
   | "UNAUTHENTICATED"
   | "VALIDATION_ERROR"
+  | "RATE_LIMITED"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorBody {
@@ -49,5 +50,7 @@ export const errors = {
   notFound: (resource = "Resource") => apiError("NOT_FOUND", `${resource} not found.`, 404),
   accountPending: () => apiError("ACCOUNT_PENDING", "Your account is pending approval.", 403),
   accountNotActive: () => apiError("ACCOUNT_NOT_ACTIVE", "Your account is not active.", 403),
+  rateLimited: (message = "Too many requests. Please try again later.") =>
+    apiError("RATE_LIMITED", message, 429),
   internal: () => apiError("INTERNAL_ERROR", "An unexpected error occurred.", 500),
 } as const;

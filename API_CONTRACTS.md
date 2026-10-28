@@ -50,12 +50,12 @@ interface SessionUser {
 
 ### IC-01 — Session user shape
 
-| Field     | Value                                                |
-| --------- | ---------------------------------------------------- |
-| Producer  | **P1** (auth/session)                                |
-| Consumers | **P2**, **P4**, **P5**                               |
-| Interface | `session.user: SessionUser` (see Shared Types above) |
-| Status    | 🟡 PROPOSED — P1 must confirm before Phase 2         |
+| Field     | Value                                                           |
+| --------- | --------------------------------------------------------------- |
+| Producer  | **P1** (auth/session)                                           |
+| Consumers | **P2**, **P4**, **P5**                                          |
+| Interface | `session.user: SessionUser` (see Shared Types above)            |
+| Status    | 🟢 AGREED (Phase 3) — Implemented via `src/lib/auth/session.ts` |
 
 ---
 
@@ -109,14 +109,14 @@ interface SessionUser {
 
 ---
 
-### IC-04 — RBAC middleware
+### IC-04 — RBAC Proxy Middleware & Server-Side Authorization Guards
 
-| Field     | Value                                                                              |
-| --------- | ---------------------------------------------------------------------------------- |
-| Producer  | **P1** (auth/RBAC)                                                                 |
-| Consumers | **P5** (admin UI routes), **P3** (admin API routes)                                |
-| Interface | `requireRole(role: UserRole): NextMiddleware` — HOF wrapping Next.js route handler |
-| Status    | 🟡 PROPOSED — P1 must publish before Phase 2                                       |
+| Field     | Value                                                                                                                                                                                                                                               |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Producer  | **P1** (auth/RBAC)                                                                                                                                                                                                                                  |
+| Consumers | **P5** (admin UI & API routes), **P3** (admin API routes), **P2** (member routes)                                                                                                                                                                   |
+| Interface | `src/proxy.ts` (Next.js Proxy Middleware), `src/lib/auth/rbac.ts` (`hasPermission`, `canAccessResource`), `src/lib/auth/guard.ts` (`authorize`, `requireRole`, `requirePermission`)                                                                 |
+| Status    | 🟢 AGREED (Phase 5) — Authoritative proxy middleware + server guards enforcing deny-by-default, role boundaries, resource ownership, and standard error envelopes (401 UNAUTHENTICATED, 403 FORBIDDEN, 403 ACCOUNT_PENDING, 403 ACCOUNT_NOT_ACTIVE) |
 
 ---
 
@@ -307,11 +307,11 @@ Owner: **P1**
 
 ## Admin Review Queue Endpoints
 
-API Owner: **P3** | UI Owner: **P5**
+API Owner: **P3** | UI Owner: **P5** | Status: 🟢 AGREED (Phase 6) — Implemented
 
 ### `GET /api/admin/submissions`
 
-- Auth: ADMIN only
+- Auth: ADMIN only (`authorize(req, { allowedRoles: ["ADMIN"] })`)
 - Query: `?status=SUBMITTED` (optional filter)
 - Response: `{ submissions: Submission[] }`
 
@@ -319,20 +319,21 @@ API Owner: **P3** | UI Owner: **P5**
 
 - Auth: ADMIN only
 - Body: `{ pointsAwarded?: number }`
+- Validation: `0 <= pointsAwarded <= submission.maxPoints`
 - Response: `{ submission: Submission }` (status = APPROVED)
-- Side-effects: Emits `SUBMISSION_APPROVED`; if `pointsAwarded > 0`, creates `PointTransaction` + emits `POINTS_ASSIGNED`; triggers streak recomputation
+- Side-effects: Emits `SUBMISSION_APPROVED`; if `pointsAwarded > 0`, emits `POINTS_ASSIGNED`; triggers streak recomputation
 
 ### `POST /api/admin/submissions/:id/reject`
 
 - Auth: ADMIN only
-- Body: `{ feedback: string }`
+- Body: `{ feedback: string }` (minimum 3 characters)
 - Response: `{ submission: Submission }` (status = REJECTED)
 - Side-effects: Emits `SUBMISSION_REJECTED`
 
 ### `POST /api/admin/submissions/:id/request-revision`
 
 - Auth: ADMIN only
-- Body: `{ feedback: string }`
+- Body: `{ feedback: string }` (minimum 3 characters)
 - Response: `{ submission: Submission }` (status = REVISION_REQUESTED)
 - Side-effects: Emits `SUBMISSION_REVISION_REQUESTED`
 
@@ -382,4 +383,4 @@ Owner: **P5**
 
 ---
 
-_Last updated: 2026-10-27 · Phase 1 output · No product code written_
+_Last updated: 2026-10-28 · Phase 6 Admin Review Queue complete_

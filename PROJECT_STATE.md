@@ -22,36 +22,54 @@ PRAX — an invite-only team platform. Members complete tasks, earn points and s
 /PRAx
 ├── src/
 │   ├── app/
-│   │   ├── api/
-│   │   │   └── health/route.ts   ← Health check (no auth)
-│   │   ├── globals.css
+│   │   ├── (20 desktop screens across 25 Next.js App Router routes)
+│   │   ├── admin/             ← Review queue, task manager, editor, members, rubric, moderation
+│   │   ├── api/health/        ← Health check (no auth)
+│   │   ├── chat/              ← Community chat & rules modal
+│   │   ├── dashboard/         ← Member dashboard
+│   │   ├── leaderboard/       ← Weekly & all-time podium
+│   │   ├── login/             ← Split auth screen
+│   │   ├── members/[id]/      ← Public member profile
+│   │   ├── onboarding/        ← Application queue
+│   │   ├── profile/           ← Builder profile
+│   │   ├── settings/          ← Account preferences
+│   │   ├── space/             ← Personal private space
+│   │   ├── streaks/           ← Streaks & heatmap
+│   │   ├── submissions/       ← Submissions table
+│   │   ├── tasks/             ← Tasks list & detail
+│   │   ├── globals.css        ← Tailwind v4 theme & color tokens
 │   │   ├── layout.tsx
 │   │   └── page.tsx
+│   ├── components/
+│   │   ├── layout/            ← MemberSidebar, AdminSidebar, TopNav, AppShell
+│   │   ├── profile/           ← ProfileView (shared builder profile view)
+│   │   └── ui/                ← Button, Badge, Card, Input, Avatar, StatCard, Tabs, Modal
 │   └── lib/
-│       ├── env.ts                ← Centralised env var access
-│       ├── errors.ts             ← Standard API error utility (MVP_SPEC §8)
-│       └── errors.test.ts        ← Vitest suite (8/8 tests pass)
+│       ├── design-tokens.ts   ← Centralized color & design tokens
+│       ├── env.ts             ← Centralised env var access
+│       ├── errors.ts          ← Standard API error utility (MVP_SPEC §8)
+│       └── errors.test.ts     ← Vitest suite (8/8 tests pass)
 ├── public/
-├── .env.example                  ← Placeholder env template
-├── .gitignore                    ← Secret, build, and node_modules exclusions
+├── .env.example               ← Placeholder env template
+├── .gitignore                 ← Secret, build, and node_modules exclusions
 ├── .prettierrc / .prettierignore
 ├── eslint.config.mjs
 ├── next.config.ts
 ├── package.json
-├── README.md                     ← Developer setup guide
+├── README.md                  ← Developer setup guide
 ├── tsconfig.json
 ├── vitest.config.ts
 │
-├── AGENTS.md                     ← Global agent rules
-├── AGENT_HANDOFF.md              ← Handover document
-├── API_CONTRACTS.md              ← Endpoint contracts and error shapes
-├── CHANGELOG_DEV.md              ← Chronological dev changes
-├── DECISIONS.md                  ← Architecture decision log & assumptions
-├── MVP_SPEC.md                   ← Product specification & ownership matrix
-├── PROJECT_STATE.md              ← Current repository state
-├── SECURITY_NOTES.md             ← Security risks and mitigations
-├── TEST_LOG.md                   ← Verifiable test execution records
-└── TODO_NEXT.md                  ← Prioritised task list
+├── AGENTS.md                  ← Global agent rules
+├── AGENT_HANDOFF.md           ← Handover document
+├── API_CONTRACTS.md           ← Endpoint contracts and error shapes
+├── CHANGELOG_DEV.md           ← Chronological dev changes
+├── DECISIONS.md               ← Architecture decision log & assumptions
+├── MVP_SPEC.md                ← Product specification & ownership matrix
+├── PROJECT_STATE.md           ← Current repository state
+├── SECURITY_NOTES.md          ← Security risks and mitigations
+├── TEST_LOG.md                ← Verifiable test execution records
+└── TODO_NEXT.md               ← Prioritised task list
 ```
 
 ## Completed Phases
@@ -59,36 +77,94 @@ PRAX — an invite-only team platform. Members complete tasks, earn points and s
 - Phase 0: Repository reconnaissance and safe setup ✅
 - Phase 1: Product requirements, architecture and interface contracts ✅
 - Phase 2: Minimal app foundation and developer workflow ✅
+- UI Design System: Complete high-fidelity PRAX UI implementation across all 20 PDF screens ✅
+- Phase 3 (Auth & Invites): Email authentication flow (password + magic links), invite code lifecycle, rate limiting, and session management ✅
+- Phase 4 (Onboarding & Approval State Machine): User lifecycle state machine, server-side authorization guards, self-action prevention, immutable secret-scrubbed audit trail, admin lifecycle routes, and live onboarding/members UI ✅
+- Phase 5 (RBAC & Route/API Protection): Centralized RBAC engine, deny-by-default authorization, permission matrix, Next.js Proxy Middleware, direct URL/API route protection, data ownership checks, and role tampering/stale session defense ✅
+- Phase 6 (Admin Review Queue & Review Efficiency): 3-column desktop review workspace, submissions store, review API routes (approve/reject/request-revision), pending age badges, keyboard shortcuts, safe proof link rendering, loading/empty/error states, and 15 new tests ✅
 
 ## Current Branch / Commit
 
 - Git: Initialized
 - Branch: `main`
-- Commit: Phase 2 changes ready for commit
+- HEAD: `05e6cbc` (`feat: complete Phase 2 minimal app foundation and developer workflow`)
+- Working tree: UI Design System + Phase 3 Auth/Invites + Phase 4 Lifecycle + Phase 5 RBAC & Proxy + Phase 6 Admin Review Queue fully implemented, verified, and passing all checks.
 
 ## What Works
 
-- Next.js 16 App Router application builds and runs clean (`npm run build`).
-- `GET /api/health` status route (HTTP 200, status/timestamp/env).
-- Centralized environment variable validator (`src/lib/env.ts`).
-- Standard API error envelope with typed error codes (`src/lib/errors.ts`).
-- Vitest unit test suite passes: 8 tests in `src/lib/errors.test.ts`.
-- Full developer workflow verified: `typecheck`, `lint`, `format:check`, `test`, `build`.
-- Complete local setup guide in `README.md`.
-- No feature UI built; no production secrets or unnecessary packages added.
+- **Admin Review Queue & Review Efficiency (Phase 6)**:
+  - Thread-safe in-memory submissions store (`src/lib/db/submissions-store.ts`) with pre-seeded submissions of varying ages.
+  - Review queue API routes: `GET /api/admin/submissions` (listing with status filter), `POST .../approve` (points validation 0 ≤ pts ≤ maxPoints), `POST .../reject` (mandatory feedback ≥ 3 chars), `POST .../request-revision` (mandatory feedback ≥ 3 chars). All guarded by `authorize(req, { allowedRoles: ["ADMIN"] })`.
+  - Safe URL validation (`src/lib/utils/url.ts`): `isSafeUrl()` and `sanitizeUrl()` block `javascript:`, `data:`, `vbscript:` protocols. Proof links rendered with `rel="noopener noreferrer" target="_blank"`.
+  - 3-column desktop review workspace (`src/app/admin/page.tsx`): Column 1 searchable queue with pending age badges (neutral <12h, warning 12–24h, danger >24h); Column 2 submission detail with task rules and proof links; Column 3 rubric scoring sliders and feedback.
+  - Documented keyboard shortcuts: `A` approve, `R` reject, `V` request revision, `J`/`K` navigate queue, `?` toggle shortcut modal.
+  - Loading skeleton, empty ("All Caught Up!"), and error states with retry.
+  - All review actions emit audit events (`SUBMISSION_APPROVED`, `SUBMISSION_REJECTED`, `SUBMISSION_REVISION_REQUESTED`, `POINTS_ASSIGNED`).
+- **Centralized RBAC Engine & Route Protection (Phase 5)**:
+  - Granular permission matrix (`src/lib/auth/rbac.ts`) for Visitor, Member, and Admin roles adhering to `MVP_SPEC.md §2`.
+  - Strict deny-by-default: unknown roles (e.g. `"SUPER_ADMIN"`, `"HACKER"`, empty string) and unlisted permissions evaluate to `false` and return HTTP 403 `FORBIDDEN`.
+  - Data resource ownership guard: `canAccessResource(user, resourceOwnerId)` enforces that members can only access their own private records, with admin override where permitted.
+  - Next.js 16 Proxy Middleware (`src/proxy.ts`): Intercepts direct URL navigation and API requests. Unauthenticated visitors are redirected to `/login`; pending members are redirected to `/onboarding`; approved members attempting direct navigation to `/admin/*` are redirected to `/dashboard?error=access_denied`; unauthorized API calls return HTTP 401/403.
+  - Enhanced server-side authorization guards (`src/lib/auth/guard.ts`): `authorize()`, `requireRole()`, `requirePermission()`, and `requireAuth()` enforce role and permission checks, reject stale/expired sessions, and reject tampered tokens.
+- **User Lifecycle State Machine & Server Authorization (Phase 4)**:
+  - Strict server-side transition table (`PENDING_APPROVAL` → `APPROVED`, `REJECTED`, `DISABLED`; `APPROVED` → `SUSPENDED`, `DISABLED`; `SUSPENDED` → `APPROVED`, `DISABLED`; `DISABLED` is terminal).
+  - Validation blocks invalid transitions with standard HTTP 422 `INVALID_STATE_TRANSITION`.
+  - Self-action guard: admins cannot approve, reject, suspend, unsuspend, or disable themselves (`actor.id === targetUserId` returns HTTP 403 `FORBIDDEN`).
+  - Mandatory reason validation (minimum 3 non-whitespace characters) for `REJECTED`, `SUSPENDED`, and `DISABLED` states.
+  - Server-side authorization guard (`src/lib/auth/guard.ts`) validating session tokens, roles, and user lifecycle statuses.
+  - Access control boundaries: visitors get 401 `UNAUTHENTICATED`; pending users get 403 `ACCOUNT_PENDING` on member endpoints but have access to `/onboarding` and `GET /api/users/me`; inactive accounts (`REJECTED`, `SUSPENDED`, `DISABLED`) get 403 `ACCOUNT_NOT_ACTIVE`.
+- **Audit Logging Engine (Phase 4)**:
+  - Append-only, immutable audit trail (`src/lib/audit/audit.ts`) recording actor ID, target user/resource, prior state, new state, reason, timestamp, and metadata.
+  - Automated recursive secret scrubbing: any metadata keys matching `password`, `token`, `secret`, `hash`, `salt`, `credential`, `cookie` are redacted to `[REDACTED]`.
+  - Queryable admin audit log route: `GET /api/admin/audit-log` with pagination, event filtering, and date range support.
+- **Admin Management API Routes (Phase 4)**:
+  - `GET /api/admin/users`: lists users with status filtering and password scrubbing.
+  - `POST /api/admin/users/[id]/approve`: approves user and logs `USER_APPROVED`.
+  - `POST /api/admin/users/[id]/reject`: rejects user with mandatory reason and logs `USER_REJECTED`.
+  - `POST /api/admin/users/[id]/suspend`: suspends user with mandatory reason and logs `USER_SUSPENDED`.
+  - `POST /api/admin/users/[id]/unsuspend`: reactivates user to approved state and logs `USER_UNSUSPENDED`.
+  - `POST /api/admin/users/[id]/disable`: disables user with mandatory reason and logs `USER_DISABLED`.
+- **UI Integration (Phase 4)**:
+  - Member management (`/admin/members`): live fetching of pending applications and active invite codes, real one-click approval and rejection with reason prompt, and audit logging.
+  - Onboarding queue (`/onboarding`): polling/verifying user status against `GET /api/users/me` with automatic redirection to `/dashboard` when approved.
+- **Authentication System (Phase 3)**:
+  - Salted and hashed password authentication (`crypto.scrypt` with random salt and constant-time verification).
+  - Passwordless magic link request and verification (`crypto.randomBytes(32)` high-entropy token, SHA-256 hash storage, 15-minute TTL, single-use invalidation).
+  - Stateless tamper-proof signed session cookies (`prax_session`) using HMAC-SHA256, `httpOnly: true`, `secure: true`, `sameSite: 'lax'`, 7-day expiration.
+  - Public registration (`POST /api/auth/register`) with invite code validation and automatic placement into `PENDING_APPROVAL`.
+  - Current user session route (`GET /api/users/me`) with 401 unauthenticated guard.
+  - Logout endpoint (`POST /api/auth/logout`) that securely clears session cookies.
+- **Invite Code Lifecycle & Security (Phase 3)**:
+  - Secure random invite codes (`PRAX-XXXX-XXXX`, 12-char entropy).
+  - Strict lifecycle states: `ACTIVE`, `USED`, `EXPIRED`, `REVOKED`.
+  - Atomic check-and-increment of `usedCount` with terminal state transition when exhausted.
+  - Public rate-limited verification endpoint (`POST /api/invites/verify`).
+  - Admin-only invite management (`POST /api/invites`, `GET /api/invites`, `DELETE /api/invites/:id`).
+- **Rate Limiting Engine (Phase 3)**:
+  - In-memory sliding-window rate limiter protecting login, magic link, registration, and invite verification against brute-forcing and credential stuffing.
+  - Returns standard HTTP 429 `RATE_LIMITED` error envelope.
+- **Visual Design System**: Aligned with `PRAX_Redesigned_High_Fidelity_Desktop_UI.pdf`. Dark navy sidebar (`#171B2A`), light warm-gray background (`#F7F6F4`), surface white (`#FFFFFF`), primary purple (`#6254E8`), soft lavender (`#EEE9FF`), and accessible semantic state badges.
+- **Reusable Component Library**: `Button`, `Badge`, `Card`, `Input`, `Avatar`, `StatCard`, `Tabs`, `Modal` in `src/components/ui/`.
+- **App Shells**: Persistent `MemberSidebar`, `AdminSidebar`, and `TopNav` with breadcrumbs, streak badge, points diamond, search, and user avatar.
+- **All Reference Screens Implemented (40+ App Router Routes total)**.
+- **Verification & Testing**:
+  - `npm run typecheck`: PASS (0 errors)
+  - `npm test`: PASS (130/130 tests across 6 suites: `review-queue.test.ts` [15], `rbac.test.ts` [34], `state-machine.test.ts` [23], `auth.test.ts` [35], `errors.test.ts` [8], `components.test.tsx` [15])
+  - `npm run lint`: PASS (0 errors, 0 warnings)
+  - `npm run format:check`: PASS (Prettier clean across all files)
+  - `npm run build`: PASS (Turbopack successfully compiles all routes + Proxy)
 
 ## What Is Broken / Open
 
-- D-004 (auth strategy) and D-005 (DB hosting) still PENDING team approval.
-- Prisma schema not yet scaffolded (scheduled for Phase 3).
-- 4 devDependency vulnerabilities reported by npm audit in vitest test runner (recorded in `SECURITY_NOTES.md`).
+- D-005 (DB hosting) pending team agreement before Prisma database migrations.
+- D-003 (real-time chat approach) pending before chat backend work.
+- Vitest devDependency audit flags documented in `SECURITY_NOTES.md`.
 
 ## Exact Next Action
 
-1. Team reviews and decides D-004 (auth strategy) and D-005 (DB hosting).
-2. Begin Phase 3: Prisma schema v1 (`User`, `InviteCode`, `Task`, `Submission`, `PointTransaction`, `Streak`, `AuditLog`) + database migrations + IC-02 fulfillment.
+1. Commit working tree (UI Design System + Phase 3–6 all implemented).
+2. Begin Phase 7 — Tasks, Submissions & Scoring Engine.
 
 ---
 
-_Last updated: 2026-10-27_
-
+_Last updated: 2026-10-28 · Phase 6 Admin Review Queue Complete_
