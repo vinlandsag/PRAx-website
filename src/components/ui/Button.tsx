@@ -1,7 +1,9 @@
 import React from "react";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "danger" | "outline" | "lavender";
+  variant?:
+    "primary" | "secondary" | "ghost" | "danger" | "outline" | "lavender" | "text" | "destructive";
+  iconOnly?: boolean;
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
@@ -19,37 +21,46 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       rightIcon,
       className = "",
       disabled,
+      iconOnly = false,
+      type = "button",
       ...props
     },
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-medium transition-all duration-150 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2";
+      "inline-flex items-center justify-center font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 select-none focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2 max-sm:min-h-11 max-sm:min-w-11";
 
     const variantStyles = {
-      primary: "bg-primary text-white hover:bg-primary-hover shadow-xs active:scale-[0.99]",
+      primary:
+        "bg-primary text-white enabled:hover:bg-primary-hover shadow-xs enabled:active:bg-primary-pressed",
       secondary:
-        "bg-surface text-text border border-border hover:bg-surface-hover hover:border-border-subtle shadow-xs active:scale-[0.99]",
-      ghost: "bg-transparent text-text-secondary hover:bg-border-subtle hover:text-text",
+        "bg-surface text-text border border-border enabled:hover:bg-surface-hover enabled:active:bg-border-subtle shadow-xs",
+      ghost:
+        "bg-transparent text-text-secondary enabled:hover:bg-border-subtle enabled:hover:text-text enabled:active:bg-border",
       danger:
-        "bg-danger-bg text-danger-text border border-danger-border hover:brightness-95 active:scale-[0.99]",
+        "bg-danger-bg text-danger-text border border-danger-border enabled:hover:brightness-95 enabled:active:brightness-90",
       outline:
-        "bg-surface text-primary border border-primary/30 hover:bg-lavender hover:border-primary active:scale-[0.99]",
-      lavender: "bg-lavender text-lavender-text hover:bg-lavender-border active:scale-[0.99]",
+        "bg-surface text-primary border border-primary/30 enabled:hover:bg-lavender enabled:hover:border-primary enabled:active:bg-lavender-border",
+      lavender:
+        "bg-lavender text-lavender-text enabled:hover:bg-lavender-border enabled:active:brightness-95",
+      text: "text-primary enabled:hover:bg-lavender enabled:active:bg-lavender-border",
+      destructive:
+        "bg-danger-bg text-danger-text border border-danger-border enabled:hover:brightness-95 enabled:active:brightness-90",
     };
 
     const sizeStyles = {
-      sm: "text-xs px-3 py-1.5 rounded-lg gap-1.5 min-h-[32px]",
-      md: "text-sm px-4 py-2 rounded-xl gap-2 min-h-[40px]",
-      lg: "text-base px-5 py-2.5 rounded-xl gap-2.5 min-h-[46px]",
+      sm: "text-[11px] px-2.5 rounded-md gap-1.5 min-h-(--control-sm)",
+      md: "text-xs px-3 rounded-md gap-1.5 min-h-(--control-md)",
+      lg: "text-sm px-4 rounded-lg gap-2 min-h-(--control-lg)",
     };
 
     return (
       <button
         ref={ref}
+        type={type}
         disabled={disabled || isLoading}
         aria-busy={isLoading}
-        className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+        className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${iconOnly ? "aspect-square px-2" : ""} ${className}`}
         {...props}
       >
         {isLoading ? (
@@ -73,7 +84,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           leftIcon
         )}
-        <span>{children}</span>
+        <span className="inline-flex items-center gap-1.5">{children}</span>
         {!isLoading && rightIcon}
       </button>
     );

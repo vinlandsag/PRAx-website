@@ -1,258 +1,551 @@
 "use client";
-
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
-import { Tabs } from "@/components/ui/Tabs";
-import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  EmptyState,
+  Input,
+  Modal,
+  Notice,
+  Progress,
+  Select,
+  Skeleton,
+  Tabs,
+  Textarea,
+} from "@/components/ui";
+import { useWorkspace } from "@/lib/workspace/use-workspace";
+import { filterTodos } from "@/lib/workspace/filter";
+import { todayIST, type Difficulty, type Todo, type WorkspaceData } from "@/lib/workspace/types";
 
-interface Todo {
-  id: string;
+type Section = "todos" | "notes" | "goals";
+type Draft = {
   title: string;
-  subtext: string;
-  priority: "High" | "Medium" | "Low";
+  description: string;
+  content: string;
+  difficulty: Difficulty;
+  priority: Todo["priority"];
+  dueDate: string;
   completed: boolean;
-}
-
+  progress: number;
+};
+const blank: Draft = {
+  title: "",
+  description: "",
+  content: "",
+  difficulty: "Medium",
+  priority: "Medium",
+  dueDate: "",
+  completed: false,
+  progress: 0,
+};
 export default function PersonalSpacePage() {
-  const [activeTab, setActiveTab] = useState("todos");
-  const [todos, setTodos] = useState<Todo[]>([
-    {
-      id: "1",
-      title: "Profile the feed query",
-      subtext: "Linked to: Optimise SQL task · Today",
-      priority: "High",
-      completed: false,
-    },
-    {
-      id: "2",
-      title: "Sketch onboarding flow v2",
-      subtext: "Personal project · Today",
-      priority: "Medium",
-      completed: false,
-    },
-    {
-      id: "3",
-      title: "Prepare portfolio update",
-      subtext: "Portfolio · Tomorrow",
-      priority: "Medium",
-      completed: false,
-    },
-    {
-      id: "4",
-      title: "Read chapter 4",
-      subtext: "Learning · Completed",
-      priority: "Low",
-      completed: true,
-    },
-  ]);
-  const [newTodoText, setNewTodoText] = useState("");
-
-  const toggleTodo = (id: string) => {
-    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
+  return (
+    <Suspense fallback={<Skeleton className="h-48" label="Loading personal space" />}>
+      <SpaceLoader />
+    </Suspense>
+  );
+}
+function SpaceLoader() {
+  const api = useWorkspace();
+  const params = useSearchParams();
+  if (!api.data)
+    return (
+      <AppShell breadcrumbs={["PRAX", "Personal Space"]}>
+        <h1 className="mb-5 text-2xl font-bold">Personal Space</h1>
+        {api.error ? (
+          <Notice tone="danger">
+            {api.error}
+            <Button onClick={() => void api.refresh()}>Retry</Button>
+          </Notice>
+        ) : (
+          <Skeleton className="h-48" label="Loading personal space" />
+        )}
+      </AppShell>
+    );
+  return (
+    <SpaceContent
+      key={`${api.data.user.id}:${params.toString()}`}
+      {...api}
+      data={api.data}
+      params={params.toString()}
+    />
+  );
+}
+function SpaceContent({
+  data,
+  error,
+  saving,
+  mutate,
+  refresh,
+  params,
+}: { data: WorkspaceData; params: string } & Omit<ReturnType<typeof useWorkspace>, "data">) {
+  const search = new URLSearchParams(params);
+  const requested = search.get("tab");
+  const initial: Section = requested === "notes" || requested === "goals" ? requested : "todos";
+  const item = data[initial].find((i) => i.id === search.get("item"));
+  const [tab, setTab] = useState<Section>(initial),
+    [filter, setFilter] = useState("all"),
+    [difficulty, setDifficulty] = useState("all"),
+    [query, setQuery] = useState("");
+  const [editor, setEditor] = useState<{ section: Section; id?: string; editing: boolean } | null>(
+      item ? { section: initial, id: item.id, editing: false } : null
+    ),
+    [draft, setDraft] = useState<Draft>({ ...blank, ...item }),
+    [remove, setRemove] = useState(false),
+    [notice, setNotice] = useState("");
+  const open = (section: Section, id?: string) => {
+    const item = id ? data[section].find((item) => item.id === id) : undefined;
+    setDraft({ ...blank, ...item });
+    setEditor({ section, id, editing: !id });
+    setRemove(false);
   };
-
-  const handleAddTodo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTodoText.trim()) return;
-    setTodos((prev) => [
-      {
-        id: Date.now().toString(),
-        title: newTodoText.trim(),
-        subtext: "Personal project · Today",
-        priority: "Medium",
-        completed: false,
-      },
-      ...prev,
-    ]);
-    setNewTodoText("");
-  };
-
-  const getPriorityBadge = (p: Todo["priority"]) => {
-    switch (p) {
-      case "High":
-        return (
-          <Badge variant="danger" size="sm">
-            High
-          </Badge>
-        );
-      case "Medium":
-        return (
-          <Badge variant="info" size="sm">
-            Medium
-          </Badge>
-        );
-      case "Low":
-        return (
-          <Badge variant="lavender" size="sm">
-            Low
-          </Badge>
-        );
+  const update = (key: keyof Draft, value: string | number | boolean) =>
+    setDraft((d) => ({ ...d, [key]: value }));
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editor) return;
+    const fields =
+      editor.section === "todos"
+        ? {
+            title: draft.title,
+            description: draft.description,
+            difficulty: draft.difficulty,
+            priority: draft.priority,
+            dueDate: draft.dueDate,
+            completed: draft.completed,
+          }
+        : editor.section === "notes"
+          ? { title: draft.title, content: draft.content }
+          : { title: draft.title, description: draft.description, progress: draft.progress };
+    if (
+      await mutate({
+        resource: editor.section,
+        operation: editor.id ? "update" : "create",
+        id: editor.id,
+        data: fields,
+      })
+    ) {
+      setEditor(null);
+      setNotice("Changes saved.");
     }
   };
-
+  const destroy = async () => {
+    if (
+      editor?.id &&
+      (await mutate({ resource: editor.section, operation: "delete", id: editor.id }))
+    ) {
+      setEditor(null);
+      setNotice("Item removed.");
+    }
+  };
+  const todos = data ? filterTodos(data.todos, filter, difficulty, query) : [];
   return (
     <AppShell breadcrumbs={["PRAX", "Personal Space"]}>
-      {/* Title */}
-      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text">
-            Personal Space
-          </h1>
-          <p className="text-xs sm:text-sm text-text-muted mt-1">
-            Plan privately. Build on your terms.
-          </p>
+          <h1 className="text-2xl font-bold">Personal Space</h1>
+          <p className="mt-1 text-xs text-text-muted">Plan privately. Build on your terms.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-border-subtle text-text-muted text-xs font-medium border border-border">
-            <span>🔒</span>
-            <span>Private to you</span>
-          </div>
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<span>+</span>}
-            onClick={() => document.getElementById("new-todo-input")?.focus()}
-          >
-            New to-do
-          </Button>
+        <Button disabled={!data} onClick={() => open(tab)}>
+          New {tab === "todos" ? "to-do" : tab === "notes" ? "note" : "goal"}
+        </Button>
+      </div>
+      {notice && (
+        <div className="mb-4">
+          <Notice tone="success">{notice}</Notice>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-6">
-        <Tabs
-          activeTab={activeTab}
-          onChange={setActiveTab}
-          tabs={[
-            { id: "todos", label: "To-dos" },
-            { id: "notes", label: "Notes", count: 6 },
-            { id: "goals", label: "Goals", count: 3 },
-          ]}
-        />
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column (8 cols): To-dos Card */}
-        <Card className="lg:col-span-8 p-6 sm:p-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-text">Your to-dos</h2>
-            <div className="flex items-center gap-2 text-xs text-text-muted font-medium">
-              <span>Today · 4</span>
-              <span>·</span>
-              <span>Upcoming · 6</span>
-              <span>·</span>
-              <span>Done · 12</span>
-            </div>
-          </div>
-
-          {/* Quick Add Input */}
-          <form onSubmit={handleAddTodo} className="relative mb-6">
-            <input
-              id="new-todo-input"
-              type="text"
-              value={newTodoText}
-              onChange={(e) => setNewTodoText(e.target.value)}
-              placeholder="+ Add a to-do… ↵"
-              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-text placeholder:text-text-faint focus-visible:outline-none focus-visible:border-primary"
-            />
-          </form>
-
-          {/* To-do List */}
-          <div className="flex flex-col divide-y divide-border-subtle">
-            {todos.map((todo) => (
-              <div key={todo.id} className="py-3.5 flex items-center justify-between gap-3 group">
-                <div className="flex items-center gap-3 min-w-0">
-                  <button
-                    onClick={() => toggleTodo(todo.id)}
-                    className={`h-5 w-5 rounded-md border flex items-center justify-center text-xs transition-colors cursor-pointer shrink-0 ${
-                      todo.completed
-                        ? "bg-primary border-primary text-white"
-                        : "border-border hover:border-primary bg-surface"
-                    }`}
+      )}
+      {error && (
+        <div className="mb-4">
+          <Notice tone="danger">
+            {error}{" "}
+            <Button size="sm" variant="text" onClick={() => void refresh()}>
+              Retry
+            </Button>
+          </Notice>
+        </div>
+      )}
+      {!data && !error && <Skeleton label="Loading personal space" className="h-48" />}
+      {data && (
+        <>
+          <Tabs
+            label="Personal space sections"
+            activeTab={tab}
+            onChange={(id) => {
+              setTab(id as Section);
+              setQuery("");
+            }}
+            tabs={[
+              { id: "todos", label: "To-dos", count: data.todos.length },
+              { id: "notes", label: "Notes", count: data.notes.length },
+              { id: "goals", label: "Goals", count: data.goals.length },
+            ]}
+          />
+          <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(240px,1fr)]">
+            <Card className="p-5">
+              <h2 className="mb-4 text-sm font-bold">
+                {tab === "todos" ? "Your to-dos" : tab === "notes" ? "Your notes" : "Your goals"}
+              </h2>
+              <Input
+                label={`Search ${tab === "todos" ? "to-dos" : tab}`}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search titles and details"
+              />
+              {tab === "todos" && (
+                <>
+                  <div className="my-4 flex flex-wrap gap-2">
+                    {["all", "today", "upcoming", "done"].map((value) => (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={filter === value ? "primary" : "secondary"}
+                        aria-pressed={filter === value}
+                        onClick={() => setFilter(value)}
+                      >
+                        {value[0].toUpperCase() + value.slice(1)} (
+                        {filterTodos(data.todos, value, "all", "").length})
+                      </Button>
+                    ))}
+                  </div>
+                  <Select
+                    label="Filter by difficulty"
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value)}
                   >
-                    {todo.completed && "✓"}
-                  </button>
-                  <div className="flex flex-col min-w-0">
-                    <span
-                      className={`text-xs sm:text-sm font-semibold truncate ${
-                        todo.completed ? "line-through text-text-muted" : "text-text"
-                      }`}
-                    >
-                      {todo.title}
-                    </span>
-                    <span className="text-[11px] text-text-muted truncate">{todo.subtext}</span>
+                    <option value="all">All difficulties</option>
+                    {["Easy", "Medium", "Hard"].map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </Select>
+                  <div className="mt-4 divide-y divide-border">
+                    {todos.map((todo) => (
+                      <div key={todo.id} className="flex items-start gap-3 py-4">
+                        <div className="w-5 shrink-0">
+                          <Checkbox
+                            aria-label={`Mark ${todo.title} ${todo.completed ? "incomplete" : "complete"}`}
+                            checked={todo.completed}
+                            disabled={saving}
+                            onChange={(e) =>
+                              void mutate({
+                                resource: "todos",
+                                operation: "update",
+                                id: todo.id,
+                                data: { completed: e.target.checked },
+                              })
+                            }
+                          />
+                        </div>
+                        <button
+                          onClick={() => open("todos", todo.id)}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <span
+                            className={`block break-words text-xs font-semibold ${todo.completed ? "text-text-muted line-through" : "text-text"}`}
+                          >
+                            {todo.title}
+                          </span>
+                          <span className="mt-1 block text-[11px] text-text-muted">
+                            {todo.dueDate
+                              ? `Due ${todo.dueDate}${todo.dueDate < todayIST() && !todo.completed ? " · Overdue" : ""}`
+                              : "No due date"}{" "}
+                            · {todo.priority} priority
+                          </span>
+                        </button>
+                        <Badge
+                          size="sm"
+                          variant={
+                            todo.difficulty === "Hard"
+                              ? "warning"
+                              : todo.difficulty === "Easy"
+                                ? "success"
+                                : "lavender"
+                          }
+                        >
+                          {todo.difficulty}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                {getPriorityBadge(todo.priority)}
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-6 mt-6 border-t border-border-subtle text-xs text-text-muted">
-            Private by default · Completing to-dos does not affect PRAX points or streak.
-          </div>
-        </Card>
-
-        {/* Right Column (4 cols): Goals & Quick Notes */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* Your Goals Card */}
-          <Card className="p-5 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-text">Your goals</h3>
-              <span className="text-xs text-primary font-semibold cursor-pointer hover:underline">
-                Open all →
-              </span>
-            </div>
-            <div className="flex flex-col gap-4">
-              {[
-                { title: "Ship three side projects", pct: 66 },
-                { title: "Master PostgreSQL internals", pct: 40 },
-                { title: "Write every week", pct: 25 },
-              ].map((goal, idx) => (
-                <div key={idx} className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-text">{goal.title}</span>
-                    <span className="font-mono text-text-muted">{goal.pct}%</span>
-                  </div>
-                  <div className="w-full bg-border-subtle h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-primary h-full rounded-full transition-all duration-300"
-                      style={{ width: `${goal.pct}%` }}
+                  {!todos.length && (
+                    <EmptyState
+                      title="No matching to-dos"
+                      description="Change your filters or add a to-do."
+                      action={<Button onClick={() => open("todos")}>New to-do</Button>}
                     />
-                  </div>
+                  )}
+                </>
+              )}
+              {tab === "notes" && (
+                <div className="mt-4 space-y-3">
+                  {data.notes
+                    .filter((n) =>
+                      `${n.title} ${n.content}`.toLowerCase().includes(query.trim().toLowerCase())
+                    )
+                    .map((note) => (
+                      <button
+                        key={note.id}
+                        onClick={() => open("notes", note.id)}
+                        className="w-full rounded-lg border border-border bg-background p-4 text-left"
+                      >
+                        <span className="block break-words text-xs font-bold">{note.title}</span>
+                        <span className="mt-2 block whitespace-pre-wrap break-words text-xs text-text-muted line-clamp-3">
+                          {note.content || "No details yet."}
+                        </span>
+                      </button>
+                    ))}
+                  {!data.notes.some((n) =>
+                    `${n.title} ${n.content}`.toLowerCase().includes(query.trim().toLowerCase())
+                  ) && (
+                    <EmptyState
+                      title="No matching notes"
+                      action={<Button onClick={() => open("notes")}>New note</Button>}
+                    />
+                  )}
                 </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Quick Notes Card */}
-          <Card className="p-5 sm:p-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-text">Quick notes</h3>
-              <span className="text-xs text-primary font-semibold cursor-pointer hover:underline">
-                New note +
-              </span>
-            </div>
-            <div className="p-3.5 rounded-xl bg-background border border-border flex flex-col gap-1.5">
-              <span className="text-[10px] font-bold tracking-wider text-text-muted uppercase">
-                IDEA / PRODUCT
-              </span>
-              <span className="text-xs font-bold text-text">Pricing page inspiration</span>
-              <p className="text-xs text-text-secondary leading-relaxed">
-                Try a split hero with spacious typography, tasteful motion, and a clear primary
-                action.
+              )}
+              {tab === "goals" && (
+                <div className="mt-4 space-y-4">
+                  {data.goals
+                    .filter((g) =>
+                      `${g.title} ${g.description}`
+                        .toLowerCase()
+                        .includes(query.trim().toLowerCase())
+                    )
+                    .map((goal) => (
+                      <button
+                        key={goal.id}
+                        onClick={() => open("goals", goal.id)}
+                        className="w-full rounded-lg border border-border p-4 text-left"
+                      >
+                        <Progress label={goal.title} value={goal.progress} showValue />
+                        <span className="mt-2 block break-words text-xs text-text-muted">
+                          {goal.description || "Add details to your goal."}
+                        </span>
+                      </button>
+                    ))}
+                  {!data.goals.some((g) =>
+                    `${g.title} ${g.description}`.toLowerCase().includes(query.trim().toLowerCase())
+                  ) && (
+                    <EmptyState
+                      title="No matching goals"
+                      action={<Button onClick={() => open("goals")}>New goal</Button>}
+                    />
+                  )}
+                </div>
+              )}
+              <p className="mt-5 border-t border-border pt-3 text-[11px] text-text-muted">
+                Private to your account · Personal plans do not award platform points or streaks.
               </p>
-              <span className="text-[11px] text-primary font-medium mt-1 cursor-pointer hover:underline inline-flex items-center gap-1">
-                <span>Research links & inspiration</span>
-                <span>↗</span>
-              </span>
+            </Card>
+            <div className="space-y-4">
+              <Card className="p-5">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-sm font-bold">Your goals</h3>
+                  <Button
+                    size="sm"
+                    variant="text"
+                    onClick={() => {
+                      setTab("goals");
+                      setQuery("");
+                    }}
+                  >
+                    Open all
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {data.goals.slice(0, 3).map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => open("goals", g.id)}
+                      className="w-full text-left"
+                    >
+                      <Progress label={g.title} value={g.progress} showValue />
+                    </button>
+                  ))}
+                  {!data.goals.length && (
+                    <p className="text-xs text-text-muted">Create your first goal.</p>
+                  )}
+                </div>
+              </Card>
+              <Card className="p-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-bold">Quick notes</h3>
+                  <Button size="sm" variant="text" onClick={() => open("notes")}>
+                    New note
+                  </Button>
+                </div>
+                {data.notes.slice(0, 2).map((n) => (
+                  <button
+                    key={n.id}
+                    className="mb-2 block w-full truncate rounded-md bg-background p-3 text-left text-xs font-semibold"
+                    onClick={() => open("notes", n.id)}
+                  >
+                    {n.title}
+                  </button>
+                ))}
+                {!data.notes.length && (
+                  <p className="text-xs text-text-muted">Capture an idea with New note.</p>
+                )}
+              </Card>
             </div>
-          </Card>
-        </div>
-      </div>
+          </div>
+        </>
+      )}
+      <Modal
+        isOpen={!!editor}
+        onClose={() => {
+          if (!saving) setEditor(null);
+        }}
+        title={
+          editor
+            ? `${editor.id ? (editor.editing ? "Edit" : "View") : "New"} ${editor.section === "todos" ? "to-do" : editor.section === "notes" ? "note" : "goal"}`
+            : "Item"
+        }
+        footer={
+          <>
+            {editor?.id && (
+              <Button
+                variant="destructive"
+                disabled={saving}
+                onClick={() => (remove ? void destroy() : setRemove(true))}
+              >
+                {remove ? "Confirm removal" : "Remove"}
+              </Button>
+            )}
+            {remove ? (
+              <Button variant="secondary" onClick={() => setRemove(false)}>
+                Keep item
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={() => setEditor(null)} disabled={saving}>
+                Close
+              </Button>
+            )}
+            {!remove &&
+              (editor?.editing ? (
+                <Button key="save" form="space-editor" type="submit" isLoading={saving}>
+                  Save changes
+                </Button>
+              ) : (
+                <Button
+                  key="edit"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setEditor((e) => (e ? { ...e, editing: true } : e));
+                  }}
+                >
+                  Edit
+                </Button>
+              ))}
+          </>
+        }
+      >
+        {error && <Notice tone="danger">{error}</Notice>}
+        {remove && <Notice tone="warning">Remove this item? This cannot be undone.</Notice>}
+        {editor?.editing ? (
+          <form id="space-editor" onSubmit={submit} className="space-y-4">
+            <Input
+              label="Title"
+              required
+              maxLength={200}
+              value={draft.title}
+              onChange={(e) => update("title", e.target.value)}
+            />
+            {editor.section === "notes" ? (
+              <Textarea
+                label="Note"
+                maxLength={5000}
+                value={draft.content}
+                onChange={(e) => update("content", e.target.value)}
+              />
+            ) : (
+              <Textarea
+                label="Description"
+                maxLength={5000}
+                value={draft.description}
+                onChange={(e) => update("description", e.target.value)}
+              />
+            )}
+            {editor.section === "todos" && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <Select
+                    label="Difficulty"
+                    value={draft.difficulty}
+                    onChange={(e) => update("difficulty", e.target.value)}
+                  >
+                    {["Easy", "Medium", "Hard"].map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </Select>
+                  <Select
+                    label="Priority"
+                    value={draft.priority}
+                    onChange={(e) => update("priority", e.target.value)}
+                  >
+                    {["Low", "Medium", "High"].map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </Select>
+                </div>
+                <Input
+                  label="Due date"
+                  type="date"
+                  value={draft.dueDate}
+                  onInput={(e) => update("dueDate", e.currentTarget.value)}
+                  onChange={(e) => update("dueDate", e.target.value)}
+                />
+                <Checkbox
+                  label="Completed"
+                  checked={draft.completed}
+                  onChange={(e) => update("completed", e.target.checked)}
+                />
+              </>
+            )}
+            {editor.section === "goals" && (
+              <Input
+                label="Progress (%)"
+                type="number"
+                min={0}
+                max={100}
+                required
+                value={draft.progress}
+                onChange={(e) => update("progress", Number(e.target.value))}
+              />
+            )}
+          </form>
+        ) : (
+          <div className="space-y-3">
+            <h3 className="break-words text-sm font-bold">{draft.title}</h3>
+            <p className="whitespace-pre-wrap break-words text-xs text-text-muted">
+              {editor?.section === "notes"
+                ? draft.content || "No note details."
+                : draft.description || "No description yet."}
+            </p>
+            {editor?.section === "todos" && (
+              <dl className="grid grid-cols-2 gap-2 text-xs">
+                <dt>Difficulty</dt>
+                <dd>{draft.difficulty}</dd>
+                <dt>Priority</dt>
+                <dd>{draft.priority}</dd>
+                <dt>Due date</dt>
+                <dd>{draft.dueDate || "Not set"}</dd>
+                <dt>Status</dt>
+                <dd>{draft.completed ? "Completed" : "Open"}</dd>
+              </dl>
+            )}
+            {editor?.section === "goals" && (
+              <Progress label="Progress" value={draft.progress} showValue />
+            )}
+          </div>
+        )}
+      </Modal>
     </AppShell>
   );
 }

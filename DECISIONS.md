@@ -1,5 +1,33 @@
 # DECISIONS.md
 
+## D-020 — profiles through interactions and temporary chat media (2026-10-29)
+
+The user's latest steering requests profile access from chat/leaderboard and removal of the Members section, plus images/video/files in chat. Keep the existing stack, shared primitives, authorization and process-local storage; no directory feature, new login accounts, external storage service or production deployment.
+
+Resolve public real profiles from existing approved auth records even before private workspace initialization. Project only profile fields and apply portfolio privacy. Do not expose email, credentials, private collections/settings, or inactive account details. Default public handles derive from ids, not email; unedited accounts have empty bio/skills. Existing sample people stay read-only, clearly labelled demo profiles, with no auth identities. Carry a whitelisted chat/leaderboard origin for the return link.
+
+Use native multipart uploads and a typed byte store as an interim local implementation pending D-005: 3 attachments / 30 MB per message, image 5 MB/video 25 MB/other file 10 MB, 60 MB per account and 128 MB total. Pending uploads are author-private, expire after 30 minutes and can be removed; message creation claims only the author's unclaimed files atomically. Shared message attachments are available only to approved members. Message deletion/eviction removes bytes. Native image/video previews and download links preserve existing styling; no autoplay or new decorative assets.
+
+Validate extension via own properties only and verify content signatures/UTF-8; force documents to attachment disposition with controlled MIME, encoded filenames and nosniff. This is format validation, not malware scanning. Apply bounded stream parsing before multipart decode; preserve original case-sensitive multipart header separately from Blob.type. Support byte ranges for video seeking. Next's installed docs specify a 10 MB default proxy buffer; set experimental.proxyClientMaxBodySize to 26mb to accommodate the route's 25 MB limit plus overhead. This does not choose durable database/object storage or a production chat transport.
+
+## D-019 — reference outline/glow cursor (2026-10-29)
+
+The user supplied an explicit pointer reference and asked to apply its appearance. This supersedes D-016's stipple treatment for the cursor only. Interpret it as a rounded dark arrow with a thin pale white-violet border and restrained violet glow, not additional workspace decoration. Provide the same treatment for the existing hand cursor so clickable semantics remain distinct.
+
+Use 32x32 transparent PNGs for the native CSS cursor images, retaining deterministic SVG authoring sources. SVG authoring uses a bounded Gaussian blur (1.8) for the static halo; exports bake it into RGBA PNG pixels, requiring no runtime filter/animation/JavaScript tracking. Arrow hotspot 8,8 and hand hotspot 13,6 align with the visible leading tips. Keep the existing fine-pointer/hover/forced-colors rule and native auto/pointer fallbacks, text I-beam and disabled not-allowed state. No mobile cursor overlay or new dependency.
+
+## D-018 — functional member controls within the existing stack (2026-10-29)
+
+The user's seven-part bug report explicitly authorizes wiring the existing screens beyond the earlier foundation-only scope. Reuse Next.js, existing auth/guards, UI primitives, safe URL handling and audit utility. No scaffolding, dependency, migration, secret or deployment change.
+
+Assumptions: “search engine” means the existing global search control; task filters combine category, status, text and sort; basic personal to-dos need description, selectable Easy/Medium/Hard difficulty, Low/Medium/High priority, date, completion and view/edit/remove. Notes and manually tracked goals get equivalent editors. Private plans never award points or streaks. A missing portfolio shows an add action rather than an invented external link.
+
+Use the repository's existing process-memory pattern for a typed per-account workspace store. Saves survive browser reload, not process restart; this is an interim local implementation pending D-005, not a database decision. Chat is a shared process-local stream with 15-second polling, author-only edits, author/admin deletion and admin pinning, preserving D-003's pending production transport choice. Audit pin/unpin/delete without raw message text.
+
+Keep existing sample ranking inputs explicitly illustrative; weekly/all-time switches the actual sample data and ranking, rather than merely styling tabs. Real ledger/activity wiring remains outside this fix. Persist notification settings without claiming configured email/push delivery. Photo editing accepts a validated image URL; uploading to storage is not introduced.
+
+Store only theme preference in localStorage. Initialize/read authoritative saved theme on navigation and broadcast successful mutation data to update views. Use dark semantic colors and separate filled-action colors so light violet links do not produce white text on a pale button. Dynamic query/param/path hooks stay behind Suspense per installed Next.js docs.
+
 Architecture and product decisions log. Each entry is permanent and reversibility is noted.
 
 > **Rule:** Do not change an existing decision without creating a new superseding entry.
@@ -44,3 +72,56 @@ These are PROPOSED until team signs off. Record sign-off date in a superseding r
 ---
 
 _Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete_
+
+
+## D-015 - PDF-audited foundation (2026-10-28)
+
+Retain Next.js 16.4.3, React 19.3, TypeScript, Tailwind v4 and existing exports. This request supersedes older screen-expansion plans for this session: implement only the shared foundation and review route. Existing screens remain intact.
+
+All 20 pages were studied before choosing tokens. `src/app/tokens.css` is canonical (`@theme static`); TypeScript colors/radii/shadows refer to CSS variables. Reserve shell measurements without constructing another shell. Follow sampled primary #6056E8, workspace #F7F6F3, sidebar #151B29, selected nav #4B49A5, neutral border #E7E6E3, and 12.75 px corners. This supersedes approximate palette/radii in D-007/D-008. Slightly darken muted/status text for readability.
+
+Explicit self-hosted official Inter variable font with no local() source; license retained. Use the existing Tailwind Turbopack loader. The original config had not wired it. Loader README's `as: "*.css"` caused Windows production-worker panics; the installed Next.js guide's `type: "css"` resolved them and built successfully. Allow only the additional loopback dev origin 127.0.0.1.
+
+Review route is available only in development, guarded by both proxy and server page. Asset prefixes /fonts/ and /artwork/ are public. Dialog uses unique IDs, portal, inert background, focus trap/restoration and scroll restoration. File upload validates one nonempty PNG/JPEG up to 5 MB and releases object URLs; no upload service is introduced. The pointer follow-up means native semantic cursors, without decorative pointer effects. Reversible: yes. Shared style corrections affect existing consumers; screen-level changes remain deferred.
+
+
+## D-016 - User-requested cursor texture (2026-10-28)
+
+The explicit texture follow-up supersedes D-015's native-only cursor choice. Use static 32 x 32 SVGs with violet stipple, navy outline and white keyline; arrow hotspot 4,3 and hand hotspot 12,3. No gradients, filters, animation, JavaScript tracking or hidden native pointer. Limit custom assets to (hover: hover), (pointer: fine), (forced-colors: none); keep text/disabled semantics and auto/pointer fallbacks. Existing styling and application screens otherwise unchanged. Reversible via two CSS tokens.
+
+
+## D-017 - Isolate profile avatar overlap (2026-10-29)
+
+The explicit screenshot bug request authorizes a focused correction to the existing profile header. Apply negative margin only to the avatar, never the whole identity row. Round the avatar's outer ring-bearing wrapper locally rather than changing shared Avatar behavior. Keep identity/actions in normal document flow and support wrapping; the name uses min-width:0, max-width:100% and overflow-wrap:anywhere after browser testing exposed clipping for a90-character unbroken name. Preserve existing banner/content/actions and backend behavior. Reversible: yes.
+
+Use an illustrative temporary server-gated development fixture for visual checks when no authenticated session is available; do not weaken route authorization. Remove the fixture before final build. Browser geometry and screenshot review are authoritative for this visual defect; jsdom tests cover preserved content/semantics only.
+
+### Local run request (2026-10-29)
+Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
+
+
+### npm terminal diagnosis (2026-10-29)
+Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
+
+
+### Windows terminal runtime follow-up (2026-10-29)
+User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
+
+
+### Windows Node/npm setup completed (2026-10-29)
+Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
+Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
+
+### Development server handed to user terminal (2026-10-29)
+User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
+
+### Git push readiness review (2026-10-29)
+User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
+Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
+
+### Authorized donel branch delivery (2026-10-29)
+The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
+The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
+
+Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
+

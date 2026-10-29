@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useWorkspace } from "@/lib/workspace/use-workspace";
 import { usePathname } from "next/navigation";
 import { Avatar } from "../ui/Avatar";
 
@@ -189,6 +190,7 @@ export const memberNavItems: NavItem[] = [
 
 function MemberSidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const pathname = usePathname();
+  const { data } = useWorkspace();
 
   return (
     <aside className="w-64 bg-sidebar text-white flex flex-col justify-between shrink-0 h-screen select-none border-r border-sidebar-hover">
@@ -276,19 +278,30 @@ function MemberSidebarContent({ onCloseMobile }: { onCloseMobile?: () => void })
         {/* Member profile widget */}
         <div className="flex items-center justify-between px-2 py-1.5 rounded-xl hover:bg-sidebar-hover/50 transition-colors">
           <div className="flex items-center gap-2.5 min-w-0">
-            <Avatar name="Arjun Varma" size="sm" colorScheme="purple" />
+            <Avatar
+              name={data?.profile.name || "Member"}
+              src={data?.profile.avatarUrl || undefined}
+              size="sm"
+              colorScheme="purple"
+            />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-white truncate">Arjun Varma</span>
-              <span className="text-[10px] text-sidebar-subtext truncate">Builder · Rank #7</span>
+              <span className="text-xs font-semibold text-white truncate">
+                {data?.profile.name || "Member"}
+              </span>
+              <span className="text-[10px] text-sidebar-subtext truncate">
+                {data?.user.role === "ADMIN" ? "Administrator" : "Builder"}
+              </span>
             </div>
           </div>
-          <Link
-            href="/admin"
-            title="Switch to Admin workspace"
-            className="text-[10px] text-sidebar-text hover:text-white px-2 py-1 rounded-md bg-sidebar-hover border border-sidebar-active shrink-0 ml-1"
-          >
-            Admin
-          </Link>
+          {data?.user.role === "ADMIN" && (
+            <Link
+              href="/admin"
+              title="Switch to Admin workspace"
+              className="text-[10px] text-sidebar-text hover:text-white px-2 py-1 rounded-md bg-sidebar-hover border border-sidebar-active shrink-0 ml-1"
+            >
+              Admin
+            </Link>
+          )}
         </div>
       </div>
     </aside>

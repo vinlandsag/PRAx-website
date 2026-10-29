@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { ProfileView } from "@/components/profile/ProfileView";
+import { EditableProfile } from "@/components/profile/EditableProfile";
 
 export default function MyProfilePage() {
-  return <ProfileView />;
+  return <EditableProfile />;
 }

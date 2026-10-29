@@ -7,94 +7,24 @@ import { Tabs } from "@/components/ui/Tabs";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 
-interface TaskItem {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  pointsMax: number;
-  deadline: string;
-  status: "Open" | "Pending" | "Approved" | "Rejected";
-  statusNote?: string;
-  thumbnailType: "code" | "terminal" | "bars" | "doc";
-}
-
-const mockTasks: TaskItem[] = [
-  {
-    id: "1",
-    title: "Optimise one slow SQL query",
-    description: "Profile a slow query, ship an improvement, and show your before/after data.",
-    category: "Backend",
-    pointsMax: 35,
-    deadline: "Due in 2d",
-    status: "Open",
-    thumbnailType: "code",
-  },
-  {
-    id: "2",
-    title: "Ship a landing page in 3 hours",
-    description: "Create a polished responsive page for a fictional product.",
-    category: "Frontend",
-    pointsMax: 40,
-    deadline: "Due tomorrow",
-    status: "Open",
-    thumbnailType: "doc",
-  },
-  {
-    id: "3",
-    title: "Build a REST API for habits",
-    description: "Build secure endpoints with authentication and tests.",
-    category: "Backend",
-    pointsMax: 60,
-    deadline: "Completed",
-    status: "Approved",
-    statusNote: "+55 earned",
-    thumbnailType: "terminal",
-  },
-  {
-    id: "4",
-    title: "Redesign a product onboarding",
-    description: "Improve first-time user experience with clear flows.",
-    category: "UI/UX Design",
-    pointsMax: 50,
-    deadline: "Under review",
-    status: "Pending",
-    thumbnailType: "bars",
-  },
-  {
-    id: "5",
-    title: "Write a thoughtful product teardown",
-    description: "Study a tool you love and share sharp insights.",
-    category: "Writing",
-    pointsMax: 30,
-    deadline: "No deadline",
-    status: "Open",
-    thumbnailType: "doc",
-  },
-  {
-    id: "6",
-    title: "Open-source a useful CLI tool",
-    description: "Make a tiny developer tool that solves a real pain.",
-    category: "Developer tools",
-    pointsMax: 70,
-    deadline: "Resubmit",
-    status: "Rejected",
-    thumbnailType: "terminal",
-  },
-];
+import { tasks as mockTasks, type TaskItem } from "@/lib/workspace/catalog";
+import { filterTasks } from "@/lib/workspace/filter";
+import { EmptyState } from "@/components/ui/Feedback";
 
 export default function TasksPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [search, setSearch] = useState("");
 
-  const filteredTasks = mockTasks.filter((t) => {
-    if (activeTab === "open" && t.status !== "Open") return false;
-    if (activeTab === "submitted" && t.status !== "Pending") return false;
-    if (activeTab === "approved" && t.status !== "Approved") return false;
-    if (activeTab === "rejected" && t.status !== "Rejected") return false;
-    if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  const [category, setCategory] = useState("all");
+  const [sort, setSort] = useState("newest");
+  const filteredTasks = filterTasks(search, category, activeTab, sort);
+  const counts = {
+    all: mockTasks.length,
+    open: mockTasks.filter((t) => t.status === "Open").length,
+    submitted: mockTasks.filter((t) => t.status === "Pending").length,
+    approved: mockTasks.filter((t) => t.status === "Approved").length,
+    rejected: mockTasks.filter((t) => t.status === "Rejected").length,
+  };
 
   const getStatusBadge = (status: TaskItem["status"]) => {
     switch (status) {
@@ -171,7 +101,8 @@ export default function TasksPage() {
             />
           </svg>
           <input
-            type="text"
+            type="search"
+            aria-label="Search tasks"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search tasks, categories or skills"
@@ -180,17 +111,28 @@ export default function TasksPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <select className="bg-surface border border-border text-xs rounded-xl px-3 py-2 text-text font-medium cursor-pointer focus-visible:outline-none">
-            <option>Category: All</option>
+          <select
+            aria-label="Task category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="bg-surface border border-border text-xs rounded-xl px-3 py-2 text-text font-medium cursor-pointer focus-visible:outline-none"
+          >
+            <option value="all">Category: All</option>
             <option>Backend</option>
             <option>Frontend</option>
             <option>UI/UX Design</option>
             <option>Writing</option>
+            <option>Developer tools</option>
           </select>
-          <select className="bg-surface border border-border text-xs rounded-xl px-3 py-2 text-text font-medium cursor-pointer focus-visible:outline-none">
-            <option>Newest</option>
-            <option>Highest points</option>
-            <option>Closing soon</option>
+          <select
+            aria-label="Sort tasks"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="bg-surface border border-border text-xs rounded-xl px-3 py-2 text-text font-medium cursor-pointer focus-visible:outline-none"
+          >
+            <option value="newest">Newest</option>
+            <option value="points">Highest points</option>
+            <option value="deadline">Closing soon</option>
           </select>
         </div>
       </div>
@@ -201,15 +143,24 @@ export default function TasksPage() {
           activeTab={activeTab}
           onChange={setActiveTab}
           tabs={[
-            { id: "all", label: "All", count: 24 },
-            { id: "open", label: "Open", count: 14 },
-            { id: "submitted", label: "Submitted", count: 2 },
-            { id: "approved", label: "Approved", count: 6 },
-            { id: "rejected", label: "Rejected", count: 2 },
+            { id: "all", label: "All", count: counts.all },
+            { id: "open", label: "Open", count: counts.open },
+            { id: "submitted", label: "Submitted", count: counts.submitted },
+            { id: "approved", label: "Approved", count: counts.approved },
+            { id: "rejected", label: "Rejected", count: counts.rejected },
           ]}
         />
       </div>
 
+      <p role="status" className="mb-3 text-xs text-text-muted">
+        {filteredTasks.length} matching tasks
+      </p>
+      {!filteredTasks.length && (
+        <EmptyState
+          title="No matching tasks"
+          description="Try another search, category or status."
+        />
+      )}
       {/* Tasks Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filteredTasks.map((task) => (

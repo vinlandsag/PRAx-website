@@ -1,5 +1,39 @@
 # API_CONTRACTS.md
 
+## Interaction profiles and chat media (2026-10-29, D-020)
+
+No standalone member-directory endpoint is added. GET /api/workspace?memberId=<id> resolves an existing APPROVED real account whether or not it initialized its workspace, returning {profile,isDemo:false}. Unknown/inactive targets are 404. Known display fixtures return {profile,isDemo:true}; these do not create auth accounts. Profile remains a public-field projection with portfolio privacy and no email/private collections/settings. Authenticated approved viewer required. Existing {profile} consumers remain compatible with the additive flag. ProfileView adds optional isDemo and returnTo (chat|leaderboard) props. Links use /members/<encoded id>?from=chat|leaderboard; the page ignores other return destinations.
+
+ChatMessage adds optional attachments: ChatAttachment[]; each is {id,name,size,mimeType,kind:image|video|file,url}. Message create data accepts content (<=500, may be empty with files) and attachmentIds (up to 3 distinct author-owned, unclaimed upload ids; 30 MB total). No raw file/base64 content or client-chosen attachment URLs are accepted. Text-only messages remain compatible. Caption edits may be empty only if attachments exist. Message removal or eviction deletes its bytes.
+
+- POST /api/chat/attachments: signed current APPROVED account and same-origin check, multipart/form-data with exactly one file field. Bounded body <=25 MB +64 KB before parsing; original header boundary case retained. Returns 201 {attachment}. Filename sanitized/truncated to 160, server-detected MIME, signatures/UTF-8 and size/extension validated. Images <=5 MB: PNG/JPG/JPEG/GIF/WEBP. Videos <=25 MB: MP4/MOV/WEBM/OGV. Other files <=10 MB: PDF/TXT/CSV/MD/JSON/ZIP/DOCX/XLSX/PPTX/MP3/WAV. Request over stream cap: 413; validation: 400; quota: 429. No real file bytes in JSON.
+- GET /api/chat/attachments/[id]: current approved account required. Pending bytes visible only to uploader (others 404); claimed bytes shared with approved channel members. 200 or valid single byte range 206 with Content-Range/Length and Accept-Ranges; invalid ranges 416. Controlled Content-Type, RFC5987 filename, nosniff, default-src none CSP and private,no-store. Images/videos inline unless ?download=1; other files always attachment disposition. Missing/deleted/expired bytes: 404.
+- DELETE /api/chat/attachments/[id]: same-origin author only, pending files only; 204 success, 404 foreign/missing, 409 already attached (remove the message instead).
+
+Pending files expire lazily at 30 minutes; storage caps 60 MB/account and 128 MB/process. Storage and messages remain process-local/volatile, not durable or multi-instance. Next proxy buffer is 26mb; API limits remain authoritative. Existing message author/admin permissions and audits are retained. No new environment variable, auth token or storage dependency.
+
+## Cursor asset supplement (2026-10-29, D-019)
+
+No application endpoint, authentication payload or component prop changed. Existing --cursor-default / --cursor-pointer CSS variables now reference /artwork/cursor-arrow.png at 8,8 and /artwork/cursor-hand.png at 13,6, respectively, retaining auto/pointer fallbacks. Assets are transparent 32x32 PNGs, with matching SVG authoring sources retained. The static halo is encoded in the image pixels. DESIGN_SYSTEM.md documents the source/export relationship.
+
+## Workspace interaction API supplement (2026-10-29, D-018)
+
+GET /api/workspace and PATCH /api/workspace require a signed session and an existing APPROVED account. Current database-store role/status are rechecked; no client-supplied owner/role is trusted. Responses are Cache-Control: no-store. Missing session/account is 401; inactive accounts and denied actions are 403; unknown items/profiles 404; invalid input 400; unexpected failure 500, using the existing error envelope.
+
+GET returns WorkspaceData: user (safe own SessionUser), profile, settings, todos, notes, goals, messages. GET ?memberId=<id> returns only {profile}, without user email, private collections or settings; portfolioUrl is empty when that account disables showPortfolio. Only initialized workspace profiles currently exist in this process; an unknown id is 404. /members/[id] consumes this read contract.
+
+PATCH body: {resource,operation,id?,data?}. Typed definitions: src/lib/workspace/types.ts. Successful response is the updated own WorkspaceData. Body capped at 32,000 characters; malformed JSON rejected. Origin, when present, must match protocol plus browser-facing Host (request URL fallback); forwarded-host is not trusted. This supports 127.0.0.1 despite Next internally normalizing the request URL to localhost.
+
+- todos: create/update/delete; title <=200 required, description <=5000, difficulty Easy/Medium/Hard, priority Low/Medium/High, dueDate empty or real YYYY-MM-DD, completed boolean. Defaults Medium/Medium/empty/false. Updates may be partial.
+- notes: create/update/delete; title <=200 required, content <=5000; server-generated updatedAt.
+- goals: create/update/delete; title <=200 required, description <=5000, integer progress 0..100.
+- Private collections have max 100 items each and server-generated ids. All item access is scoped to the current account, including admins. Unsupported item fields are rejected.
+- profile: update only; name required <=100, handle @ plus 2..49 ASCII letters/digits/underscores, bio <=500, currentProject <=200, skills <=15 nonempty strings of <=40, optional portfolioUrl/githubUrl/linkedinUrl/avatarUrl <=2048, HTTP(S) only. Unsupported fields rejected atomically.
+- settings: update only; theme light/dark, reviewNotifications/streakReminder/chatNotifications/showPortfolio booleans. Unsupported fields rejected atomically. Notification delivery is not configured.
+- messages: create (content nonblank <=500), update (author only), delete (author or ADMIN), pin (ADMIN only; toggles pin/unpin). Shared latest 500 messages, server ids/timestamps/author. No private-message feature or points effects. Moderation emits CHAT_MESSAGE_PINNED/UNPINNED/DELETED through existing audit storage, containing actor/target/state/author id without content.
+
+Storage remains process-local; no durability or multi-instance consistency is promised. The task catalog and leaderboard period fixtures remain client-side sample data. No existing endpoint/auth payload is removed. ProfileView gains optional skills/URLs/avatar and onEditProfile/onEditSkills/onEditProject callbacks; absent portfolio URLs render setup/empty states. All new icons use the existing outline family.
+
 Shared data shapes, endpoint contracts, auth requirements, error formats, ownership, and compatibility notes.
 
 > **Rule:** Agreed upon by Persons 2–5. Do not change without consensus.  
@@ -398,3 +432,51 @@ Owner: **P5**
 ---
 
 _Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary complete_
+
+
+## UI foundation supplement (2026-10-28)
+
+No backend endpoint, authentication payload or database interface changed.
+
+`src/components/ui/index.ts` preserves prior exports and adds form choices, textarea/select, status/category, outline icons, sidebar item/breadcrumb/segmented choices, table primitives, task card, screenshot upload, feedback, Dialog alias, and progress. Typed props are declared with their components.
+
+- Dialog aliases Modal, preserving its existing props; it now restores focus and traps keyboard navigation.
+- Button retains prior variants and adds text/destructive/iconOnly. Default type is button; native form submissions must specify type="submit".
+- Tabs gain optional item content/disabled, panel linkage and accessible naming. SegmentedControl uses controlled value/onChange and native radios. Avatar adds profile size and image fallback.
+- FileUpload.onFileChange(file: File | null) reports local selection/removal; maxBytes defaults to 5 MB, PNG/JPEG only. No persistence contract is implied.
+- Progress takes label/value and optional max/showValue, clamping invalid values.
+- colors/radii/shadows exports now resolve CSS variables instead of literal values. CSS styles are supported; canvas/export consumers should resolve computed values. Layout and breakpoints remain numeric.
+- /design-system is development-only; public font/artwork prefixes pass the proxy. Existing protected-route authorization remains.
+
+
+Cursor token supplement (2026-10-28): additive CSS tokens --cursor-default and --cursor-pointer reference local 32 px SVG assets, including hotspot coordinates and native fallback keywords. No component props or backend interfaces changed.
+
+### Local run request (2026-10-29)
+Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
+
+
+### npm terminal diagnosis (2026-10-29)
+Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
+
+
+### Windows terminal runtime follow-up (2026-10-29)
+User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
+
+
+### Windows Node/npm setup completed (2026-10-29)
+Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
+Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
+
+### Development server handed to user terminal (2026-10-29)
+User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
+
+### Git push readiness review (2026-10-29)
+User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
+Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
+
+### Authorized donel branch delivery (2026-10-29)
+The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
+The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
+
+Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
+

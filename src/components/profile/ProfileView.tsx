@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { isSafeUrl } from "@/lib/utils/url";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
@@ -8,6 +10,8 @@ import { Button } from "@/components/ui/Button";
 
 export interface ProfileProps {
   isPublic?: boolean;
+  isDemo?: boolean;
+  returnTo?: "chat" | "leaderboard";
   name?: string;
   handle?: string;
   bio?: string;
@@ -16,10 +20,20 @@ export interface ProfileProps {
   dayStreak?: string;
   tasksApproved?: string;
   currentProject?: string;
+  skills?: string[];
+  portfolioUrl?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  avatarUrl?: string;
+  onEditProfile?: () => void;
+  onEditSkills?: () => void;
+  onEditProject?: () => void;
 }
 
 export function ProfileView({
   isPublic = false,
+  isDemo = false,
+  returnTo = "chat",
   name = "Arjun Varma",
   handle = "@arjunbuilds",
   bio = "Building useful things, learning in public, and sharing the process.",
@@ -27,10 +41,26 @@ export function ProfileView({
   weeklyRank = "#7",
   dayStreak = "12",
   tasksApproved = "24",
-  currentProject = "A faster, friendlier developer dashboard",
+  currentProject = "",
+  skills = ["Frontend", "Backend", "UI/UX Design", "Open source", "Product thinking"],
+  portfolioUrl = "",
+  githubUrl = "",
+  linkedinUrl = "",
+  avatarUrl,
+  onEditProfile,
+  onEditSkills,
+  onEditProject,
 }: ProfileProps) {
   return (
     <AppShell breadcrumbs={["PRAX", isPublic ? "Member profile" : "My profile"]}>
+      {isPublic && (
+        <Link
+          href={`/${returnTo}`}
+          className="mb-4 inline-block text-xs font-semibold text-primary hover:underline"
+        >
+          ← Back to {returnTo === "chat" ? "chat" : "leaderboard"}
+        </Link>
+      )}
       {/* Page Title & Subtitle */}
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text">
@@ -41,6 +71,11 @@ export function ProfileView({
         </p>
       </div>
 
+      {isDemo && (
+        <p className="mb-4 rounded-md border border-lavender-border bg-lavender p-3 text-xs text-lavender-text">
+          Sample profile · This is a read-only preview, not a registered account.
+        </p>
+      )}
       {/* Main Profile Header Card */}
       <Card className="overflow-hidden mb-6">
         {/* Banner Graphic with Tagline and 8-Ray Star */}
@@ -73,66 +108,70 @@ export function ProfileView({
         </div>
 
         {/* User Info Bar with Overlapping Avatar */}
-        <div className="p-6 sm:p-8 pt-0 relative flex flex-col md:flex-row md:items-end justify-between gap-6 -mt-10 sm:-mt-12">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6">
+        <div className="relative flex flex-col justify-between gap-6 p-6 sm:p-8 md:flex-row md:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
             <Avatar
               name={name}
+              src={avatarUrl || undefined}
               size="xl"
               colorScheme="purple"
-              className="ring-4 ring-surface shadow-md"
+              className="-mt-12 self-start rounded-full ring-4 ring-surface shadow-md sm:-mt-18"
             />
-            <div className="mb-1">
-              <div className="flex items-baseline gap-2">
-                <h2 className="text-xl sm:text-2xl font-bold text-text tracking-tight">{name}</h2>
-                <span className="text-xs sm:text-sm text-text-muted">{handle}</span>
+            <div className="mb-1 min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                <h2 className="min-w-0 max-w-full [overflow-wrap:anywhere] text-xl sm:text-2xl font-bold text-text tracking-tight">
+                  {name}
+                </h2>
+                <span className="break-all text-xs sm:text-sm text-text-muted">{handle}</span>
               </div>
-              <p className="text-xs sm:text-sm text-text-secondary mt-2 max-w-xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-text-secondary mt-2 max-w-xl break-words leading-relaxed">
                 {bio}
               </p>
 
-              {/* Social / Portfolio Links Row */}
-              <div className="flex items-center gap-4 mt-3 text-xs font-medium text-text-muted">
-                <a
-                  href="https://portfolio.dev"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-primary transition-colors flex items-center gap-1"
-                >
-                  <span>Portfolio</span>
-                  <span className="text-[10px]">↗</span>
-                </a>
-                <span className="text-border">·</span>
-                <a
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-primary transition-colors flex items-center gap-1"
-                >
-                  <span>GitHub</span>
-                  <span className="text-[10px]">↗</span>
-                </a>
-                <span className="text-border">·</span>
-                <a
-                  href="https://linkedin.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-primary transition-colors flex items-center gap-1"
-                >
-                  <span>LinkedIn</span>
-                  <span className="text-[10px]">↗</span>
-                </a>
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-xs font-medium text-primary">
+                {[
+                  { label: "Portfolio", url: portfolioUrl },
+                  { label: "GitHub", url: githubUrl },
+                  { label: "LinkedIn", url: linkedinUrl },
+                ]
+                  .filter((link) => isSafeUrl(link.url))
+                  .map((link) => (
+                    <a
+                      key={link.label}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {link.label} ↗
+                    </a>
+                  ))}
+                {!isPublic && !portfolioUrl && (
+                  <Button size="sm" variant="text" onClick={onEditProject}>
+                    Add portfolio
+                  </Button>
+                )}
               </div>
             </div>
           </div>
 
           {/* Action Button */}
-          <div className="flex items-center gap-2.5 self-start md:self-end">
+          <div className="flex shrink-0 items-center gap-2.5 self-start md:self-end">
             {isPublic ? (
-              <Button variant="primary" size="md">
-                View portfolio
-              </Button>
+              isSafeUrl(portfolioUrl) ? (
+                <a
+                  href={portfolioUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white"
+                >
+                  View portfolio
+                </a>
+              ) : (
+                <span className="text-xs text-text-muted">No portfolio shared</span>
+              )
             ) : (
-              <Button variant="primary" size="md">
+              <Button variant="primary" size="md" onClick={onEditProfile}>
                 Edit profile
               </Button>
             )}
@@ -169,37 +208,49 @@ export function ProfileView({
             <div className="flex items-center justify-between pb-3 border-b border-border-subtle mb-4">
               <h2 className="text-sm font-bold text-text">Skills &amp; interests</h2>
               {!isPublic && (
-                <button className="text-xs text-primary font-semibold hover:underline cursor-pointer">
+                <button
+                  onClick={onEditSkills}
+                  className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+                >
                   Edit →
                 </button>
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {["Frontend", "Backend", "UI/UX Design", "Open source", "Product thinking"].map(
-                (skill) => (
-                  <span
-                    key={skill}
-                    className="px-3 py-1.5 text-xs rounded-xl bg-surface-subtle border border-border text-text font-medium"
-                  >
-                    {skill}
-                  </span>
-                )
-              )}
+              {skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="px-3 py-1.5 text-xs rounded-xl bg-surface-subtle border border-border text-text font-medium"
+                >
+                  {skill}
+                </span>
+              ))}
             </div>
+            {!skills.length && (
+              <p className="text-xs text-text-muted">
+                {isPublic ? "No skills shared yet." : "Add your skills and interests with Edit."}
+              </p>
+            )}
           </Card>
 
           {/* Currently Building */}
           <Card className="p-6">
             <div className="flex items-center justify-between pb-3 border-b border-border-subtle mb-4">
               <h2 className="text-sm font-bold text-text">Currently building</h2>
-              <a
-                href="https://portfolio.dev"
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-primary font-semibold hover:underline"
-              >
-                See portfolio →
-              </a>
+              {isSafeUrl(portfolioUrl) ? (
+                <a
+                  href={portfolioUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  See portfolio →
+                </a>
+              ) : !isPublic ? (
+                <Button variant="text" size="sm" onClick={onEditProject}>
+                  Add portfolio
+                </Button>
+              ) : null}
             </div>
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-surface-subtle border border-border flex items-center justify-center font-mono text-primary font-bold shrink-0">
@@ -207,13 +258,21 @@ export function ProfileView({
               </div>
               <div className="flex flex-col min-w-0">
                 <h3 className="text-sm sm:text-base font-bold text-text tracking-tight truncate">
-                  {currentProject}
+                  {currentProject ||
+                    (isPublic ? "No project shared yet" : "Add what you are building")}
                 </h3>
                 <span className="text-xs text-text-muted mt-1">
-                  Work in progress · Last updated 2 days ago
+                  {currentProject
+                    ? "Work in progress"
+                    : "Share a project title and portfolio link."}
                 </span>
               </div>
             </div>
+            {!isPublic && (
+              <Button variant="text" size="sm" onClick={onEditProject} className="mt-3">
+                Edit current project
+              </Button>
+            )}
           </Card>
         </div>
 
