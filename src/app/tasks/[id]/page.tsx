@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { tasks } from "@/lib/workspace/catalog";
+import { EmptyState, Skeleton } from "@/components/ui";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 
@@ -10,21 +13,34 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
 export default function TaskDetailPage() {
-  const [proofLink, setProofLink] = useState("https://github.com/arjun/api/pull/42");
-  const [note, setNote] = useState(
-    "I cut p95 latency from 820ms to 90ms with a composite index and reduced an N+1 query in the feed endpoint."
+  return (
+    <Suspense fallback={<Skeleton className="h-64" label="Loading task" />}>
+      <TaskDetailContent />
+    </Suspense>
   );
+}
+function TaskDetailContent() {
+  const { id } = useParams<{ id: string }>();
+  const task = tasks.find((t) => t.id === id);
+  const [proofLink, setProofLink] = useState("");
+  const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  if (!task)
+    return (
+      <AppShell breadcrumbs={["PRAX", "Task not found"]}>
+        <EmptyState title="Task not found" action={<Link href="/tasks">Back to tasks</Link>} />
+      </AppShell>
+    );
   return (
     <AppShell breadcrumbs={["PRAX", "Task detail"]}>
       {/* Category path */}
       <div className="mb-2 text-xs font-medium text-text-muted">
         <span>Tasks</span>
         <span className="mx-1.5">/</span>
-        <span>Backend</span>
+        <span>{task.category}</span>
         <span className="mx-1.5">/</span>
-        <span className="text-text font-semibold">Optimise slow SQL query</span>
+        <span className="text-text font-semibold">{task.title}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-4">
@@ -32,30 +48,29 @@ export default function TaskDetailPage() {
         <div className="lg:col-span-7 flex flex-col gap-6">
           <Card className="p-6 sm:p-8">
             <div className="flex items-center justify-between mb-4">
-              <Badge variant="lavender">OPEN</Badge>
+              <Badge variant="lavender">{task.status}</Badge>
               <span className="text-xs text-text-muted flex items-center gap-1">
                 <span>🕒</span>
-                <span>Closes Oct 11 · 18:00</span>
+                <span>{task.deadline}</span>
               </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text mb-3">
-              Optimise one slow SQL query, show the diff.
+              {task.title}
             </h1>
             <p className="text-xs sm:text-sm text-text-muted leading-relaxed mb-6">
-              Find a query in your own project that drags. Profile it, fix it, and prove the
-              improvement with numbers a reviewer can verify in one minute.
+              {task.description}
             </p>
 
             <div className="flex flex-wrap items-center gap-2 mb-8">
               <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-lavender text-lavender-text border border-lavender-border">
-                Backend
+                {task.category}
               </span>
               <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-border-subtle text-text-secondary border border-border">
-                35 points maximum
+                {task.pointsMax} points maximum
               </span>
               <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-border-subtle text-text-secondary border border-border">
-                ~2 hours
+                Platform challenge
               </span>
             </div>
 
@@ -63,12 +78,19 @@ export default function TaskDetailPage() {
             <div className="pt-6 border-t border-border-subtle">
               <h2 className="text-sm font-bold text-text mb-3">Acceptance checklist</h2>
               <div className="flex flex-col gap-2.5 text-xs text-text-secondary">
-                {[
-                  "Find a real query running slower than 500ms",
-                  "Show the EXPLAIN plan before and after",
-                  "Share the code diff in a public PR or gist",
-                  "State the measurable performance improvement",
-                ].map((item, i) => (
+                {(task.id === "1"
+                  ? [
+                      "Find a real query running slower than 500ms",
+                      "Show the EXPLAIN plan before and after",
+                      "Share the code diff in a public PR or gist",
+                      "State the measurable performance improvement",
+                    ]
+                  : [
+                      task.description,
+                      "Share a working proof link",
+                      "Explain your choices and results",
+                    ]
+                ).map((item, i) => (
                   <div key={i} className="flex items-start gap-2.5">
                     <span className="h-4 w-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
                       ✓

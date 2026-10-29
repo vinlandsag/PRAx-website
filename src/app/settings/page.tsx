@@ -1,241 +1,241 @@
 "use client";
-
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
-import { Card } from "@/components/ui/Card";
-import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { applyTheme } from "@/components/layout/ThemeSync";
+import {
+  Avatar,
+  Button,
+  Card,
+  Input,
+  Notice,
+  SegmentedControl,
+  Skeleton,
+  Toggle,
+} from "@/components/ui";
+import { useWorkspace } from "@/lib/workspace/use-workspace";
+import type { WorkspaceData, WorkspaceMutation } from "@/lib/workspace/types";
+import { isSafeUrl } from "@/lib/utils/url";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("account");
-  const [name, setName] = useState("Arjun Varma");
-  const [handle, setHandle] = useState("@arjunbuilds");
-  const [reviewNotifs, setReviewNotifs] = useState(true);
-  const [streakReminder, setStreakReminder] = useState(true);
-  const [allChatNotifs, setAllChatNotifs] = useState(false);
-  const [themeMode, setThemeMode] = useState<"light" | "dark">("light");
-  const [showPortfolio, setShowPortfolio] = useState(true);
-  const [saved, setSaved] = useState(false);
-
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
+  const api = useWorkspace();
   return (
     <AppShell breadcrumbs={["PRAX", "Settings"]}>
-      {/* Title */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text">Settings</h1>
-        <p className="text-xs sm:text-sm text-text-muted mt-1">Your account, your preferences</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Side: Category Pills (3 cols) */}
-        <div className="lg:col-span-3 flex lg:flex-col gap-1.5 overflow-x-auto pb-2">
-          {[
-            { id: "account", label: "Account", icon: "👤" },
-            { id: "appearance", label: "Appearance", icon: "☀️" },
-            { id: "notifications", label: "Notifications", icon: "🔔" },
-            { id: "privacy", label: "Privacy", icon: "🔒" },
-            { id: "security", label: "Security", icon: "🛡️" },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
-                activeTab === item.id
-                  ? "bg-lavender text-primary shadow-2xs"
-                  : "text-text-muted hover:text-text hover:bg-surface"
-              }`}
-            >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Right Side: Settings Cards (9 cols) */}
-        <div className="lg:col-span-9 flex flex-col gap-6">
-          {/* Card 1: Account */}
-          <Card className="p-6 sm:p-8">
-            <div className="flex items-center justify-between pb-6 border-b border-border-subtle mb-6">
-              <div>
-                <h2 className="text-base font-bold text-text">Account</h2>
-                <span className="text-xs text-text-muted">Your PRAX identity</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3">
-                <Avatar name="Arjun Varma" size="lg" colorScheme="purple" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-text">Arjun Varma</span>
-                  <span className="text-xs text-text-muted">arjun@studio.dev</span>
+      <h1 className="text-2xl font-bold">Settings</h1>
+      <p className="mt-1 mb-6 text-xs text-text-muted">Your account, your preferences</p>
+      {!api.data ? (
+        api.error ? (
+          <Notice tone="danger">
+            {api.error}
+            <Button onClick={() => void api.refresh()}>Retry</Button>
+          </Notice>
+        ) : (
+          <Skeleton className="h-64" label="Loading settings" />
+        )
+      ) : (
+        <SettingsForm
+          key={api.data.user.id}
+          data={api.data}
+          mutate={api.mutate}
+          error={api.error}
+          saving={api.saving}
+        />
+      )}
+    </AppShell>
+  );
+}
+function SettingsForm({
+  data,
+  mutate,
+  error,
+  saving,
+}: {
+  data: WorkspaceData;
+  mutate: (value: WorkspaceMutation) => Promise<boolean>;
+  error: string;
+  saving: boolean;
+}) {
+  const router = useRouter();
+  const [tab, setTab] = useState("account"),
+    [profile, setProfile] = useState(data.profile),
+    [settings, setSettings] = useState(data.settings),
+    [photo, setPhoto] = useState(false),
+    [notice, setNotice] = useState(""),
+    [logoutError, setLogoutError] = useState("");
+  const update = (key: keyof typeof settings, value: boolean | "light" | "dark") =>
+    setSettings((s) => ({ ...s, [key]: value }));
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setNotice("");
+    if (
+      !(await mutate({
+        resource: "profile",
+        operation: "update",
+        data: { name: profile.name, handle: profile.handle, avatarUrl: profile.avatarUrl },
+      }))
+    )
+      return;
+    if (await mutate({ resource: "settings", operation: "update", data: { ...settings } })) {
+      applyTheme(settings.theme);
+      setNotice("Your settings are saved.");
+    }
+  };
+  const logout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Could not sign out. Try again.");
+      router.replace("/login");
+      router.refresh();
+    } catch (e) {
+      setLogoutError(e instanceof Error ? e.message : "Could not sign out.");
+    }
+  };
+  return (
+    <form onSubmit={save} className="grid items-start gap-5 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <nav aria-label="Settings sections" className="flex gap-2 overflow-x-auto lg:flex-col">
+        {["account", "appearance", "notifications", "privacy", "security"].map((id) => (
+          <Button
+            key={id}
+            aria-pressed={tab === id}
+            variant={tab === id ? "lavender" : "text"}
+            onClick={() => setTab(id)}
+            className="justify-start capitalize"
+          >
+            {id}
+          </Button>
+        ))}
+      </nav>
+      <div className="space-y-4">
+        {error && <Notice tone="danger">{error}</Notice>}
+        {notice && <Notice tone="success">{notice}</Notice>}
+        <Card className="p-5 sm:p-6">
+          <h2 className="mb-5 text-base font-bold capitalize">{tab}</h2>
+          {tab === "account" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    name={profile.name}
+                    src={isSafeUrl(profile.avatarUrl) ? profile.avatarUrl : undefined}
+                    size="lg"
+                  />
+                  <div>
+                    <p className="text-sm font-bold">{data.profile.name}</p>
+                    <p className="text-xs text-text-muted">{data.user.email}</p>
+                  </div>
                 </div>
+                <Button variant="secondary" onClick={() => setPhoto((value) => !value)}>
+                  Change photo
+                </Button>
               </div>
-              <Button variant="secondary" size="sm">
-                Change photo
+              {photo && (
+                <Input
+                  label="Profile photo URL"
+                  type="url"
+                  placeholder="https://…"
+                  helperText="Use a full image URL, or leave empty to use your initials."
+                  value={profile.avatarUrl}
+                  onChange={(e) => setProfile((p) => ({ ...p, avatarUrl: e.target.value }))}
+                />
+              )}
+              <Input
+                label="Display name"
+                maxLength={100}
+                required
+                value={profile.name}
+                onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
+              />
+              <Input
+                label="Handle"
+                maxLength={50}
+                required
+                value={profile.handle}
+                helperText="@ followed by 2–49 letters, numbers or underscores."
+                onChange={(e) => setProfile((p) => ({ ...p, handle: e.target.value }))}
+              />
+            </div>
+          )}
+          {tab === "appearance" && (
+            <div className="space-y-4">
+              <SegmentedControl
+                label="Color theme"
+                value={settings.theme}
+                options={[
+                  { value: "light", label: "Light" },
+                  { value: "dark", label: "Dark" },
+                ]}
+                onChange={(value) => {
+                  update("theme", value as "light" | "dark");
+                  applyTheme(value as "light" | "dark");
+                }}
+              />
+              <p className="text-xs text-text-muted">
+                Preview updates immediately. Save changes to keep your account preference.
+              </p>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setSettings(data.settings);
+                  applyTheme(data.settings.theme);
+                }}
+              >
+                Reset preview
               </Button>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input label="Display name" value={name} onChange={(e) => setName(e.target.value)} />
-              <Input label="Handle" value={handle} onChange={(e) => setHandle(e.target.value)} />
+          )}
+          {tab === "notifications" && (
+            <div className="space-y-4">
+              <Toggle
+                label="Submission review notifications"
+                helperText="Allow review updates in your notification preferences."
+                checked={settings.reviewNotifications}
+                onChange={(e) => update("reviewNotifications", e.target.checked)}
+              />
+              <Toggle
+                label="Streak reminder"
+                checked={settings.streakReminder}
+                onChange={(e) => update("streakReminder", e.target.checked)}
+              />
+              <Toggle
+                label="All chat messages"
+                checked={settings.chatNotifications}
+                onChange={(e) => update("chatNotifications", e.target.checked)}
+              />
+              <p className="text-xs text-text-muted">
+                These preferences are saved to your account. Email and push delivery are not
+                configured on this local build.
+              </p>
             </div>
-          </Card>
-
-          {/* Card 2: Preferences */}
-          <Card className="p-6 sm:p-8">
-            <div className="pb-4 border-b border-border-subtle mb-4">
-              <h2 className="text-base font-bold text-text">Preferences</h2>
-              <span className="text-xs text-text-muted">Fine-tune your workspace</span>
+          )}
+          {tab === "privacy" && (
+            <Toggle
+              label="Show portfolio on public profile"
+              helperText="Your own profile still shows your link. Other members only see it when this is enabled."
+              checked={settings.showPortfolio}
+              onChange={(e) => update("showPortfolio", e.target.checked)}
+            />
+          )}
+          {tab === "security" && (
+            <div className="space-y-4">
+              <p className="text-xs text-text-muted">
+                Signed in as {data.user.email}. Role: {data.user.role.toLowerCase()}.
+              </p>
+              <p className="text-xs text-text-muted">
+                Account email and role are managed by the administrator and cannot be changed here.
+              </p>
+              {logoutError && <Notice tone="danger">{logoutError}</Notice>}
+              <Button variant="secondary" onClick={() => void logout()}>
+                Sign out of this session
+              </Button>
             </div>
-
-            <div className="flex flex-col divide-y divide-border-subtle">
-              {/* Toggle 1 */}
-              <div className="py-4 flex items-center justify-between gap-4">
-                <div className="flex flex-col">
-                  <span className="text-xs sm:text-sm font-semibold text-text">
-                    Submission review notifications
-                  </span>
-                  <span className="text-xs text-text-muted mt-0.5">
-                    Get an alert when an admin reviews your work.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setReviewNotifs(!reviewNotifs)}
-                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative shrink-0 ${
-                    reviewNotifs ? "bg-primary" : "bg-border"
-                  }`}
-                >
-                  <span
-                    className={`block h-5 w-5 rounded-full bg-white shadow-xs transition-transform transform ${
-                      reviewNotifs ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Toggle 2 */}
-              <div className="py-4 flex items-center justify-between gap-4">
-                <div className="flex flex-col">
-                  <span className="text-xs sm:text-sm font-semibold text-text">
-                    Streak reminder
-                  </span>
-                  <span className="text-xs text-text-muted mt-0.5">
-                    A gentle nudge if today has no submission.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setStreakReminder(!streakReminder)}
-                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative shrink-0 ${
-                    streakReminder ? "bg-primary" : "bg-border"
-                  }`}
-                >
-                  <span
-                    className={`block h-5 w-5 rounded-full bg-white shadow-xs transition-transform transform ${
-                      streakReminder ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Toggle 3 */}
-              <div className="py-4 flex items-center justify-between gap-4">
-                <div className="flex flex-col">
-                  <span className="text-xs sm:text-sm font-semibold text-text">
-                    All chat messages
-                  </span>
-                  <span className="text-xs text-text-muted mt-0.5">
-                    Notify for every new public chat message.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAllChatNotifs(!allChatNotifs)}
-                  className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative shrink-0 ${
-                    allChatNotifs ? "bg-primary" : "bg-border"
-                  }`}
-                >
-                  <span
-                    className={`block h-5 w-5 rounded-full bg-white shadow-xs transition-transform transform ${
-                      allChatNotifs ? "translate-x-5" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-          </Card>
-
-          {/* Card 3: Appearance & Privacy */}
-          <Card className="p-6 sm:p-8">
-            <h2 className="text-base font-bold text-text mb-4">Appearance &amp; privacy</h2>
-
-            {/* Segmented Light/Dark mode */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="inline-flex bg-border-subtle p-1 rounded-xl border border-border">
-                <button
-                  type="button"
-                  onClick={() => setThemeMode("light")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                    themeMode === "light"
-                      ? "bg-surface text-text shadow-xs"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  <span>☀️</span>
-                  <span>Light</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setThemeMode("dark")}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
-                    themeMode === "dark"
-                      ? "bg-surface text-text shadow-xs"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  <span>◐</span>
-                  <span>Dark</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Public profile toggle */}
-            <div className="py-4 border-t border-border-subtle flex items-center justify-between gap-4 mb-6">
-              <div className="flex flex-col">
-                <span className="text-xs sm:text-sm font-semibold text-text">
-                  Show portfolio on public profile
-                </span>
-                <span className="text-xs text-text-muted mt-0.5">
-                  Other approved members can see your project links.
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPortfolio(!showPortfolio)}
-                className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative shrink-0 ${
-                  showPortfolio ? "bg-primary" : "bg-border"
-                }`}
-              >
-                <span
-                  className={`block h-5 w-5 rounded-full bg-white shadow-xs transition-transform transform ${
-                    showPortfolio ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </div>
-
-            <Button variant="primary" size="md" leftIcon={<span>✓</span>} onClick={handleSave}>
-              {saved ? "Changes saved ✓" : "Save changes"}
-            </Button>
-          </Card>
-        </div>
+          )}
+        </Card>
+        {tab !== "security" && (
+          <Button type="submit" isLoading={saving}>
+            Save changes
+          </Button>
+        )}
       </div>
-    </AppShell>
+    </form>
   );
 }

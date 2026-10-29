@@ -13,29 +13,11 @@ import { StatCard } from "./StatCard";
 import { colors, radii, shadows } from "@/lib/design-tokens";
 
 describe("Design Tokens", () => {
-  it("exports all core color tokens as defined in user requirements", () => {
-    expect(colors.sidebar).toBe("#171B2A");
-    expect(colors.background).toBe("#F7F6F4");
-    expect(colors.surface).toBe("#FFFFFF");
-    expect(colors.primary).toBe("#6254E8");
-    expect(colors.primaryHover).toBe("#5143D4");
-    expect(colors.lavender).toBe("#EEE9FF");
-    expect(colors.text).toBe("#20212B");
-    expect(colors.textMuted).toBe("#777887");
-    expect(colors.border).toBe("#E9E7ED");
-    expect(colors.success.bg).toBe("#DDF5E9");
-    expect(colors.warning.bg).toBe("#FFF0D9");
-    expect(colors.danger.bg).toBe("#FCE5E5");
-    expect(colors.brandAccent).toBe("#FF5C35");
-    expect(colors.streak).toBe("#F97316");
-    expect(colors.codeBg).toBe("#171B2A");
-  });
-
-  it("exports radii and shadows tokens", () => {
-    expect(radii.md).toBe("10px");
-    expect(radii.full).toBe("9999px");
-    expect(shadows.card).toBeDefined();
-    expect(shadows.modal).toBeDefined();
+  it("exports CSS-backed tokens and reserved layout measurements", () => {
+    expect(colors.sidebar).toBe("var(--color-sidebar)");
+    expect(colors.primary).toBe("var(--color-primary)");
+    expect(radii.xl).toBe("var(--radius-xl)");
+    expect(shadows.card).toBe("var(--shadow-card)");
   });
 });
 
@@ -146,7 +128,9 @@ describe("Modal component", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeDefined();
     expect(dialog.getAttribute("aria-modal")).toBe("true");
-    expect(dialog.getAttribute("aria-labelledby")).toBe("modal-title");
+    expect(document.getElementById(dialog.getAttribute("aria-labelledby")!)?.textContent).toBe(
+      "Community Rules"
+    );
     expect(screen.getByText("Rule 1: Be respectful")).toBeDefined();
   });
 

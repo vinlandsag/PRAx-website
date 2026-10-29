@@ -2,6 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
+import { GlobalSearch } from "./GlobalSearch";
+import { useWorkspace } from "@/lib/workspace/use-workspace";
 import { Avatar } from "../ui/Avatar";
 
 export interface TopNavProps {
@@ -15,6 +17,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   isAdmin = false,
   onOpenMobileMenu,
 }) => {
+  const { data } = useWorkspace();
   return (
     <header className="h-16 border-b border-border bg-surface px-4 sm:px-8 flex items-center justify-between shrink-0 select-none sticky top-0 z-20">
       {/* Left: Mobile hamburger & Breadcrumbs */}
@@ -59,32 +62,7 @@ export const TopNav: React.FC<TopNavProps> = ({
 
       {/* Right: Search, Streak, Points, Bell, Avatar */}
       <div className="flex items-center gap-2.5 sm:gap-4">
-        {/* Search Input with ⌘K badge */}
-        <div className="hidden md:flex items-center relative">
-          <svg
-            className="w-4 h-4 text-text-faint absolute left-3 pointer-events-none"
-            aria-hidden="true"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search anything..."
-            aria-label="Search platform"
-            className="w-48 lg:w-64 pl-9 pr-8 py-1.5 bg-background border border-border text-xs rounded-xl focus-visible:outline-none focus-visible:border-primary text-text placeholder:text-text-faint"
-          />
-          <kbd className="absolute right-2.5 text-[10px] font-mono text-text-faint bg-surface border border-border px-1.5 py-0.5 rounded-md pointer-events-none shadow-2xs">
-            ⌘K
-          </kbd>
-        </div>
+        <GlobalSearch />
 
         {isAdmin ? (
           /* Admin badge */
@@ -139,7 +117,8 @@ export const TopNav: React.FC<TopNavProps> = ({
         {/* User Avatar */}
         <Link href={isAdmin ? "/admin" : "/profile"}>
           <Avatar
-            name={isAdmin ? "Lena V." : "Arjun Varma"}
+            name={data?.profile.name || (isAdmin ? "Admin" : "Member")}
+            src={data?.profile.avatarUrl || undefined}
             size="sm"
             colorScheme={isAdmin ? "orange" : "purple"}
             className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"

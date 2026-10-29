@@ -1,5 +1,29 @@
 # SECURITY_NOTES.md
 
+## Interaction profiles and chat attachment boundary (2026-10-29)
+
+Public profile reads now resolve target auth records directly, require current APPROVED viewer/target status and return only public fields. Inactive/unknown targets are uniformly 404. Portfolio privacy remains enforced; other private collections, settings, email/password/role are excluded. Uninitialized account defaults use ids for handles, with no inferred bio/skills. Demo profile data is labelled, read-only and never grants an auth identity. Return links use a two-value whitelist.
+
+Uploads use the same current-account guard and same-origin write check. Pending bytes are author-private, and attachment ids are atomically claimed only by their uploader; other users cannot steal/reuse them. Approved channel members can fetch only shared files. Message deletion/eviction removes corresponding bytes; pending deletion requires ownership. Body streaming, per-file/message/account/process caps and lazy pending expiry bound memory. Extension whitelist uses own properties (constructor/__proto__ rejected), content signatures/UTF-8 are verified and client MIME is not trusted. Unsupported active/executable types including HTML/SVG/JS/EXE are rejected. Documents are forced downloads; media MIME, encoded filename, nosniff, no-store and default-src none CSP are set. Byte ranges have integer/bounds checks. No disk path is derived from filenames, no uploaded code executes, no remote file fetching occurs.
+
+No credential/cookie was printed or persisted during tests; existing local fixture authentication was used and session headers stayed in process memory. Test media is non-sensitive: authored PNG/TXT plus public MDN sample video. No new secret/environment variable/dependency, auth bypass or production deployment. Existing .env exclusions retained.
+
+Limits: process memory is not durable or distributed; format signature checks are not malware scanning or full container validation. Production needs durable authorized storage, operational quotas/rate controls and a scanning policy. In-app browser save tests were cancelled, while live authenticated HTTP download contents and range bytes matched fixtures. No actual mobile-device/browser-download filesystem pass is claimed.
+
+## Reference cursor boundary (2026-10-29)
+
+Cursor appearance only: static local RGBA PNGs, plus SVG authoring sources containing local fragment references and bounded blur. No script, external image/font request, pointer tracking, animation, event listener, hidden native cursor or moving overlay. Existing high-contrast/touch/native text/disabled behavior and fallback keywords remain in CSS. Existing /artwork/ serving rule is reused; no auth, session, API or dependency change. Live browser verification was unavailable; no user account/browser state was modified successfully in this follow-up.
+
+## Functional workspace boundary (2026-10-29)
+
+New /api/workspace authenticates with the existing guard, then checks the actual account and current role/status in authStore. Private collections/settings/profile updates are keyed by that account; arbitrary member ids cannot address another user's private records, even for admins. Public profile reads expose profile fields only and hide portfolio links when requested. Chat edits require authorship; pinning requires admin; deletion requires author/admin. Successful moderation is audited without raw content. These boundaries are exercised by API tests rather than relying on disabled buttons.
+
+The API validates all enum, boolean, integer/date, length and URL inputs, rejects unknown private/profile/settings fields and caps request size. Browser-origin writes compare Origin with protocol and actual Host, not forwarded-host; foreign origins are rejected. React renders message/note content as text. Profile links accept HTTP(S), use noopener/noreferrer, and never invent links. Photo loading is client-side by the saved validated URL; no server fetch/upload was added.
+
+Only the non-sensitive theme preference is cached in localStorage; private data and cookies are not copied into local storage or logs. Browser verification used the already documented local seed member fixture; no real credentials/environment contents were inspected. Existing .env* ignore rule remains. No new dependency, credential, environment variable, production deployment or auth bypass.
+
+Risks remaining: process-memory state is volatile and not shared between instances; production must use durable authorized persistence. Notification delivery, socket authentication/moderation infrastructure and external image policy remain future work. Historical dependency-audit notes are unchanged; audit was not rerun. Test data is confined to the local seeded account/process.
+
 Security threats and mitigations. Never store passwords, API keys, access tokens, private user data, or production secrets here.
 
 ---
@@ -189,3 +213,50 @@ Security threats and mitigations. Never store passwords, API keys, access tokens
 ---
 
 _Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete_
+
+
+## UI foundation boundary (2026-10-28)
+
+Review fixtures are illustrative. Both proxy and server page gate /design-system; production 404 verified. Public /fonts/ and /artwork/ exemptions do not change protected-route authorization; existing auth tests and dashboard redirect passed. No auth/backend/session implementation changed.
+
+Uploads remain local object-URL previews. MIME/size/count/empty/decode validation is presentation behavior; any future upload endpoint must validate server-side. SVG is rejected; object URLs are revoked on replacement, removal, decode failure and unmount. React renders user content as text. Dialog background is inert and prior state restored on close.
+
+Inter is self-hosted, with license retained; no runtime Google font request. Only explicit loopback 127.0.0.1 is added as a dev origin. No wildcard dev origin, new secret/environment variable, or deployment. Existing .env* exclusions were inspected and retained. Dependency audit was not rerun; historical audit results are not new verification.
+
+
+Cursor texture follow-up (2026-10-28): local static SVG patterns only; no scripts, external asset references, network services or pointer tracking. No security boundary or authorization change.
+
+
+## Profile layout verification boundary (2026-10-29)
+
+No auth/session/API changes. Because the parent browser had no session for /profile, visual checks used the exact ProfileView component with illustrative props in a temporary /design-system/profile-regression fixture. The existing proxy and a server-side development check guarded it. It was removed before final build and is absent from the build route list. No credentials or cookies were inspected or copied; actual authenticated-route rendering remains outside the visual evidence. Production authorization was preserved.
+
+### Local run request (2026-10-29)
+Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
+
+
+### npm terminal diagnosis (2026-10-29)
+Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
+
+
+### Windows terminal runtime follow-up (2026-10-29)
+User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
+
+
+### Windows Node/npm setup completed (2026-10-29)
+Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
+Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
+
+### Development server handed to user terminal (2026-10-29)
+User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
+
+### Git push readiness review (2026-10-29)
+User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
+Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
+
+### Authorized donel branch delivery (2026-10-29)
+The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
+The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
+
+Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
+

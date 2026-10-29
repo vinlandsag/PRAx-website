@@ -22,12 +22,20 @@ import { apiError, errors } from "@/lib/errors";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/design-system" || pathname.startsWith("/design-system/")) {
+    return process.env.NODE_ENV === "development"
+      ? NextResponse.next()
+      : new NextResponse("Not found", { status: 404 });
+  }
+
   // 1. Skip public static assets and root landing page
   if (
     pathname === "/" ||
     pathname === "/login" ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
+    pathname.startsWith("/fonts/") ||
+    pathname.startsWith("/artwork/") ||
     pathname === "/favicon.ico"
   ) {
     return NextResponse.next();

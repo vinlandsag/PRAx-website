@@ -1,5 +1,32 @@
 # CHANGELOG_DEV.md
 
+## 2026-10-29 — interaction profiles and chat attachments
+
+Names and avatars in chat/leaderboard now link to /members/[id]?from=chat|leaderboard, with the correct return action. Public profile loading resolves approved account records instead of requiring an initialized private workspace. Sample entries are labelled previews and do not become auth accounts. No standalone Members navigation, directory route or directory API ships in this change; the temporary /members and /api/members implementations created during the work were removed at the user's request.
+
+Added typed chat attachments, a separate composer/renderer, authenticated multipart upload and protected retrieval/removal endpoints. Supports PNG/JPEG/GIF/WEBP, MP4/MOV/WEBM/OGV, and the documented document/archive/audio formats. Includes local preview/removal, retry, attachment-only posts, controlled downloads, video range responses, bounded sizes/storage, server signature checks and author-bound pending uploads. Message removal/eviction clears attachment bytes. Existing chat moderation permissions/audits remain.
+
+New source: src/lib/workspace/access.ts, error.ts, members.ts, attachment-policy.ts, attachment-store.ts; src/components/chat/ChatComposer.tsx and ChatAttachments.tsx; src/app/api/chat/attachments/route.ts and [id]/route.ts. New tests: src/lib/workspace/media.test.ts and src/components/chat/chat-media.test.tsx. Updated: workspace types/store/catalog/filter and interactions.test.tsx; /api/workspace; chat/leaderboard/member-profile pages; ProfileView; Icon; next.config.ts. Required eight memory files updated. Private profile defaults no longer derive handles from email; unedited non-fixture accounts do not claim a bio/skills. Existing process-store data survives method hot reload via prototype refresh; restart volatility remains.
+
+Validation: 235 tests, lint/typecheck/scoped formatting/build pass. Browser and HTTP evidence is recorded in TEST_LOG.md. No new package, backend service, migration, auth bypass, commit or deployment.
+
+## 2026-10-29 — reference cursor appearance
+
+- Changed public/artwork/cursor-arrow.svg and cursor-hand.svg to rounded dark silhouettes, pale outlines and a soft static violet halo; added corresponding transparent 32x32 PNG exports for reliable native cursor decoding.
+- Changed src/app/tokens.css to PNG cursor URLs with hotspots 8,8 (arrow) and 13,6 (hand); src/app/globals.css only receives a clarified comment and formatting. Existing eligibility guards and native text/disabled semantics retained.
+- Updated DESIGN_SYSTEM.md and all eight memory files. No new dependency, tracking script, route, API payload, backend or application-screen change.
+- Passed 207 tests, full lint/typecheck, changed CSS formatting, production build and local asset HTTP/disk checks. Raster preview visually inspected; live pointer check unavailable due to browser connection failure. Details: latest TEST_LOG.md entry.
+
+## 2026-10-29 — reported member interaction bugs
+
+Implemented the seven requested areas using existing shared controls and authenticated server storage. Search supports Ctrl/Cmd+K, arrow selection, Enter navigation and private-item deep links. Task filters combine search/category/status/sort and show matching/empty states; detail pages now use the selected catalog id. Personal Space supports editable detailed to-dos, notes, goals, completion, difficulty/status/search filters and both sidebar shortcuts. Leaderboard switches sample podium, order, scores, standing and next-rank gap. Chat supports shared messages, author edit/delete, admin pin/unpin/delete and moderation audit events. Profiles edit identity, skills and project/portfolio; missing portfolio shows setup actions and public reads respect privacy. Settings save account, theme, notification and privacy preferences; security shows actual account information and working sign-out.
+
+New source: src/lib/workspace/{catalog,types,store,filter,use-workspace}.ts; src/app/api/workspace/route.ts; src/components/layout/{GlobalSearch,ThemeSync}.tsx; src/components/profile/EditableProfile.tsx.
+
+Changed source: src/app/{chat,leaderboard,settings,space,tasks,profile}/page.tsx; src/app/tasks/[id]/page.tsx; src/app/members/[id]/page.tsx; src/app/layout.tsx; src/app/tokens.css; src/components/layout/{TopNav,MemberSidebar}.tsx; src/components/profile/ProfileView.tsx; src/components/ui/Icon.tsx. Tests: new workspace/workspace.test.ts and workspace/interactions.test.tsx; updated ProfileView.test.tsx. All eight memory files updated. Earlier uncommitted foundation/cursor/profile work was preserved.
+
+Resolved during verification: local origin/Host mismatch, edit button becoming a submit action, native date input events, stale settings-form remounts, route/account theme changes, new test typing and accessible-name assumptions. Final 207 tests, lint, types, scoped formatting and build pass. See TEST_LOG.md for commands/evidence and current limits.
+
 Chronological record of development changes.
 
 ## Format
@@ -404,3 +431,118 @@ Each entry must include:
 ---
 
 _Last updated: 2026-10-28T13:40 · Phase 7 Rubric Engine & Points Boundary Complete (Person 1 100% Complete)_
+
+
+## 2026-10-28 - UI foundation (D-015), including native pointer follow-up
+
+- Phase: reusable frontend foundation only, preserving Next.js/TypeScript/Tailwind and existing screens/backends.
+- Behavior: PDF-audited tokens, explicit self-hosted Inter, backward-compatible UI refinements, missing typed primitives, local upload preview/validation, accessible keyboard dialog, development-only review page, responsive controls and native semantic cursors.
+- Actual branch/base: main / e9f009c. No commit, push or deployment.
+- Commands: installed dependencies via bundled pnpm; rendered all 20 PDF pages with Poppler; ran next typegen, tsc, full ESLint, Vitest and next build via node_modules CLI entry points. Final 168 tests/9 suites pass, typecheck and lint exit 0, production build exit 0, production review URL 404. Failed attempts and exact check results are retained in TEST_LOG.md.
+- Formatting: `node node_modules/prettier/bin/prettier.cjs --check next.config.ts src/app/globals.css src/app/tokens.css src/app/layout.tsx src/app/design-system src/components/ui src/lib/design-tokens.ts src/proxy.ts src/design-system-route.test.ts DESIGN_SYSTEM.md` passed. Repository-wide check remains failed on pre-existing formatting issues.
+- Browser: reference desktop and mobile sizing verified; font weights loaded; form validation, keyboard tabs/radios, dialog wrapping/restoration, upload preview/removal and pointer/text/disabled cursors verified.
+- Known limits: local-only upload previews; global shared-theme/font changes propagate to older screens; full legacy-screen fidelity is deferred. No new backend service.
+- Best next action: review /design-system before a later screen implementation stage.
+
+Exact files changed in this session:
+
+- `AGENT_HANDOFF.md`
+- `API_CONTRACTS.md`
+- `CHANGELOG_DEV.md`
+- `DECISIONS.md`
+- `DESIGN_SYSTEM.md`
+- `PROJECT_STATE.md`
+- `SECURITY_NOTES.md`
+- `TEST_LOG.md`
+- `TODO_NEXT.md`
+- `next.config.ts`
+- `public/artwork/avatar-reference.png`
+- `public/artwork/task-landing.png`
+- `public/artwork/task-onboarding.png`
+- `public/artwork/task-sql.png`
+- `public/artwork/task-terminal.png`
+- `public/artwork/task-writing.png`
+- `public/fonts/Inter-LICENSE.txt`
+- `public/fonts/InterVariable.woff2`
+- `src/app/design-system/page.tsx`
+- `src/app/design-system/review.tsx`
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/app/tokens.css`
+- `src/components/ui/Avatar.tsx`
+- `src/components/ui/Badge.tsx`
+- `src/components/ui/Button.tsx`
+- `src/components/ui/Card.tsx`
+- `src/components/ui/Feedback.tsx`
+- `src/components/ui/Field.tsx`
+- `src/components/ui/FileUpload.tsx`
+- `src/components/ui/FormControls.tsx`
+- `src/components/ui/Icon.tsx`
+- `src/components/ui/Input.tsx`
+- `src/components/ui/Modal.tsx`
+- `src/components/ui/Navigation.tsx`
+- `src/components/ui/Progress.tsx`
+- `src/components/ui/StatCard.tsx`
+- `src/components/ui/StatusBadge.tsx`
+- `src/components/ui/Table.tsx`
+- `src/components/ui/Tabs.tsx`
+- `src/components/ui/TaskCard.tsx`
+- `src/components/ui/components.test.tsx`
+- `src/components/ui/foundation.test.tsx`
+- `src/components/ui/index.ts`
+- `src/design-system-route.test.ts`
+- `src/lib/design-tokens.ts`
+- `src/proxy.ts`
+
+
+## 2026-10-28 - Textured mouse pointer (D-016)
+
+- Files changed this follow-up: public/artwork/cursor-arrow.svg, public/artwork/cursor-hand.svg, src/app/tokens.css, src/app/globals.css, PROJECT_STATE.md, AGENT_HANDOFF.md, TODO_NEXT.md, DECISIONS.md, API_CONTRACTS.md, SECURITY_NOTES.md, TEST_LOG.md, CHANGELOG_DEV.md, DESIGN_SYSTEM.md.
+- Added violet stipple texture to desktop arrow and hand cursors. Preserved native text/disabled cursors, coarse-input/high-contrast defaults and native fallback keywords. Static SVG/CSS only.
+- Verified both assets rendered, computed cursor states, 20 foundation tests, typecheck, scoped lint, CSS formatting and production build. Commands, outputs and resolved Turbopack cache failure are in TEST_LOG.md. No commit, push, backend changes or deployment.
+- Best next action: inspect the texture on /design-system.
+
+
+## 2026-10-29 - Profile header overlap and avatar rim fix (D-017)
+
+- Exact permanent files changed for this follow-up: src/components/profile/ProfileView.tsx, src/components/profile/ProfileView.test.tsx, PROJECT_STATE.md, AGENT_HANDOFF.md, DECISIONS.md, TODO_NEXT.md, SECURITY_NOTES.md, TEST_LOG.md, CHANGELOG_DEV.md.
+- Isolated negative offset to avatar, rounded its ring-bearing wrapper, kept identity/actions in white panel normal flow, and supported long name/handle/social wrapping. Browser stress testing prompted explicit min/max width and overflow-wrap:anywhere for unbroken names.
+- User-requested team roles: coordinator, fixer, visual tester, regression tester. Source/tests saved before an account-limit interruption were reused on resume. Parent conducted browser checks because child UI session lacked the bridge; visual tester/coordinator independently reviewed evidence.
+- Actual final checks:172 tests/10 files pass, full ESLint/tsc exit0, scoped formatting pass, production build pass (912ms compile,38/38 generated). Exact commands/results and17-case geometry evidence recorded in TEST_LOG.md.
+- A temporary server-gated illustrative development fixture was created for component verification and removed before final build. Shared UI/auth/API contracts unchanged. No commit, push or deployment.
+- Remaining limit: actual authenticated-route visual screenshot not exercised. Best next step: refresh /profile in signed-in browser and review header.
+
+
+## Local website run check (2026-10-29)
+
+Port 3000 already had a PRAX server. Starting another next dev instance returned EADDRINUSE, so the existing server was reused. Local GET /login returned HTTP 200. Requested opening http://127.0.0.1:3000 in Codex; UI returned queued. No application source changes. Next action: open the local website.
+
+### Local run request (2026-10-29)
+Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
+
+
+### npm terminal diagnosis (2026-10-29)
+Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
+
+
+### Windows terminal runtime follow-up (2026-10-29)
+User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
+
+
+### Windows Node/npm setup completed (2026-10-29)
+Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
+Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
+
+### Development server handed to user terminal (2026-10-29)
+User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
+
+### Git push readiness review (2026-10-29)
+User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
+Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
+
+### Authorized donel branch delivery (2026-10-29)
+The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
+The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
+
+Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
+

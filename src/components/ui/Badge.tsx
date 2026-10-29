@@ -37,8 +37,8 @@ export const Badge: React.FC<BadgeProps> = ({
   };
 
   const sizeStyles = {
-    sm: "text-[11px] font-medium px-2 py-0.5 rounded-md gap-1",
-    md: "text-xs font-medium px-2.5 py-1 rounded-lg gap-1.5",
+    sm: "text-[10px] max-sm:text-[11px] leading-4 font-semibold px-1.5 rounded-sm gap-1",
+    md: "text-[11px] leading-5 font-semibold px-2 rounded-sm gap-1.5",
   };
 
   return (

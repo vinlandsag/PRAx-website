@@ -9,7 +9,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     return (
       <div
         ref={ref}
-        className={`bg-surface border border-border rounded-2xl shadow-card transition-all duration-150 ${
+        className={`min-w-0 bg-surface border border-border rounded-panel shadow-card transition-colors duration-150 ${
           hoverEffect ? "hover:shadow-card-hover hover:border-border-subtle" : ""
         } ${className}`}
         {...props}
@@ -26,7 +26,7 @@ export const CardHeader: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className = "",
   ...props
 }) => (
-  <div className={`p-5 sm:p-6 pb-0 flex flex-col gap-1 ${className}`} {...props}>
+  <div className={`p-4 pb-0 flex flex-col gap-1 ${className}`} {...props}>
     {children}
   </div>
 );
@@ -36,10 +36,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   className = "",
   ...props
 }) => (
-  <h3
-    className={`text-base sm:text-lg font-semibold text-text tracking-tight ${className}`}
-    {...props}
-  >
+  <h3 className={`text-sm font-bold text-text tracking-tight ${className}`} {...props}>
     {children}
   </h3>
 );
@@ -59,7 +56,7 @@ export const CardContent: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className = "",
   ...props
 }) => (
-  <div className={`p-5 sm:p-6 ${className}`} {...props}>
+  <div className={`p-4 ${className}`} {...props}>
     {children}
   </div>
 );
@@ -70,7 +67,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => (
   <div
-    className={`p-5 sm:p-6 pt-0 border-t border-border-subtle mt-4 flex items-center justify-between ${className}`}
+    className={`px-4 py-3 border-t border-border-subtle flex flex-wrap items-center justify-between gap-2 ${className}`}
     {...props}
   >
     {children}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <filter id="halo" x="-8" y="-8" width="48" height="48" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="1.8"/>
+    </filter>
+    <path id="hand" transform="translate(4 4) scale(.75)" d="M10 18V5a2.2 2.2 0 0 1 4.4 0v8a2 2 0 0 1 4 0v1a2 2 0 0 1 4 0v1a2 2 0 0 1 4 0v6c0 4-2 6-3 8H13c-2-3-3-4-5-6l-3-4c-1.5-2 .8-4 2.5-2.5L10 19Z"/>
+  </defs>
+  <use href="#hand" fill="#b9a0ff" stroke="#b9a0ff" stroke-width="4" opacity=".6" filter="url(#halo)"/>
+  <use href="#hand" fill="#171421" stroke="#baa5ef" stroke-width="2.8" stroke-linejoin="round"/>
+  <use href="#hand" fill="#171421" stroke="#faf5ff" stroke-width="1.65" stroke-linejoin="round"/>
+  <path d="M14.8 13.8v4.5m3-3.7v3.7m3-3v3" fill="none" stroke="#e2d7f9" stroke-width=".75" stroke-linecap="round"/>
+</svg>
