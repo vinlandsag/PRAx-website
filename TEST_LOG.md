@@ -1,5 +1,56 @@
 # TEST_LOG.md
 
+## Live Supabase Connection & Verification (2026-10-31, D-024)
+
+- **Date/Time:** 2026-10-31T19:47:45+05:30
+- **Environment:** Windows 10/11 x64, Node.js v24.19.0, npm 11.17.0, Supabase PostgreSQL 16 Cloud
+- **Command:** Live Supabase Query Verification (.env.local credentials)
+- **Pass/Fail:** PASS
+- **Live Query Results:**
+  - Connected successfully to live Supabase instance
+  - Table users: 2 records found (Admin User [ADMIN] admin@prax.build, Arjun Varma [MEMBER] member@prax.build)
+  - Table tasks: 4 active tasks found
+  - Table rubrics: v1 PRAX Engineering Excellence Rubric (100 pts)
+- **Test Suite:** npm test -> 232/232 tests pass (14 suites)
+- **Production Build:** npm run build -> 47/47 routes pass with .env.local loaded
+- **Unresolved Failures:** None.
+
+## Supabase Database & Integration Verification (2026-10-31, D-024)
+
+- **Date/Time:** 2026-10-31T19:07:30+05:30
+- **Environment:** Windows 10/11 x64, Node.js v24.19.0, npm 11.17.0, Next.js 16.4.3 Turbopack, Vitest 3.2.7, ESLint 9, Prettier 3
+- **Command 1: `npm test`**
+  - **Pass/Fail:** PASS (231/231 tests pass across 14 test suites in 5.90s)
+  - **Output Excerpt:**
+    ```
+    ✓ src/lib/errors.test.ts (8 tests)
+    ✓ src/lib/supabase/supabase.test.ts (5 tests)
+    ✓ src/design-system-route.test.ts (3 tests)
+    ✓ src/lib/auth/rbac.test.ts (34 tests)
+    ✓ src/lib/api/client.test.ts (6 tests)
+    ✓ src/lib/api/backend.test.ts (80 tests)
+    ✓ src/lib/auth/development-member.test.ts (14 tests)
+    ✓ src/components/ui/components.test.tsx (14 tests)
+    ✓ src/components/profile/ProfileView.test.tsx (6 tests)
+    ✓ src/components/chat/chat-media.test.tsx (6 tests)
+    ✓ src/components/layout/NotificationBell.test.tsx (8 tests)
+    ✓ src/components/ui/foundation.test.tsx (20 tests)
+    ✓ src/lib/api/cleanup.test.tsx (13 tests)
+    ✓ src/lib/workspace/interactions.test.tsx (14 tests)
+
+    Test Files  14 passed (14)
+         Tests  231 passed (231)
+    ```
+- **Command 2: `npm run typecheck` (`tsc --noEmit`)**
+  - **Pass/Fail:** PASS (0 errors)
+- **Command 3: `npm run lint` (`eslint .`)**
+  - **Pass/Fail:** PASS (0 errors, 0 warnings)
+- **Command 4: `npm run format:check` (`prettier --check .`)**
+  - **Pass/Fail:** PASS (All matched files use Prettier code style)
+- **Command 5: `npm run build` (`next build`)**
+  - **Pass/Fail:** PASS (All 47 static/dynamic routes and proxy compiled with exit code 0)
+- **Unresolved Failures:** None.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
@@ -792,25 +843,24 @@ Each entry must include:
 
 _Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete_
 
-
 ## 2026-10-28 - PDF-audited UI foundation and mouse pointers
 
 Environment: Windows PowerShell, Node v24.22.1, Next.js 16.4.3, Vitest 3.2.7, Prettier 3.9.10. Commands used the repository CLI entry points because npm was not available on PATH. Existing dependencies were installed with the bundled pnpm runner, without modifying package.json or package-lock.json.
 
 ### Passed
 
-| Command / check | Actual result |
-| --- | --- |
-| `pdfinfo <supplied PDF>` | 20 pages, 1080 x 675.12 points |
-| `pdftoppm -scale-to-x 1080 -scale-to-y -1 -png <supplied PDF> tmp/pdfs/reference` | 20 PNGs rendered; visually inspected all pages; source Type 3 glyph bounding-box warnings did not prevent rendering |
-| bundled `pnpm install --ignore-scripts --lockfile=false` (approved outside sandbox) | 486 packages installed; Next 16.4.3 / React 19.3.0 retained; package files unchanged |
-| `node node_modules/next/dist/bin/next typegen` | Types generated successfully |
-| `node node_modules/typescript/bin/tsc --noEmit` | Exit 0, no output |
-| `node node_modules/eslint/bin/eslint.js .` | Exit 0, no output |
-| `node node_modules/vitest/vitest.mjs run` | 9 files / 168 tests passed; final duration 5.98 s |
-| `node node_modules/next/dist/bin/next build` (approved outside sandbox) | Exit 0; compiled successfully in 1007 ms; TypeScript 3.0 s; 38/38 static pages generated; existing static/dynamic routes and Proxy compiled |
-| changed-source `prettier --check` (CLI paths listed in changelog) | All matched files use Prettier code style |
-| production HTTP fetch on local port 3002, redirects manual | /design-system 404; /design-system/ 308 to canonical URL; /api/health 200; /fonts/InterVariable.woff2 200; /artwork/task-sql.png 200; /dashboard 307 |
+| Command / check                                                                     | Actual result                                                                                                                                        |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pdfinfo <supplied PDF>`                                                            | 20 pages, 1080 x 675.12 points                                                                                                                       |
+| `pdftoppm -scale-to-x 1080 -scale-to-y -1 -png <supplied PDF> tmp/pdfs/reference`   | 20 PNGs rendered; visually inspected all pages; source Type 3 glyph bounding-box warnings did not prevent rendering                                  |
+| bundled `pnpm install --ignore-scripts --lockfile=false` (approved outside sandbox) | 486 packages installed; Next 16.4.3 / React 19.3.0 retained; package files unchanged                                                                 |
+| `node node_modules/next/dist/bin/next typegen`                                      | Types generated successfully                                                                                                                         |
+| `node node_modules/typescript/bin/tsc --noEmit`                                     | Exit 0, no output                                                                                                                                    |
+| `node node_modules/eslint/bin/eslint.js .`                                          | Exit 0, no output                                                                                                                                    |
+| `node node_modules/vitest/vitest.mjs run`                                           | 9 files / 168 tests passed; final duration 5.98 s                                                                                                    |
+| `node node_modules/next/dist/bin/next build` (approved outside sandbox)             | Exit 0; compiled successfully in 1007 ms; TypeScript 3.0 s; 38/38 static pages generated; existing static/dynamic routes and Proxy compiled          |
+| changed-source `prettier --check` (CLI paths listed in changelog)                   | All matched files use Prettier code style                                                                                                            |
+| production HTTP fetch on local port 3002, redirects manual                          | /design-system 404; /design-system/ 308 to canonical URL; /api/health 200; /fonts/InterVariable.woff2 200; /artwork/task-sql.png 200; /dashboard 307 |
 
 Browser checks passed: Inter reports all 400/500/600/700/800 font faces loaded, computed body family Inter; desktop 1080 x 675; task-card height 182.25 px / thumbnail 79.5 x 75 px / radius 12.75 px; mobile 390 x 844, fields 44 px high with 16 px text, document width equals scroll width (375 px after scrollbar). Form errors focus first invalid field and corrected values produce success. Arrow navigation changes tabs and native segmented radios. Dialog Shift+Tab wraps to Confirm; Tab wraps to Close; Escape closes and restores Open dialog focus. Local file chooser selection previews a PNG and removal clears it. Unit tests also cover drop acceptance, invalid/oversized/empty/multiple/disabled/corrupt files, object-URL release, unique IDs and progress bounds. Computed cursors: button/checkbox pointer, text input text, disabled button not-allowed.
 
@@ -836,7 +886,6 @@ Screenshots: desktop/mobile evidence saved outside the repository in this chat's
 - Coverage report, dependency audit, screen-reader hardware testing, automated cross-browser E2E and comprehensive legacy-screen screenshot comparison: not run.
 - Production deployment, backend upload/persistence tests, new auth flows: skipped as outside this stage.
 
-
 ## 2026-10-28 - Textured mouse cursor
 
 - PASS: `node node_modules/vitest/vitest.mjs run src/components/ui/foundation.test.tsx` -> 20/20 tests, 1 file, 3.72 s.
@@ -848,7 +897,6 @@ Screenshots: desktop/mobile evidence saved outside the repository in this chat's
 - FAILED attempts, resolved: sandboxed build and first outside-sandbox build hit the recurring Windows Turbopack child-process socket startup error. Removed only resolved generated production cache paths .next/build and .next/cache/turbopack, leaving .next/dev intact; approved clean build then passed. No source workaround or stack change.
 - NOT RUN: full suite, coverage, high-contrast/coarse-pointer device emulation. This styling-only follow-up reused the foundation behavior suite and manually verified browser cursor states.
 - Screenshot evidence: textured-cursor.png in this chat's visualization directory. No deployment or commit.
-
 
 ## 2026-10-29 - Profile header screenshot bug
 
@@ -877,40 +925,43 @@ Screenshots: desktop/mobile evidence saved outside the repository in this chat's
 - Full repository format check not rerun; historical pre-existing formatting issues remain outside this focused fix. Changed profile source/test formatting passed.
 - Cross-browser/device hardware, screen-reader hardware and authenticated-route screenshot checks not run. No deployment, backend changes or production data changes.
 
-
 ## Local website run check (2026-10-29)
 
 Port 3000 already had a PRAX server. Starting another next dev instance returned EADDRINUSE, so the existing server was reused. Local GET /login returned HTTP 200. Requested opening http://127.0.0.1:3000 in Codex; UI returned queued. No application source changes. Next action: open the local website.
 
 ### Local run request (2026-10-29)
+
 Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
 
-
 ### npm terminal diagnosis (2026-10-29)
+
 Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
 
-
 ### Windows terminal runtime follow-up (2026-10-29)
+
 User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
 
-
 ### Windows Node/npm setup completed (2026-10-29)
+
 Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
 Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
 
 ### Development server handed to user terminal (2026-10-29)
+
 User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
 
 ### Git push readiness review (2026-10-29)
+
 User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
 Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
 
 ### Authorized donel branch delivery (2026-10-29)
+
 The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
 The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
-
 ### Login screenshot diagnosis (2026-10-29)
+
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

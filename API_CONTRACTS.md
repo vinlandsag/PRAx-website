@@ -1,5 +1,30 @@
 # API_CONTRACTS.md
 
+## Supabase Database Integration Contract — D-024 (2026-10-31)
+
+Supabase PostgreSQL 16 database established as the core persistence engine.
+
+- **Client Packages:** `@supabase/supabase-js` v2.
+- **Client Endpoints:**
+  - `src/lib/supabase/client.ts`: `getSupabaseBrowserClient()` and `supabase` singleton (browser with `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
+  - `src/lib/supabase/server.ts`: `getSupabaseAdminClient()` (bypasses RLS with `SUPABASE_SERVICE_ROLE_KEY` for API routes) and `getSupabaseServerClient()`.
+  - `src/lib/supabase/db.ts`: Typed data access layer (`db.getUserById`, `db.getActiveTasks`, `db.getTaskById`, `db.getUserSubmissions`, `db.getReviewQueue`, `db.getLeaderboard`, `db.getChannels`, `db.getChannelMessages`, `db.createAuditLog`).
+- **Database Schema Models:**
+  - `users` (id, email, password_hash, name, role, status, avatar_url, headline, bio, skills, currently_building, created_at, updated_at)
+  - `invite_codes` (id, code, status, max_uses, used_count, created_by_id, expires_at, revoked_at)
+  - `magic_link_tokens` (id, email, token_hash, expires_at, used_at)
+  - `rubrics` & `rubric_versions` (id, version, title, criteria, max_points, updated_by_id)
+  - `tasks` (id, title, description, category, difficulty, max_points, rules, is_active, created_by_id)
+  - `submissions` (id, task_id, user_id, status, proof_url, note, checklist, points_awarded, feedback)
+  - `point_transactions` (id, user_id, amount, reason, idempotency_key, submission_id, admin_id)
+  - `streaks` (id, user_id, current_streak, longest_streak, last_activity_date)
+  - `channels` & `messages` (id, channel_id, user_id, content, attachments, is_deleted)
+  - `personal_space_pages` (id, user_id, title, content, blocks)
+  - `audit_logs` (id, event, actor_id, target_id, prior_state, new_state, reason, metadata)
+  - `notifications` (id, user_id, title, message, type, read, link)
+  - `user_leaderboard` (computed view aggregating non-negative points and streak ranks)
+- **1-Click SQL Script:** `supabase/schema.sql` (schema + seed + verification counts) ready for the Supabase SQL editor.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
@@ -34,16 +59,16 @@ Disconnected response: HTTP 503, Cache-Control: no-store, {error:{code:"BACKEND_
 
 New frontend read/write shapes below are declared integration contracts, **not implemented backend features**. They are centralized in src/lib/api/contracts.ts; workspace/chat/attachment/settings shapes remain in src/lib/workspace/types.ts and attachment-policy.ts. Submission and rubric types moved to lib/db/submissions.ts and lib/rubric/types.ts; points payload types live in lib/points/types.ts with no ledger.
 
-| Route | Methods / intended successful shape |
-| --- | --- |
-| /api/tasks | GET {tasks:TaskItem[]}; admin POST task fields -> {task:{id,...}} |
-| /api/tasks/[id] | GET {task:TaskItem}; admin PATCH task fields |
-| /api/submissions | GET {submissions:Submission[]}; POST {taskId,proofUrl,note} |
-| /api/dashboard | GET {totalPoints,weeklyRank:number|null,dayStreak,tasksApproved,activity:[{id,title,createdAt}]} |
-| /api/streaks | GET {current,longest,activeDays:string[]} |
-| /api/leaderboard?period=weekly|alltime | GET {entries:[{id,name,points,rank,streak}],total}; ranking/order computed by backend |
-| /api/admin/reports | admin GET {reports:[{id,author,content,reason}]}; PATCH {id,operation:"dismiss"|"remove-message"} |
-| /api/notifications | GET {notifications:[{id,title,message,createdAt,readAt:string|null,href?:string}]}; PATCH {operation:"mark-all-read"}, successful 204 or JSON |
+| Route                          | Methods / intended successful shape                                             |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| /api/tasks                     | GET {tasks:TaskItem[]}; admin POST task fields -> {task:{id,...}}               |
+| /api/tasks/[id]                | GET {task:TaskItem}; admin PATCH task fields                                    |
+| /api/submissions               | GET {submissions:Submission[]}; POST {taskId,proofUrl,note}                     |
+| /api/dashboard                 | GET {totalPoints,weeklyRank:number                                              | null,dayStreak,tasksApproved,activity:[{id,title,createdAt}]}                         |
+| /api/streaks                   | GET {current,longest,activeDays:string[]}                                       |
+| /api/leaderboard?period=weekly | alltime                                                                         | GET {entries:[{id,name,points,rank,streak}],total}; ranking/order computed by backend |
+| /api/admin/reports             | admin GET {reports:[{id,author,content,reason}]}; PATCH {id,operation:"dismiss" | "remove-message"}                                                                     |
+| /api/notifications             | GET {notifications:[{id,title,message,createdAt,readAt:string                   | null,href?:string}]}; PATCH {operation:"mark-all-read"}, successful 204 or JSON       |
 
 TaskItem also accepts dueAt/createdAt ISO timestamps for real filtering/sorting and optional checklist:string[]. No ID-specific deadlines or locally invented ranking data. Profile response no longer includes isDemo or sample aliases: GET /api/workspace?memberId=<id> expects {profile}, with private fields and portfolio privacy enforced by real backend. Profile metrics/activity remain unknown rather than fabricated.
 
@@ -482,7 +507,6 @@ Owner: **P5**
 
 _Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary complete_
 
-
 ## UI foundation supplement (2026-10-28)
 
 No backend endpoint, authentication payload or database interface changed.
@@ -497,38 +521,41 @@ No backend endpoint, authentication payload or database interface changed.
 - colors/radii/shadows exports now resolve CSS variables instead of literal values. CSS styles are supported; canvas/export consumers should resolve computed values. Layout and breakpoints remain numeric.
 - /design-system is development-only; public font/artwork prefixes pass the proxy. Existing protected-route authorization remains.
 
-
 Cursor token supplement (2026-10-28): additive CSS tokens --cursor-default and --cursor-pointer reference local 32 px SVG assets, including hotspot coordinates and native fallback keywords. No component props or backend interfaces changed.
 
 ### Local run request (2026-10-29)
+
 Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
 
-
 ### npm terminal diagnosis (2026-10-29)
+
 Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
 
-
 ### Windows terminal runtime follow-up (2026-10-29)
+
 User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
 
-
 ### Windows Node/npm setup completed (2026-10-29)
+
 Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
 Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
 
 ### Development server handed to user terminal (2026-10-29)
+
 User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
 
 ### Git push readiness review (2026-10-29)
+
 User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
 Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
 
 ### Authorized donel branch delivery (2026-10-29)
+
 The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
 The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
-
 ### Login screenshot diagnosis (2026-10-29)
+
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

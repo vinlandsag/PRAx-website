@@ -1,5 +1,19 @@
 # DECISIONS.md
 
+## D-024 — Adopt Supabase PostgreSQL Database for PRAX Platform (2026-10-31)
+
+User (Database Lead) requested creating the database via Supabase with full setup, migration schemas, seed data, and instructions. Resolves D-005 (DB hosting).
+
+- **Hosting & Database:** Supabase (cloud-hosted PostgreSQL 16) providing high-availability relational persistence, connection pooling, and Row Level Security (RLS).
+- **Client & Integration:** Installed `@supabase/supabase-js`. Implemented typed singleton clients:
+  - `src/lib/supabase/client.ts` (browser client using anon key)
+  - `src/lib/supabase/server.ts` (administrative server client using service role key, bypassing RLS for backend route handlers, and standard server client)
+  - `src/lib/supabase/types.ts` (TypeScript database definitions conforming to PostgREST v2 GenericSchema)
+  - `src/lib/supabase/db.ts` (typed query helper module for users, tasks, submissions, rubrics, channels, points, and audit logs)
+- **Schema & Migrations:** Created complete DDL migrations in `supabase/migrations/20261031000000_prax_schema.sql` covering all 14 MVP tables, enums, triggers, RLS policies, and `user_leaderboard` view.
+- **1-Click SQL Script & Seeds:** Created unified `supabase/schema.sql` for 1-click execution in the Supabase Dashboard SQL Editor, and `supabase/seed.sql` for pre-seeded test fixtures (admin, member, initial invite code, v1 rubric, starter tasks, chat channels, points, streaks).
+- **Environment Configuration:** Extended `src/lib/env.ts` with `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, and `isSupabaseConfigured` flag. Updated `.env.example` with instructions.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
@@ -109,7 +123,6 @@ These are PROPOSED until team signs off. Record sign-off date in a superseding r
 
 _Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete_
 
-
 ## D-015 - PDF-audited foundation (2026-10-28)
 
 Retain Next.js 16.4.3, React 19.3, TypeScript, Tailwind v4 and existing exports. This request supersedes older screen-expansion plans for this session: implement only the shared foundation and review route. Existing screens remain intact.
@@ -120,11 +133,9 @@ Explicit self-hosted official Inter variable font with no local() source; licens
 
 Review route is available only in development, guarded by both proxy and server page. Asset prefixes /fonts/ and /artwork/ are public. Dialog uses unique IDs, portal, inert background, focus trap/restoration and scroll restoration. File upload validates one nonempty PNG/JPEG up to 5 MB and releases object URLs; no upload service is introduced. The pointer follow-up means native semantic cursors, without decorative pointer effects. Reversible: yes. Shared style corrections affect existing consumers; screen-level changes remain deferred.
 
-
 ## D-016 - User-requested cursor texture (2026-10-28)
 
 The explicit texture follow-up supersedes D-015's native-only cursor choice. Use static 32 x 32 SVGs with violet stipple, navy outline and white keyline; arrow hotspot 4,3 and hand hotspot 12,3. No gradients, filters, animation, JavaScript tracking or hidden native pointer. Limit custom assets to (hover: hover), (pointer: fine), (forced-colors: none); keep text/disabled semantics and auto/pointer fallbacks. Existing styling and application screens otherwise unchanged. Reversible via two CSS tokens.
-
 
 ## D-017 - Isolate profile avatar overlap (2026-10-29)
 
@@ -133,34 +144,38 @@ The explicit screenshot bug request authorizes a focused correction to the exist
 Use an illustrative temporary server-gated development fixture for visual checks when no authenticated session is available; do not weaken route authorization. Remove the fixture before final build. Browser geometry and screenshot review are authoritative for this visual defect; jsdom tests cover preserved content/semantics only.
 
 ### Local run request (2026-10-29)
+
 Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
 
-
 ### npm terminal diagnosis (2026-10-29)
+
 Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
 
-
 ### Windows terminal runtime follow-up (2026-10-29)
+
 User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
 
-
 ### Windows Node/npm setup completed (2026-10-29)
+
 Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
 Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
 
 ### Development server handed to user terminal (2026-10-29)
+
 User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
 
 ### Git push readiness review (2026-10-29)
+
 User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
 Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
 
 ### Authorized donel branch delivery (2026-10-29)
+
 The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
 The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
-
 ### Login screenshot diagnosis (2026-10-29)
+
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

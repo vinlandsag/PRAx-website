@@ -22,8 +22,14 @@ export const env = {
     return optional("SESSION_SECRET", optional("NEXTAUTH_SECRET"));
   },
 
-  // Database (pending D-005)
+  // Database (Supabase / Postgres — D-005 / D-016)
   databaseUrl: optional("DATABASE_URL"),
+  supabaseUrl: optional("NEXT_PUBLIC_SUPABASE_URL"),
+  supabaseAnonKey: optional("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+  supabaseServiceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
+  get isSupabaseConfigured(): boolean {
+    return Boolean(this.supabaseUrl && this.supabaseAnonKey);
+  },
 
   // App
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
