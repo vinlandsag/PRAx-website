@@ -17,14 +17,13 @@ export const env = {
 
   // Auth & Session
   nextauthUrl: optional("NEXTAUTH_URL", "http://localhost:3000"),
-  nextauthSecret: optional("NEXTAUTH_SECRET", "prax-dev-secret-32-characters-placeholder"),
-  sessionSecret: optional(
-    "SESSION_SECRET",
-    optional("NEXTAUTH_SECRET", "prax-default-dev-session-secret-change-in-prod-32chars")
-  ),
+  nextauthSecret: optional("NEXTAUTH_SECRET"),
+  get sessionSecret() {
+    return optional("SESSION_SECRET", optional("NEXTAUTH_SECRET"));
+  },
 
   // Database (pending D-005)
-  databaseUrl: optional("DATABASE_URL", "postgresql://localhost:5432/prax"),
+  databaseUrl: optional("DATABASE_URL"),
 
   // App
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),

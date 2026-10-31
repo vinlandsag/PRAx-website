@@ -5,6 +5,7 @@ import { Button } from "./Button";
 import { Icon } from "./Icon";
 
 export interface ModalProps {
+  id?: string;
   isOpen: boolean;
   onClose: () => void;
   title?: string;
@@ -15,6 +16,7 @@ export interface ModalProps {
   maxWidth?: "sm" | "md" | "lg" | "xl";
 }
 export function Modal({
+  id,
   isOpen,
   onClose,
   title,
@@ -96,6 +98,7 @@ export function Modal({
       }}
     >
       <div
+        id={id}
         ref={dialog}
         role="dialog"
         aria-modal="true"

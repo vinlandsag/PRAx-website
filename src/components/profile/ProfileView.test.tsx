@@ -14,7 +14,13 @@ afterEach(cleanup);
 
 describe("ProfileView header content", () => {
   it("preserves the member identity, accessible avatar and edit action", () => {
-    render(<ProfileView />);
+    render(
+      <ProfileView
+        name="Arjun Varma"
+        handle="@arjunbuilds"
+        bio="Building useful things, learning in public, and sharing the process."
+      />
+    );
 
     expect(screen.getByRole("heading", { level: 1, name: "My profile" })).toBeDefined();
     expect(screen.getByRole("heading", { level: 2, name: "Arjun Varma" })).toBeDefined();

@@ -265,16 +265,6 @@ function MemberSidebarContent({ onCloseMobile }: { onCloseMobile?: () => void })
 
       {/* Footer Area */}
       <div className="p-4 border-t border-sidebar-hover/60 flex flex-col gap-3">
-        {/* Micro motivational prompt from PDF */}
-        <div className="px-3 py-2 rounded-xl bg-sidebar-hover/40 border border-sidebar-hover/80 flex items-center gap-2">
-          <span className="text-primary text-xs" aria-hidden="true">
-            ✦
-          </span>
-          <span className="text-[11px] text-sidebar-quote font-medium leading-tight">
-            Keep shipping. Keep growing.
-          </span>
-        </div>
-
         {/* Member profile widget */}
         <div className="flex items-center justify-between px-2 py-1.5 rounded-xl hover:bg-sidebar-hover/50 transition-colors">
           <div className="flex items-center gap-2.5 min-w-0">

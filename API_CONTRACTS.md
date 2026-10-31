@@ -1,5 +1,54 @@
 # API_CONTRACTS.md
 
+## Authorized GitHub delivery of current work (2026-10-31)
+
+User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
+
+Fresh pre-push checks passed: 226 tests/13 files in 8.91 s; tsc --noEmit and full ESLint exit 0; Git whitespace check clean. Limited scan of 157 text candidates found no high-confidence secret markers or configured private session key. .env.local, .next, node_modules and .vercel remain ignored; only blank .env.example is included. Last production build is the passed 47/47 hosting preflight; it was not repeated for this Git-only action.
+
+No global Git author identity is configured; use existing repository convention PRAX Agent <prax-agent@local> for this commit command only. Publish normally to donel, without force pushing or changing main; verify HEAD against the remote receipt afterward. This note records scope/checks before commit/push so the final delivery hash is available from Git history. Keep the local test account and existing local server; do not restart cloud hosting.
+
+## Latest clarification — run locally (2026-10-31)
+
+User clarified “host it” means local hosting. This supersedes the pending Vercel deployment/sign-in next step. Do not continue cloud deployment or request Vercel authorization for this task. Prior device-login exec session 44678 is no longer available; no site was deployed. Existing hosting-preparation files remain harmless local changes; no application code changed in this run.
+
+Started npm run dev -- --hostname 127.0.0.1 --port 3000 using installed Node/npm (exec session 41439), ready in 728 ms. Confirmed health HTTP 200/environment development and login page HTTP 200; queued the local login browser panel. Server remains running on loopback only. The original local member test account is preserved; backend-dependent data remains disconnected. No secret, commit, push or remote deployment. Tests/lint/build not repeated for this server-only action. Next step: open http://127.0.0.1:3000/login and use the retained test credentials.
+
+## Hosting preparation status (2026-10-31, D-023)
+
+No HTTP contract changed for hosting. Native Next.js source remains intact; upload filtering and Node engine metadata are the only build/deployment changes. Production fixture login remains disabled and backend services remain unconfigured. A successful website deployment will not imply that auth/database/mail/notifications are integrated. No production runtime secret was set or copied from local .env.local. Vercel sign-in is pending, so no base URL or deployed endpoint result can yet be reported.
+
+## Local test-account exception — D-022 (2026-10-31)
+
+This explicitly supersedes D-021's “no test sign-in” statement only for local development. POST /api/auth/login accepts the original member test credentials on loopback request hosts when NODE_ENV is development; returns 200 {user:{id,email,name,role,status}} and a signed HttpOnly prax_session cookie. Normalizes the email, verifies password using scrypt, enforces same Origin when supplied and existing login rate limits. Invalid fields ->400; wrong fixture password ->401; foreign Origin ->403; rate limit ->429. Unconfigured private secret, nonlocal hosts, other identities, test/production mode ->503 with no issued session.
+
+Fixture identity: usr_member_01, MEMBER/APPROVED. GET /api/users/me returns {user} with no-store only for its matching authenticated local development session. Missing/invalid sessions ->401. Other properly authenticated accounts remain 503 pending backend implementation. No mutable account API added.
+
+SessionPayload gains optional developmentOnly:true. signSession accepts optional third options argument {developmentOnly?:boolean}; requests to issue such a token outside development throw, and verifySession rejects this signed marker outside development. Existing normal-session calls remain compatible. Therefore a development fixture cookie cannot authenticate a production run with the same private key. All other service contracts and unavailable behavior remain unchanged; successful local login does not restore workspace/chat/notification data persistence.
+
+## Current integration status — D-021 (2026-10-29)
+
+**Runtime prototype implementations are removed.** Existing contracts below are historical requirements/reference until real backend implementation. There are no working demo accounts, magic token issuance, process-local collections/upload bytes, scoring ledger, audit persistence or sample member lookup. Public auth/invite-verification handlers return 503. Protected handlers first enforce the retained signed-session/role/status guard (401/403), then return 503. Real implementations must validate current account records, ownership and inputs server-side; the placeholder does not provide database-backed revocation or durable auth.
+
+Disconnected response: HTTP 503, Cache-Control: no-store, {error:{code:"BACKEND_NOT_CONFIGURED",message:"This service is not connected yet. Please try again later.",status:503}}. Never return empty success data or issue a session cookie to simulate integration. GET /api/health remains 200 with backend:"not_configured"; POST /api/auth/logout only expires the cookie. Session helpers require SESSION_SECRET or NEXTAUTH_SECRET >=32 characters, no built-in key. Existing paths/methods remain available as guarded integration seams.
+
+New frontend read/write shapes below are declared integration contracts, **not implemented backend features**. They are centralized in src/lib/api/contracts.ts; workspace/chat/attachment/settings shapes remain in src/lib/workspace/types.ts and attachment-policy.ts. Submission and rubric types moved to lib/db/submissions.ts and lib/rubric/types.ts; points payload types live in lib/points/types.ts with no ledger.
+
+| Route | Methods / intended successful shape |
+| --- | --- |
+| /api/tasks | GET {tasks:TaskItem[]}; admin POST task fields -> {task:{id,...}} |
+| /api/tasks/[id] | GET {task:TaskItem}; admin PATCH task fields |
+| /api/submissions | GET {submissions:Submission[]}; POST {taskId,proofUrl,note} |
+| /api/dashboard | GET {totalPoints,weeklyRank:number|null,dayStreak,tasksApproved,activity:[{id,title,createdAt}]} |
+| /api/streaks | GET {current,longest,activeDays:string[]} |
+| /api/leaderboard?period=weekly|alltime | GET {entries:[{id,name,points,rank,streak}],total}; ranking/order computed by backend |
+| /api/admin/reports | admin GET {reports:[{id,author,content,reason}]}; PATCH {id,operation:"dismiss"|"remove-message"} |
+| /api/notifications | GET {notifications:[{id,title,message,createdAt,readAt:string|null,href?:string}]}; PATCH {operation:"mark-all-read"}, successful 204 or JSON |
+
+TaskItem also accepts dueAt/createdAt ISO timestamps for real filtering/sorting and optional checklist:string[]. No ID-specific deadlines or locally invented ranking data. Profile response no longer includes isDemo or sample aliases: GET /api/workspace?memberId=<id> expects {profile}, with private fields and portfolio privacy enforced by real backend. Profile metrics/activity remain unknown rather than fabricated.
+
+NotificationBell derives badge count from returned unread items, shows an error rather than an empty-success feed on service failure, and refreshes only after accepted mark-all-read. Links accept internal destinations only; preferences point to /settings?tab=notifications. No email/push delivery, read persistence or notification fixture service exists. ChatComposer retains multipart/send contracts and local preview controls, but uploads/sending require backend endpoints. The backend team must implement former documented authorization, validation, range/download, size/quota and lifecycle rules before claiming those services work.
+
 ## Interaction profiles and chat media (2026-10-29, D-020)
 
 No standalone member-directory endpoint is added. GET /api/workspace?memberId=<id> resolves an existing APPROVED real account whether or not it initialized its workspace, returning {profile,isDemo:false}. Unknown/inactive targets are 404. Known display fixtures return {profile,isDemo:true}; these do not create auth accounts. Profile remains a public-field projection with portfolio privacy and no email/private collections/settings. Authenticated approved viewer required. Existing {profile} consumers remain compatible with the additive flag. ProfileView adds optional isDemo and returnTo (chat|leaderboard) props. Links use /members/<encoded id>?from=chat|leaderboard; the page ignores other return destinations.
@@ -480,3 +529,6 @@ The commit includes the PDF-based design foundation, explicit Inter/assets, curs
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
+
+### Login screenshot diagnosis (2026-10-29)
+User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

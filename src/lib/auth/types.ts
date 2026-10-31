@@ -33,6 +33,7 @@ export interface SessionUser {
 }
 
 export interface SessionPayload {
+  developmentOnly?: true;
   user: SessionUser;
   expiresAt: number; // Unix timestamp (ms)
   issuedAt: number; // Unix timestamp (ms)

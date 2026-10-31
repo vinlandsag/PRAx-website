@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/Button";
 
 export interface ProfileProps {
   isPublic?: boolean;
-  isDemo?: boolean;
   returnTo?: "chat" | "leaderboard";
   name?: string;
   handle?: string;
@@ -32,17 +31,16 @@ export interface ProfileProps {
 
 export function ProfileView({
   isPublic = false,
-  isDemo = false,
   returnTo = "chat",
-  name = "Arjun Varma",
-  handle = "@arjunbuilds",
-  bio = "Building useful things, learning in public, and sharing the process.",
-  totalPoints = "1,240",
-  weeklyRank = "#7",
-  dayStreak = "12",
-  tasksApproved = "24",
+  name = "Member",
+  handle = "",
+  bio = "",
+  totalPoints = "—",
+  weeklyRank = "—",
+  dayStreak = "—",
+  tasksApproved = "—",
   currentProject = "",
-  skills = ["Frontend", "Backend", "UI/UX Design", "Open source", "Product thinking"],
+  skills = [],
   portfolioUrl = "",
   githubUrl = "",
   linkedinUrl = "",
@@ -71,11 +69,6 @@ export function ProfileView({
         </p>
       </div>
 
-      {isDemo && (
-        <p className="mb-4 rounded-md border border-lavender-border bg-lavender p-3 text-xs text-lavender-text">
-          Sample profile · This is a read-only preview, not a registered account.
-        </p>
-      )}
       {/* Main Profile Header Card */}
       <Card className="overflow-hidden mb-6">
         {/* Banner Graphic with Tagline and 8-Ray Star */}
@@ -284,34 +277,9 @@ export function ProfileView({
                 <h2 className="text-sm font-bold text-text">Momentum</h2>
                 <span className="text-xs text-text-muted font-medium">Last 8 weeks</span>
               </div>
-              <div className="h-44 flex items-end justify-between gap-3 px-2 pt-6">
-                {[
-                  { week: "W1", height: "40%", val: 3 },
-                  { week: "W2", height: "55%", val: 4 },
-                  { week: "W3", height: "30%", val: 2 },
-                  { week: "W4", height: "70%", val: 6 },
-                  { week: "W5", height: "85%", val: 7 },
-                  { week: "W6", height: "45%", val: 3 },
-                  { week: "W7", height: "65%", val: 5 },
-                  { week: "W8", height: "95%", val: 8 },
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex-1 flex flex-col items-center gap-2 h-full justify-end"
-                  >
-                    <span className="text-[10px] font-semibold text-text-muted">{item.val}</span>
-                    <div
-                      style={{ height: item.height }}
-                      className={`w-full max-w-[32px] rounded-t-lg transition-all ${
-                        idx === 7
-                          ? "bg-primary shadow-xs"
-                          : "bg-lavender-border hover:bg-primary/60"
-                      }`}
-                    />
-                    <span className="text-[10px] font-medium text-text-muted">{item.week}</span>
-                  </div>
-                ))}
-              </div>
+              <p className="py-12 text-center text-xs text-text-muted">
+                Activity will appear when it is available.
+              </p>
             </div>
           </Card>
         </div>

@@ -21,6 +21,7 @@ export function useWorkspace() {
       setData(result);
       setError("");
     } catch (e) {
+      setData(null);
       setError(e instanceof Error ? e.message : "Could not load workspace.");
     }
   }, []);

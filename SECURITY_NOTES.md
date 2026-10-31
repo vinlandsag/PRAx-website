@@ -1,5 +1,39 @@
 # SECURITY_NOTES.md
 
+## Authorized GitHub delivery of current work (2026-10-31)
+
+User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
+
+Fresh pre-push checks passed: 226 tests/13 files in 8.91 s; tsc --noEmit and full ESLint exit 0; Git whitespace check clean. Limited scan of 157 text candidates found no high-confidence secret markers or configured private session key. .env.local, .next, node_modules and .vercel remain ignored; only blank .env.example is included. Last production build is the passed 47/47 hosting preflight; it was not repeated for this Git-only action.
+
+No global Git author identity is configured; use existing repository convention PRAX Agent <prax-agent@local> for this commit command only. Publish normally to donel, without force pushing or changing main; verify HEAD against the remote receipt afterward. This note records scope/checks before commit/push so the final delivery hash is available from Git history. Keep the local test account and existing local server; do not restart cloud hosting.
+
+## Latest clarification — run locally (2026-10-31)
+
+User clarified “host it” means local hosting. This supersedes the pending Vercel deployment/sign-in next step. Do not continue cloud deployment or request Vercel authorization for this task. Prior device-login exec session 44678 is no longer available; no site was deployed. Existing hosting-preparation files remain harmless local changes; no application code changed in this run.
+
+Started npm run dev -- --hostname 127.0.0.1 --port 3000 using installed Node/npm (exec session 41439), ready in 728 ms. Confirmed health HTTP 200/environment development and login page HTTP 200; queued the local login browser panel. Server remains running on loopback only. The original local member test account is preserved; backend-dependent data remains disconnected. No secret, commit, push or remote deployment. Tests/lint/build not repeated for this server-only action. Next step: open http://127.0.0.1:3000/login and use the retained test credentials.
+
+## Deployment source boundary (2026-10-31, D-023)
+
+.vercelignore now allows only src/public and explicit build configs. Local .env files (including nested copies), keys, cloud credentials, Git metadata, build caches and dependencies are excluded from uploads. Verified representative patterns before attempting hosting. No .env.local signing key was transmitted or configured as a production key. Existing private signing requirement and developmentOnly cookie restriction remain unchanged.
+
+Used the official npm Vercel CLI with no project dependency addition. Vercel account is unauthenticated; device authorization link was shown only for the user to complete provider sign-in, not stored in source/docs. No auto-approved provider access, created remote project, public deployment, billing change, source push or disabled protection. Follow up with an actual deployment receipt before claiming hosting is complete.
+
+## Retained local test member boundary (2026-10-31, D-022)
+
+The user explicitly requested retaining the test member. Restored only a development/loopback-host fixture, not a production seed or mutable mock auth store. Fixture role is MEMBER, never ADMIN. Credential is the existing public local testing fixture; it is not a real personal password. No real credential, cookie, private key or screenshot token was logged. Private session key generated locally only because none was configured, stored in ignored .env.local, not committed. Built-in signing defaults remain removed.
+
+Login checks supplied Origin against actual Host, restricts request host to loopback, validates fields/password and uses existing rate limits/scrypt helpers. Successful response is no-store and uses existing HttpOnly cookie options. Signed developmentOnly marker prevents a locally issued fixture cookie from authenticating outside development, even with the same key. Production/test handlers never issue fixture sessions. Current-user reads require an authenticated matching fixture identity and remain protected by existing role/status guard. No auth bypass added to proxy or frontend pages. No other backend/store, fixture feed, notification persistence or fake-success behavior restored.
+
+## Backend cleanup boundary — D-021 (2026-10-29)
+
+Removed seeded users/passwords/invites, dev token issuance and all prototype runtime data/upload/audit/points stores. Removed public UI credential prefills, magic token display, fake invite generation and success-on-error admin behavior. Actual session signing now requires a private configured secret of at least 32 characters; old built-in fallback keys are rejected. .env.example contains blank placeholders, while real env files remain ignored. No real secrets, screenshot token, cookie or environment contents were logged or copied.
+
+Unimplemented APIs return 503 BACKEND_NOT_CONFIGURED and no-store; approved-role guards remain on private/admin routes, with 401/403 before service access. No auth bypass, browser-stored private data or replacement mock persistence. These guards are not a completed database-backed auth system: backend team must implement current account verification/revocation, same-origin write policy, validation, ownership, durable storage, audit and transaction boundaries. No data is returned or written by these seams. Logout still expires its cookie.
+
+Notification links are restricted to internal paths, messages render as text, and failed mark-read requests do not clear unread state. Loading/error/empty states do not imply delivered updates. No email/push provider, new dependency, external storage, production connection or deployment was added. Test secrets/fixture identities exist only in tests. A limited high-confidence pattern scan found no matching secrets; this does not certify a full security audit. Existing historical prototype notes below are superseded for current runtime behavior.
+
 ## Interaction profiles and chat attachment boundary (2026-10-29)
 
 Public profile reads now resolve target auth records directly, require current APPROVED viewer/target status and return only public fields. Inactive/unknown targets are uniformly 404. Portfolio privacy remains enforced; other private collections, settings, email/password/role are excluded. Uninitialized account defaults use ids for handles, with no inferred bio/skills. Demo profile data is labelled, read-only and never grants an auth identity. Return links use a two-value whitelist.
@@ -260,3 +294,6 @@ The commit includes the PDF-based design foundation, explicit Inter/assets, curs
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
+
+### Login screenshot diagnosis (2026-10-29)
+User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

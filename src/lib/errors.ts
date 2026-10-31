@@ -21,6 +21,7 @@ export type ApiErrorCode =
   | "UNAUTHENTICATED"
   | "VALIDATION_ERROR"
   | "RATE_LIMITED"
+  | "BACKEND_NOT_CONFIGURED"
   | "INTERNAL_ERROR";
 
 export interface ApiErrorBody {

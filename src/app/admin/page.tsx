@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
-import type { Submission } from "@/lib/db/submissions-store";
+import type { Submission } from "@/lib/db/submissions";
 import { isSafeUrl, sanitizeUrl } from "@/lib/utils/url";
 
 /**
@@ -48,10 +48,10 @@ export default function AdminReviewPage() {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   // Rubric Scoring State for selected submission
-  const [proofScore, setProofScore] = useState(10);
-  const [qualityScore, setQualityScore] = useState(13);
-  const [explanationScore, setExplanationScore] = useState(7);
-  const [feedback, setFeedback] = useState("Strong implementation and clear measurements.");
+  const [proofScore, setProofScore] = useState(0);
+  const [qualityScore, setQualityScore] = useState(0);
+  const [explanationScore, setExplanationScore] = useState(0);
+  const [feedback, setFeedback] = useState("");
 
   // Manual refetch handler for retry and refresh buttons
   const fetchQueue = useCallback(async () => {

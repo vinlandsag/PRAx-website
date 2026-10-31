@@ -1,5 +1,39 @@
 # CHANGELOG_DEV.md
 
+## Authorized GitHub delivery of current work (2026-10-31)
+
+User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
+
+Fresh pre-push checks passed: 226 tests/13 files in 8.91 s; tsc --noEmit and full ESLint exit 0; Git whitespace check clean. Limited scan of 157 text candidates found no high-confidence secret markers or configured private session key. .env.local, .next, node_modules and .vercel remain ignored; only blank .env.example is included. Last production build is the passed 47/47 hosting preflight; it was not repeated for this Git-only action.
+
+No global Git author identity is configured; use existing repository convention PRAX Agent <prax-agent@local> for this commit command only. Publish normally to donel, without force pushing or changing main; verify HEAD against the remote receipt afterward. This note records scope/checks before commit/push so the final delivery hash is available from Git history. Keep the local test account and existing local server; do not restart cloud hosting.
+
+## Latest clarification — run locally (2026-10-31)
+
+User clarified “host it” means local hosting. This supersedes the pending Vercel deployment/sign-in next step. Do not continue cloud deployment or request Vercel authorization for this task. Prior device-login exec session 44678 is no longer available; no site was deployed. Existing hosting-preparation files remain harmless local changes; no application code changed in this run.
+
+Started npm run dev -- --hostname 127.0.0.1 --port 3000 using installed Node/npm (exec session 41439), ready in 728 ms. Confirmed health HTTP 200/environment development and login page HTTP 200; queued the local login browser panel. Server remains running on loopback only. The original local member test account is preserved; backend-dependent data remains disconnected. No secret, commit, push or remote deployment. Tests/lint/build not repeated for this server-only action. Next step: open http://127.0.0.1:3000/login and use the retained test credentials.
+
+## 2026-10-31 — prepare native Next.js hosting
+
+Added .vercelignore upload allowlist and package/lock Node 24.x engines. No application, API, auth boundary, styling, package dependency or database change. Downloaded official Vercel CLI 65.9.0 into npm exec cache. Native hosting selected instead of a framework migration. Local environment files remain excluded.
+
+Build and 17 upload-pattern checks passed. Vercel reported no credentials; temporary mode was unavailable for this attempt and opened device login. Hosting remains pending user account authorization, with dry-run process 44678 waiting. No actual deployment, URL, commit/push or exposed secret.
+
+## 2026-10-31 — restore requested local member test login
+
+Restored only the original member test account through new lib/auth/development-member.ts, updated POST /api/auth/login and GET /api/users/me. Added development-member.test.ts (14 cases), optional signed developmentOnly session metadata in auth/types.ts/session.ts and README local login guidance. Existing backend cleanup remains intact; no mutable mock account database, sample activity, fake save, admin fixture or registration endpoint added. No dependency change.
+
+Development credentials are public local fixtures, not production secrets. Login is restricted to development/loopback hosts with same-origin checks, existing rate limits and private session signing. Production rejects both fixture login and previously issued development-only sessions. Generated missing private local signing key in ignored .env.local without logging its value. Updated eight memory documents. Latest full checks and live smoke evidence are in TEST_LOG.md. No new commit/push/deployment.
+
+## 2026-10-29 — remove prototype backend and fix notification control
+
+User explicitly requested cleanup for backend/database handoff and selected removal of mock APIs. Replaced 23 existing mock-backed route bodies with guarded unavailable boundaries; added explicit task/dashboard/submission/streak/leaderboard/report/notification contract routes used by frontend screens. Removed the runtime stores in lib/db, lib/workspace, lib/rubric, lib/audit and lib/points, plus the store-dependent lifecycle service. Retained useful auth/authorization helpers and moved submission, rubric and points shapes to type-only modules. Obsolete integration tests for removed implementations were removed and replaced by disconnected-boundary/security/client/UI coverage; the test count changes accordingly, not because those former backend behaviors still exist.
+
+Added lib/api/{backend,client,contracts,use-resource}, lib/notifications/types, NotificationBell and ResourceState. Updated TopNav/AdminSidebar/MemberSidebar, login/onboarding, API-driven dashboard/submissions/streaks/tasks/leaderboard and admin management/editor/moderation pages, profile defaults/chart, search, theme/workspace error states, and settings deep link. Existing review/rubric editor UI retains real-request behavior with no seeded review score/feedback. Removed exposed magic token flow, prefilled account/invite/passwords, fake stats/counters/rankings, synthetic invites and UI removal on failed admin actions. Production UI no longer imports demo catalog/identities. Development-only design review specimens remain deliberately isolated.
+
+Added PRAX metadata/icon.svg and .env.example, removed starter public SVGs/favicon and hid the Next development indicator. README now describes actual frontend-only integration status without claiming Prisma/database connectivity. Removed fallback signing keys and default database URL. No package/dependency or real environment file change. Updated eight memory documents; prior screenshot diagnosis notes preserved. Validation details are in the newest TEST_LOG section. No commit/push/deployment in this cleanup.
+
 ## 2026-10-29 — interaction profiles and chat attachments
 
 Names and avatars in chat/leaderboard now link to /members/[id]?from=chat|leaderboard, with the correct return action. Public profile loading resolves approved account records instead of requiring an initialized private workspace. Sample entries are labelled previews and do not become auth accounts. No standalone Members navigation, directory route or directory API ships in this change; the temporary /members and /api/members implementations created during the work were removed at the user's request.
@@ -546,3 +580,6 @@ The commit includes the PDF-based design foundation, explicit Inter/assets, curs
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
+
+### Login screenshot diagnosis (2026-10-29)
+User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

@@ -35,7 +35,6 @@ export interface Profile {
 }
 export interface PublicMemberDetail {
   profile: Profile;
-  isDemo: boolean;
 }
 export interface Settings {
   theme: "light" | "dark";

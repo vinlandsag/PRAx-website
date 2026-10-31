@@ -1,5 +1,59 @@
 # TEST_LOG.md
 
+## Authorized GitHub delivery of current work (2026-10-31)
+
+User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
+
+Fresh pre-push checks passed: 226 tests/13 files in 8.91 s; tsc --noEmit and full ESLint exit 0; Git whitespace check clean. Limited scan of 157 text candidates found no high-confidence secret markers or configured private session key. .env.local, .next, node_modules and .vercel remain ignored; only blank .env.example is included. Last production build is the passed 47/47 hosting preflight; it was not repeated for this Git-only action.
+
+No global Git author identity is configured; use existing repository convention PRAX Agent <prax-agent@local> for this commit command only. Publish normally to donel, without force pushing or changing main; verify HEAD against the remote receipt afterward. This note records scope/checks before commit/push so the final delivery hash is available from Git history. Keep the local test account and existing local server; do not restart cloud hosting.
+
+## Latest clarification — run locally (2026-10-31)
+
+User clarified “host it” means local hosting. This supersedes the pending Vercel deployment/sign-in next step. Do not continue cloud deployment or request Vercel authorization for this task. Prior device-login exec session 44678 is no longer available; no site was deployed. Existing hosting-preparation files remain harmless local changes; no application code changed in this run.
+
+Started npm run dev -- --hostname 127.0.0.1 --port 3000 using installed Node/npm (exec session 41439), ready in 728 ms. Confirmed health HTTP 200/environment development and login page HTTP 200; queued the local login browser panel. Server remains running on loopback only. The original local member test account is preserved; backend-dependent data remains disconnected. No secret, commit, push or remote deployment. Tests/lint/build not repeated for this server-only action. Next step: open http://127.0.0.1:3000/login and use the retained test credentials.
+
+## Hosting preflight (2026-10-31, D-023)
+
+Passed: production build on Node 24, compiled 1049 ms, TypeScript 1849 ms, 47/47 static pages in 1252 ms; package.json/package-lock Prettier check; Git whitespace check; 17 upload-allowlist assertions using the installed ignore parser. Secret/env/Git/generated/dependency/reference-file examples excluded; source/config/font/cursor assets included. Package and lock root both specify engines.node 24.x. No source behavior change, so full application tests/lint were not rerun after the immediately prior 226-test/lint/typecheck verification.
+
+Verified Vercel CLI 65.9.0. whoami: logged out. Normal dry run exit 1/no credentials. Temporary-mode dry-run attempt: provider reported unavailable and started device login; exec session 44678 waits for user authorization. No upload manifest/remote build/hosted endpoint could be verified before account authorization. No actual deployment or live URL. No .env values or auth tokens printed or persisted in repository docs.
+
+## Local test-account restoration verification (2026-10-31, D-022)
+
+Passed: node node_modules/vitest/vitest.mjs run — 226/226 tests, 13 files, duration 21.45 s. Added 14 cases covering original login/cookie/page guard, current-user resolution, normalized email/numeric loopback, wrong password, production/test rejection, nonlocal Host and foreign Origin rejection, missing private key, backend still unavailable, forged/non-fixture sessions, production rejection of dev-issued cookies, rate limits and logout. Existing 212 cleanup/component/auth contract tests remain passing.
+
+Passed: full ESLint (exit 0, no output); tsc --noEmit (exit 0); scoped Prettier check (all matched files formatted); git diff --check with core.safecrlf=false clean. Production build exit 0: compiled 8.5 s, TypeScript 6.1 s, 47/47 static pages in 1200 ms. No new package or dependency change.
+
+Live HTTP on a temporary development server bound to 127.0.0.1:3100: login 200/member matched/session issued, me 200/member matched, signed-session dashboard request 200, authenticated workspace 503. Cookies remained in process memory and were never printed. Missing private signing key was generated in ignored .env.local without revealing it. Temporary server stopped after verification (Ctrl+C termination exit 1 is expected). No port-3000 server was started.
+
+Resolved intermediate test failure: after adding the developmentOnly cookie boundary, one older expectation still expected production me=503; correct rejection is now 401. Updated expectation and added explicit cross-environment proxy rejection. Final full suite passes. Earlier 225-test run before the extra boundary case also passed.
+
+Not run: real database/auth provider, persisted workspace/chat/notifications, production live-server or browser visual check. Production isolation is covered by handler/session/proxy tests plus build. No commit/push/deployment.
+
+## Cleanup and notification verification (2026-10-29, D-021)
+
+### Passed
+
+- node node_modules/vitest/vitest.mjs run: exit 0, 212/212 tests across 12 files, 8.38 s. Includes 80 route-boundary cases across exported service methods, 6 client/security helper tests, 13 cleanup/resource lifecycle tests, 8 notification tests, retained 34 RBAC cases and frontend/component coverage. Obsolete tests of deleted mock services were replaced; former 235-test count is historical.
+- node node_modules/eslint/bin/eslint.js .: final exit 0, no output.
+- node node_modules/typescript/bin/tsc --noEmit: final exit 0, no output.
+- node node_modules/next/dist/bin/next build: exit 0, compiled 3.0 s; TypeScript 4.8 s; 47/47 pages generated in 820 ms. Service boundary routes and icon.svg present; development review remains protected by existing production proxy tests.
+- Scoped Prettier source formatting applied; unrelated formatting-only edits to AppShell, root/review redirects and logout were restored to original content. Final diff whitespace check clean. .env.example is not ignored; .env.local, node_modules and .next remain ignored. Limited high-confidence secret marker scan found zero matching files; no complete secret/security audit claimed.
+- Browser: existing server reused, anonymous /design-system#notifications opened, Inter loaded all weights per review status, bell opened named dialog with actual Authentication required service response. Escape closed dialog, focus returned to Notifications, read-only DOM measurement found no horizontal overflow at natural narrow browser-panel size. Screenshot saved and visually inspected at visualization-root/prax-notification-cleanup.jpg. No auth bypass or fabricated successful notification was injected in the browser.
+- Live localhost HTTP: health 200/backend not_configured; login POST 503/BACKEND_NOT_CONFIGURED with no session cookie; workspace/notifications anonymous 401/UNAUTHENTICATED; PRAX icon.svg 200 image/svg+xml. No request in this smoke check issued a cookie.
+
+### Resolved during verification
+
+- Initial syntax/type issues in the compact task manager, login callback and removed isDemo prop were corrected before final checks. A transient generated .next/dev routes type was missing during dev regeneration; final typecheck/build pass.
+- Initial lint rejected synchronous loading-state updates from a resource effect. Refactored load/refresh lifecycle; request generations also prevent stale results after path changes/unmount.
+- First expanded test run had one ambiguous Invite code selector matching radio and textbox. Scoped it by role; final all 212 pass. Earlier initial 199-test run also passed before adding cleanup/race cases.
+
+### Not run / limits
+
+Real backend/database/mail/upload/delivery integration, authenticated end-to-end writes, actual read persistence and dedicated cross-browser/mobile-device testing. Notification populated/read/failed-write states use test-only fixtures. Production service routes deliberately remain unconfigured; removed mock functionality is not a passing production feature. No deployment, new commit or push.
+
 ## Latest verification — interaction profiles and chat media (2026-10-29)
 
 ### Passed
@@ -857,3 +911,6 @@ The commit includes the PDF-based design foundation, explicit Inter/assets, curs
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
+
+### Login screenshot diagnosis (2026-10-29)
+User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

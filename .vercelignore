@@ -1,0 +1,24 @@
+# Allow only the application and its build configuration.
+/*
+!/src/
+!/public/
+!/package.json
+!/package-lock.json
+!/next.config.ts
+!/tsconfig.json
+!/eslint.config.mjs
+!/vitest.config.ts
+!/.gitignore
+!/.vercelignore
+!/.prettierrc
+!/.prettierignore
+
+# Never upload local credentials or private configuration, including nested copies.
+**/.env*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/.aws/**
+**/.codex/**
+**/.agents/**

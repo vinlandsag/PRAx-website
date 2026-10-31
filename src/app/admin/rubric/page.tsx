@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
-import type { Rubric, RubricCriterion } from "@/lib/rubric/rubric-store";
+import type { Rubric, RubricCriterion } from "@/lib/rubric/types";
 
 export default function AdminPointsRulesPage() {
   const [rubric, setRubric] = useState<Rubric | null>(null);

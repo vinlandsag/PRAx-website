@@ -1,8 +1,14 @@
-import { tasks, sampleBuilders, type TaskItem } from "./catalog";
+import type { TaskItem } from "./catalog";
 import type { WorkspaceData, Todo } from "./types";
 import { todayIST } from "./types";
 
-export function filterTasks(query: string, category: string, status: string, sort: string) {
+export function filterTasks(
+  query: string,
+  category: string,
+  status: string,
+  sort: string,
+  tasks: TaskItem[] = []
+) {
   const wanted: Record<string, TaskItem["status"]> = {
     open: "Open",
     submitted: "Pending",
@@ -21,9 +27,8 @@ export function filterTasks(query: string, category: string, status: string, sor
       sort === "points"
         ? b.pointsMax - a.pointsMax
         : sort === "deadline"
-          ? ({ "2": 1, "1": 2 }[a.id as "1" | "2"] ?? Infinity) -
-            ({ "2": 1, "1": 2 }[b.id as "1" | "2"] ?? Infinity)
-          : Number(b.id) - Number(a.id)
+          ? (Date.parse(a.dueAt || "") || Infinity) - (Date.parse(b.dueAt || "") || Infinity)
+          : (Date.parse(b.createdAt || "") || 0) - (Date.parse(a.createdAt || "") || 0)
     );
 }
 export function filterTodos(
@@ -53,7 +58,11 @@ export interface SearchResult {
   section: string;
   href: string;
 }
-export function searchWorkspace(query: string, data: WorkspaceData | null): SearchResult[] {
+export function searchWorkspace(
+  query: string,
+  data: WorkspaceData | null,
+  tasks: TaskItem[] = []
+): SearchResult[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const pages = [
@@ -102,11 +111,4 @@ export function searchWorkspace(query: string, data: WorkspaceData | null): Sear
                   : "Your goals",
           });
   return results.slice(0, 20);
-}
-
-export function rankBuilders(period: "weekly" | "alltime") {
-  return sampleBuilders
-    .map((b) => ({ ...b, points: b[period] }))
-    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
-    .map((b, i) => ({ ...b, rank: i + 1 }));
 }

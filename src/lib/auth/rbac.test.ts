@@ -11,7 +11,7 @@
  * 6. Proxy / Middleware direct URL & API interception.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import {
   type AppPermission,
@@ -25,6 +25,13 @@ import { authorize, requirePermission, requireRole } from "./guard";
 import { signSession } from "./session";
 import type { SessionUser } from "./types";
 import { proxy } from "@/proxy";
+
+beforeEach(() => {
+  vi.stubEnv("SESSION_SECRET", "test-only-session-key-that-is-at-least-32-characters");
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("Phase 5 — RBAC Permission Matrix & Deny-by-Default", () => {
   const memberUser: SessionUser = {

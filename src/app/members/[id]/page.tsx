@@ -50,7 +50,6 @@ function MemberProfile({ id, returnTo }: { id: string; returnTo: "chat" | "leade
     <ProfileView
       isPublic
       {...detail.profile}
-      isDemo={detail.isDemo}
       returnTo={returnTo}
       totalPoints="—"
       weeklyRank="—"

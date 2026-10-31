@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, EmptyState, Icon, Input, Modal } from "@/components/ui";
 import { searchWorkspace } from "@/lib/workspace/filter";
+import { useResource } from "@/lib/api/use-resource";
+import type { TaskFeed } from "@/lib/api/contracts";
 import { useWorkspace } from "@/lib/workspace/use-workspace";
 
 export function GlobalSearch() {
@@ -13,7 +15,8 @@ export function GlobalSearch() {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const { data, error } = useWorkspace();
-  const results = searchWorkspace(query, data);
+  const taskFeed = useResource<TaskFeed>(open ? "/api/tasks" : null);
+  const results = searchWorkspace(query, data, taskFeed.data?.tasks);
   useEffect(() => {
     const hotkey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -110,7 +113,7 @@ export function GlobalSearch() {
         )}
         {error && (
           <p className="mt-2 text-xs text-text-muted">
-            Private items could not load. Pages and task search are still available.
+            Some content could not load. You can still search platform pages.
           </p>
         )}
       </Modal>

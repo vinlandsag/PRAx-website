@@ -2,15 +2,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
-import { Avatar, Badge, Card, Progress, Tabs } from "@/components/ui";
+import { Avatar, Badge, Card, Progress, Tabs, EmptyState } from "@/components/ui";
 import { memberProfileHref } from "@/lib/workspace/members";
-import { rankBuilders } from "@/lib/workspace/filter";
+import { useResource } from "@/lib/api/use-resource";
+import { ResourceState } from "@/components/ui/ResourceState";
+import type { LeaderboardFeed } from "@/lib/api/contracts";
 import { useWorkspace } from "@/lib/workspace/use-workspace";
 
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<"weekly" | "alltime">("weekly");
   const { data } = useWorkspace();
-  const ranked = rankBuilders(period),
+  const api = useResource<LeaderboardFeed>(`/api/leaderboard?period=${period}`);
+  const ranked = api.data?.entries ?? [],
     own = ranked.find((b) => b.id === data?.user.id),
     next = own && ranked[own.rank - 2];
   const periodLabel = period === "weekly" ? "Weekly" : "All-time";
@@ -34,45 +37,53 @@ export default function LeaderboardPage() {
             : "All approved points · No weekly reset"}
         </span>
       </div>
-      <p className="mb-3 text-[11px] text-text-muted">
-        Sample rankings · Points-ledger integration is pending.
-      </p>
+      {(api.loading || api.error) && (
+        <ResourceState loading={api.loading} error={api.error} onRetry={() => void api.refresh()} />
+      )}
+      {!api.loading && !api.error && !ranked.length && (
+        <EmptyState
+          title="No rankings yet"
+          description="Rankings will appear after work has been approved."
+        />
+      )}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(240px,1fr)]">
         <Card className="p-4 sm:p-6">
           <div
             aria-label={`${periodLabel} podium`}
             className="flex items-end justify-center gap-3 border-b border-border pb-6 pt-3 sm:gap-6"
           >
-            {[ranked[1], ranked[0], ranked[2]].map((builder) => (
-              <div
-                key={builder.id}
-                className="flex min-w-0 flex-1 flex-col items-center text-center sm:flex-none"
-              >
-                <Link
-                  href={memberProfileHref(builder.id, "leaderboard")}
-                  aria-label={`View profile of ${builder.name}`}
-                >
-                  <Avatar
-                    name={builder.name}
-                    size={builder.rank === 1 ? "xl" : "lg"}
-                    colorScheme={
-                      builder.rank === 1 ? "orange" : builder.rank === 2 ? "purple" : "blue"
-                    }
-                  />
-                  <span className="mt-2 block text-xs font-semibold hover:text-primary">
-                    {builder.name}
-                  </span>
-                </Link>
-                <span className="mt-1 mb-3 text-[11px] text-text-muted">
-                  {builder.points.toLocaleString()} points
-                </span>
+            {[ranked[1], ranked[0], ranked[2]]
+              .filter((builder): builder is NonNullable<typeof builder> => !!builder)
+              .map((builder) => (
                 <div
-                  className={`flex w-full items-center justify-center rounded-t-xl border text-2xl font-bold sm:w-24 ${builder.rank === 1 ? "h-32 border-warning-border bg-warning-bg text-warning-text" : builder.rank === 2 ? "h-24 border-lavender-border bg-lavender text-lavender-text" : "h-16 border-info-border bg-info-bg text-info-text"}`}
+                  key={builder.id}
+                  className="flex min-w-0 flex-1 flex-col items-center text-center sm:flex-none"
                 >
-                  {builder.rank}
+                  <Link
+                    href={memberProfileHref(builder.id, "leaderboard")}
+                    aria-label={`View profile of ${builder.name}`}
+                  >
+                    <Avatar
+                      name={builder.name}
+                      size={builder.rank === 1 ? "xl" : "lg"}
+                      colorScheme={
+                        builder.rank === 1 ? "orange" : builder.rank === 2 ? "purple" : "blue"
+                      }
+                    />
+                    <span className="mt-2 block text-xs font-semibold hover:text-primary">
+                      {builder.name}
+                    </span>
+                  </Link>
+                  <span className="mt-1 mb-3 text-[11px] text-text-muted">
+                    {builder.points.toLocaleString()} points
+                  </span>
+                  <div
+                    className={`flex w-full items-center justify-center rounded-t-xl border text-2xl font-bold sm:w-24 ${builder.rank === 1 ? "h-32 border-warning-border bg-warning-bg text-warning-text" : builder.rank === 2 ? "h-24 border-lavender-border bg-lavender text-lavender-text" : "h-16 border-info-border bg-info-bg text-info-text"}`}
+                  >
+                    {builder.rank}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
           <div aria-label={`${periodLabel} rankings`} className="divide-y divide-border">
             {ranked.slice(3).map((builder) => (
@@ -120,7 +131,7 @@ export default function LeaderboardPage() {
                 <p className="text-3xl font-extrabold text-primary">
                   #{own.rank}
                   <span className="ml-2 text-xs font-normal text-text-muted">
-                    / {ranked.length} sample builders
+                    / {ranked.length} builders
                   </span>
                 </p>
                 <p className="text-xs text-text-muted">
@@ -143,9 +154,7 @@ export default function LeaderboardPage() {
                 )}
               </>
             ) : (
-              <p className="text-xs text-text-muted">
-                This account has no entry in the sample rankings.
-              </p>
+              <p className="text-xs text-text-muted">No standing is available for this period.</p>
             )}
           </Card>
           <Card className="space-y-3 p-5">

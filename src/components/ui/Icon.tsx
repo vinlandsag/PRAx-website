@@ -2,6 +2,7 @@ import type { SVGProps } from "react";
 
 // One outline family: 24-unit grid, rounded ends, consistent 1.65 stroke.
 const paths = {
+  bell: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
   attachment: "m21 11-8 8a6 6 0 0 1-9-9l9-9a4 4 0 0 1 6 6l-9 9a2 2 0 0 1-3-3l8-8",
   more: "M5 12h.01M12 12h.01M19 12h.01",
   pin: "m16 3 5 5-4 1-3 5v3l-7-7h3l5-3 1-4ZM3 21l6-6",

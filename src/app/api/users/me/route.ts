@@ -1,34 +1,13 @@
-/**
- * src/app/api/users/me/route.ts
- *
- * Current session user endpoint.
- * Conforms to API_CONTRACTS.md.
- */
-
 import { NextResponse } from "next/server";
-import { getSessionFromRequest } from "@/lib/auth/session";
-import { authStore } from "@/lib/db/auth-store";
-import { errors } from "@/lib/errors";
+import { authorize } from "@/lib/auth/guard";
+import { localDevelopmentMember, matchesDevelopmentMember } from "@/lib/auth/development-member";
+import { backendUnavailable } from "@/lib/api/backend";
 
 export async function GET(request: Request) {
-  const session = getSessionFromRequest(request);
-  if (!session) {
-    return errors.unauthenticated();
-  }
-
-  const user = await authStore.findUserById(session.user.id);
-  if (!user) {
-    return errors.unauthenticated();
-  }
-
-  return NextResponse.json({
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      status: user.status,
-      createdAt: user.createdAt,
-    },
-  });
+  const guard = authorize(request, { allowedStatuses: ["APPROVED", "PENDING_APPROVAL"] });
+  if (!guard.authorized) return guard.errorResponse;
+  const member = localDevelopmentMember(request);
+  if (member && matchesDevelopmentMember(guard.user, member))
+    return NextResponse.json({ user: member }, { headers: { "Cache-Control": "no-store" } });
+  return backendUnavailable();
 }
