@@ -15,7 +15,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { isValidRole } from "@/lib/auth/rbac";
+import { isValidRole, isValidUserStatus } from "@/lib/auth/rbac";
 import { SESSION_COOKIE_NAME, verifySession } from "@/lib/auth/session";
 import { apiError, errors } from "@/lib/errors";
 
@@ -98,6 +98,13 @@ export function proxy(request: NextRequest) {
     }
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("error", "unauthorized_role");
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (!isValidUserStatus(user.status)) {
+    if (isApiRoute) return errors.forbidden();
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("error", "invalid_account_state");
     return NextResponse.redirect(loginUrl);
   }
 

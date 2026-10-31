@@ -38,7 +38,7 @@ Notification links are restricted to internal paths, messages render as text, an
 
 Public profile reads now resolve target auth records directly, require current APPROVED viewer/target status and return only public fields. Inactive/unknown targets are uniformly 404. Portfolio privacy remains enforced; other private collections, settings, email/password/role are excluded. Uninitialized account defaults use ids for handles, with no inferred bio/skills. Demo profile data is labelled, read-only and never grants an auth identity. Return links use a two-value whitelist.
 
-Uploads use the same current-account guard and same-origin write check. Pending bytes are author-private, and attachment ids are atomically claimed only by their uploader; other users cannot steal/reuse them. Approved channel members can fetch only shared files. Message deletion/eviction removes corresponding bytes; pending deletion requires ownership. Body streaming, per-file/message/account/process caps and lazy pending expiry bound memory. Extension whitelist uses own properties (constructor/__proto__ rejected), content signatures/UTF-8 are verified and client MIME is not trusted. Unsupported active/executable types including HTML/SVG/JS/EXE are rejected. Documents are forced downloads; media MIME, encoded filename, nosniff, no-store and default-src none CSP are set. Byte ranges have integer/bounds checks. No disk path is derived from filenames, no uploaded code executes, no remote file fetching occurs.
+Uploads use the same current-account guard and same-origin write check. Pending bytes are author-private, and attachment ids are atomically claimed only by their uploader; other users cannot steal/reuse them. Approved channel members can fetch only shared files. Message deletion/eviction removes corresponding bytes; pending deletion requires ownership. Body streaming, per-file/message/account/process caps and lazy pending expiry bound memory. Extension whitelist uses own properties (constructor/**proto** rejected), content signatures/UTF-8 are verified and client MIME is not trusted. Unsupported active/executable types including HTML/SVG/JS/EXE are rejected. Documents are forced downloads; media MIME, encoded filename, nosniff, no-store and default-src none CSP are set. Byte ranges have integer/bounds checks. No disk path is derived from filenames, no uploaded code executes, no remote file fetching occurs.
 
 No credential/cookie was printed or persisted during tests; existing local fixture authentication was used and session headers stayed in process memory. Test media is non-sensitive: authored PNG/TXT plus public MDN sample video. No new secret/environment variable/dependency, auth bypass or production deployment. Existing .env exclusions retained.
 
@@ -248,7 +248,6 @@ Security threats and mitigations. Never store passwords, API keys, access tokens
 
 _Last updated: 2026-10-28 · Phase 7 Rubric Engine & Points Boundary Complete_
 
-
 ## UI foundation boundary (2026-10-28)
 
 Review fixtures are illustrative. Both proxy and server page gate /design-system; production 404 verified. Public /fonts/ and /artwork/ exemptions do not change protected-route authorization; existing auth tests and dashboard redirect passed. No auth/backend/session implementation changed.
@@ -257,43 +256,89 @@ Uploads remain local object-URL previews. MIME/size/count/empty/decode validatio
 
 Inter is self-hosted, with license retained; no runtime Google font request. Only explicit loopback 127.0.0.1 is added as a dev origin. No wildcard dev origin, new secret/environment variable, or deployment. Existing .env* exclusions were inspected and retained. Dependency audit was not rerun; historical audit results are not new verification.
 
-
 Cursor texture follow-up (2026-10-28): local static SVG patterns only; no scripts, external asset references, network services or pointer tracking. No security boundary or authorization change.
-
 
 ## Profile layout verification boundary (2026-10-29)
 
 No auth/session/API changes. Because the parent browser had no session for /profile, visual checks used the exact ProfileView component with illustrative props in a temporary /design-system/profile-regression fixture. The existing proxy and a server-side development check guarded it. It was removed before final build and is absent from the build route list. No credentials or cookies were inspected or copied; actual authenticated-route rendering remains outside the visual evidence. Production authorization was preserved.
 
 ### Local run request (2026-10-29)
+
 Started the existing Next.js development server on port 3000 (session 26883); reported Ready in 749 ms. No application code, interface, security policy or design decision changed. Existing process-memory reset limits apply. No tests/build rerun for this server-only action.
 
-
 ### npm terminal diagnosis (2026-10-29)
+
 Read-only environment checks found Node v24.22.1 from the Codex bundled runtime, but no npm/npm.cmd on this terminal's PATH or in the standard Node install locations checked. package.json already defines dev as next dev. No attached user terminal was available, so its exact error is unverified. No application/configuration change, installation or test/build run. Direct node node_modules/next/dist/bin/next dev --port 3000 is the available equivalent here.
 
-
 ### Windows terminal runtime follow-up (2026-10-29)
+
 User supplied CMD error: node is not recognized. Verified the absolute Codex runtime node.exe path executes and reports v24.22.1; standard Node installation paths checked were absent. Provided a quoted absolute-path launch command and official Node Windows installer guidance for node/npm on PATH. No installation, PATH modification, application code change or tests/build performed.
 
-
 ### Windows Node/npm setup completed (2026-10-29)
+
 Resolved the user's CMD node/npm not recognized errors by installing the official Node.js v24.22.2 win-x64 archive (includes npm 11.19.1) at C:\Users\donel\AppData\Local\Programs\nodejs. Downloaded over HTTPS from nodejs.org/dist/latest-v24.x/ and verified SHA256 ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2 against the official checksum before extraction. Added only this directory to persistent User PATH, preserving existing entries; broadcast WM_SETTINGCHANGE. No machine PATH, execution policy, app code, dependencies, API or backend changes. Temporary archive/extraction directory retained under Windows Temp.
 Passed (exit 0): CMD using Machine+User saved PATH resolved node/npm to the new install; node --version returned v24.22.2; npm --version returned 11.19.1; npm run dev -- --help invoked next dev --help successfully. This command verifies script resolution without starting another server. Tests/lint/build not run for environment-only setup. Existing CMD/terminal host may need full restart to inherit PATH. Next step: reopen terminal, cd to repository, npm run dev. Existing process-memory persistence limits remain.
 
 ### Development server handed to user terminal (2026-10-29)
+
 User successfully invoked npm run dev, but Next detected the agent-started PRAX instance (PID 20028) on port 3000 and refused a duplicate project server. Verified PID was the Codex bundled node.exe and stopped that process, leaving the server stopped for the user's CMD launch. A Node net.createServer probe successfully bound and released 127.0.0.1:3000 (exit 0), confirming availability. No new persistent server was started. Earlier running-session notes are superseded. Stopping the process resets its temporary workspace/chat/upload state. No application code, dependency, API or security-policy change; no tests/build needed for this operational action. Next step: npm run dev from the user's CMD, then open localhost:3000.
 
 ### Git push readiness review (2026-10-29)
+
 User asked whether they can push the current work. Read-only Git checks: branch main, HEAD e9f009c, origin https://github.com/vinlandsag/PRAx-website.git; many accumulated modified/untracked platform files, nothing staged. No branch, commit or push performed. Suggested committing current work on a new codex/ branch for review. Only required memory documents changed during this review.
 Fresh passed commands: node node_modules/vitest/vitest.mjs run (235/235 tests, 14 files, 11.38 s); node node_modules/typescript/bin/tsc --noEmit (exit 0); node node_modules/eslint/bin/eslint.js . (exit 0). Git diff --check clean with core.safecrlf=false. git check-ignore confirmed .env, .env.local, node_modules, .next ignored; git ls-files found no tracked env/private-key/credential-named files in the checked patterns. Limited high-confidence secret marker scan over 162 tracked/nonignored candidate files found zero matches; no candidate file over 10 MiB. This is not a comprehensive secret or security audit. Production build not rerun; prior app-change build remains the last build evidence. No network fetch/push or remote write. Temporary process storage limits remain; saving source to Git does not persist runtime uploads/workspace data.
 
 ### Authorized donel branch delivery (2026-10-29)
+
 The user explicitly requested committing and pushing all current PRAX work to https://github.com/vinlandsag/PRAx-website/tree/donel, superseding the earlier suggested codex/ branch. Fetched origin/donel at 405452c5417f797615d58a7f677699eb247931fa; it is an ancestor of the current e9f009c checkout (7 local commits ahead, 0 remote-only). Created local donel from the current checkout with origin/donel upstream, preserving all accumulated source/assets/tests/documentation. Main remains at its existing commit. Delivery is a normal fast-forward push; no reset, force push, deployment or new application behavior in this operation.
 The commit includes the PDF-based design foundation, explicit Inter/assets, cursor/profile corrections, functional workspace controls, interaction-based public profiles, chat attachments and session documentation. Fresh preflight remains 235/235 tests (14 files), TypeScript and full ESLint passed; Git whitespace check clean. Limited secret-marker/large-file checks passed in the preceding readiness review, and env/dependencies/build folders are ignored. No new code change since those checks; build not repeated (previous production build passed). Runtime workspace/uploads remain process-memory data. Commit and remote receipt should be checked with git log/status and git ls-remote after delivery; this entry records scope and authorization before publishing.
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
-
 ### Login screenshot diagnosis (2026-10-29)
+
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.
+
+# Phase 2 API logging and input handling note (2026-10-31)
+
+`readJsonObject()` enforces JSON content type and a byte limit before parsing and returns only the standard validation error envelope. Routes remain responsible for field validation and authorization. `logApiFailure()` accepts fixed event values and a validated opaque request ID; it deliberately does not accept/serialize exception objects or request payloads. Do not log credentials, tokens, email, proof URLs, request bodies, or database records. No production data store or new secret was introduced in this phase.
+
+### Phase 3 task API security boundary (2026-10-31)
+
+Task routes use existing signed-session/RBAC guards and then re-read the persisted User, requiring APPROVED status and matching session role/name. Task creator IDs derive from that row; no user IDs or task lifecycle can be supplied in create/update payloads. Members only query published tasks and their own latest submission status; hidden task details return not found. Reads use no-store. SQL search is parameterized and wildcard escaped; query/body inputs are bounded. Failures log only a fixed event and optional opaque request ID. The initial migration enables RLS without anon policies on all six tables; server-side access must use the configured server connection. The user reported both migrations applied. Do not put Supabase credentials in docs/chat or enable browser access to these tables.
+
+### Phase 4 submission ownership and state transitions (2026-10-31)
+
+Submission routes re-read the persisted approved User row and derive `userId` from that account. Member list queries are always scoped to the session user; foreign item access returns 404. Write payloads reject identity, status, reviewer, feedback, score, task-ID-on-edit, and other unknown fields. Proof links must be absolute HTTP(S) URLs; text is bounded. PATCH/DELETE use conditional updates limited to `DRAFT`/`SUBMITTED`; DELETE preserves history as `WITHDRAWN`. Resubmission after rejected/revision-requested decisions creates a separate attempt. The user reported that the additive partial unique index migration was applied to Supabase. No upload metadata or storage key is accepted because there is no persistent submission storage. Admin review endpoints remain 503; when implemented, review claims must transition atomically to `UNDER_REVIEW` so member edits/withdrawals stop.
+
+### Phase 5 points award and leaderboard boundary (2026-10-31)
+
+The points service treats review payload identity/maximum as untrusted: it looks up the submission's author/task and verifies the reviewer is an approved ADMIN. It accepts only integer scores `0..Task.pointsMax`, and writes approval metadata plus the immutable ledger row in one transaction. Unique submission and idempotency indexes prevent duplicate awards; exact retries are acknowledged and conflicting values fail. API errors do not expose raw Prisma exceptions. Leaderboard access requires a signed session and persisted approved account; only public display name, score, rank and streak are returned. No email, proof, chat or Personal Space data enters points calculations. Integration tests were not run without a separate `TEST_DATABASE_URL`; do not use primary Supabase for test fixtures.
+
+### Phase 6 leaderboard privacy and eligibility (2026-10-31)
+
+Leaderboard queries use only User, Streak, Submission, and PointTransaction. Users must be APPROVED and have at least one point transaction attached to a currently APPROVED submission. Request identity comes from the validated session; the caller cannot provide a current-user ID. Public response fields are limited to id, display name, points, rank, and streak, plus pagination metadata. Private workspace, Personal Space, Chat, proof URLs, and email are excluded. Pagination is bounded; sort order includes deterministic name/ID tie breaks. Integration verification requires a separate test database.
+
+### Phase 7 streak data boundary (2026-10-31)
+
+`GET /api/streaks` requires the signed session and persisted approved User row; all queries use that server-derived user ID, ignoring client-supplied IDs. Active days are sourced only from approved submissions with server-generated `reviewedAt`, mapped to IST dates. `StreakDay` has RLS enabled and no browser policies. Security-definer database functions pin `search_path`, derive user/date from persisted submissions, serialize per-user refresh with a transaction advisory lock, and revoke execution from `PUBLIC`, `anon`, and `authenticated`; only server/database roles can invoke them. No request payload, points value, Chat data, or Personal Space data enters streak calculations. Migration and SQL function execution have not yet been tested against PostgreSQL; apply only after reviewing the intended Supabase target.
+
+## Phase 8 isolation and security audit (2026-10-31)
+
+### Fixes made
+
+- `authorize()` and the Next.js proxy now whitelist account statuses and reject malformed claims; they previously checked unknown roles but could pass an unknown status.
+- `requirePersistedAccount()` now selects only `id`, `name`, `role`, and `status`, instead of reading the full User row including `passwordHash`.
+- Member submission detail reads now include both submission ID and owner ID in the SQL predicate. The approved-ADMIN override remains because the current API contract explicitly allows it.
+- Resource ownership checks now fail closed when a caller passes an empty owner ID.
+- Award retry identity deliberately ignores `maxPoints`, which is an immutable award-time snapshot rather than request identity; task maximums may be edited after an award.
+
+### Isolation and exposure findings
+
+- Task member queries are restricted to published tasks and the requesting member's latest submission. Member submission list/write predicates use the persisted session owner. Leaderboard and streak reads use the caller's persisted identity, not query-string user IDs.
+- The scoring and streak implementations only query User, Task, Submission, PointTransaction, Streak, and StreakDay. There are no imports or queries for Workspace, Chat, attachments, Todo, Note, Goal, or private profile data. Workspace and Chat API handlers are guarded 503 placeholders in this checkout.
+- The current Submission DTO includes the author's email for its owner or an approved ADMIN. This is authorized by the existing contract, but no frontend use was found. Review whether the field is still required before broadening admin review APIs.
+- `dispatchApprovedPoints` accepts an internal `reviewedById` argument and validates that it names an approved ADMIN. The unimplemented Person 1 review route must pass the actor ID from its persisted authenticated session; it must never forward a request-body reviewer ID.
+- Admin review and durable auth routes remain 503, so this audit cannot verify their future implementation or session revocation in production. The pages/proxy use signed claims; connected API handlers re-read persisted account status/role/name.
+- No Slack, Teams, or other Person 4 messaging connector is available in the workspace. Code-level privacy exclusion was verified; Person 4's sign-off is still outstanding.
+- RLS is enabled in the checked-in migrations for the platform tables and StreakDay, with no browser policies. Live database policy/function execution was not tested because no isolated PostgreSQL test database is configured.

@@ -22,12 +22,14 @@ export const env = {
     return optional("SESSION_SECRET", optional("NEXTAUTH_SECRET"));
   },
 
-  // Database (pending D-005)
-  databaseUrl: optional("DATABASE_URL"),
+  // Supabase Postgres: pooled runtime URL and direct migration URL.
+  get databaseUrl() {
+    return optional("DATABASE_URL");
+  },
+  get directDatabaseUrl() {
+    return optional("DIRECT_URL");
+  },
 
   // App
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
-
-  // Streak configuration (A-006)
-  streakWindowDays: parseInt(optional("STREAK_WINDOW_DAYS", "7"), 10),
 } as const;

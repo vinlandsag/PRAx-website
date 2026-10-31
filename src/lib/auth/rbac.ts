@@ -11,7 +11,7 @@
  * 3. Server-authoritative: Client UI guards are for UX only; this module is the single source of truth.
  */
 
-import type { SessionUser, UserRole } from "./types";
+import type { SessionUser, UserRole, UserStatus } from "./types";
 
 /**
  * Granular application permissions aligned with MVP_SPEC.md §2.
@@ -61,6 +61,17 @@ export type AppPermission =
  * Valid recognized roles in the system.
  */
 export const VALID_ROLES = ["MEMBER", "ADMIN"] as const;
+export const VALID_USER_STATUSES = [
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "SUSPENDED",
+  "DISABLED",
+] as const satisfies readonly UserStatus[];
+
+export function isValidUserStatus(status: unknown): status is UserStatus {
+  return typeof status === "string" && VALID_USER_STATUSES.includes(status as UserStatus);
+}
 
 /**
  * Public permissions accessible without authentication.
