@@ -27,9 +27,10 @@ export default function ChatPage() {
     [mode, setMode] = useState<"actions" | "edit" | "delete">("actions"),
     [draft, setDraft] = useState("");
   useEffect(() => {
+    if (!data) return;
     const timer = window.setInterval(() => void refresh(), 15000);
     return () => clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, data]);
   const close = () => setSelected(null),
     own = selected?.authorId === data?.user.id,
     admin = data?.user.role === "ADMIN";
@@ -60,7 +61,7 @@ export default function ChatPage() {
         </Notice>
       )}
       {!data ? (
-        <Skeleton className="h-72" label="Loading community messages" />
+        !error && <Skeleton className="h-72" label="Loading community messages" />
       ) : (
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(240px,1fr)]">
           <Card className="overflow-hidden">

@@ -36,7 +36,8 @@ export function proxy(request: NextRequest) {
     pathname.startsWith("/static") ||
     pathname.startsWith("/fonts/") ||
     pathname.startsWith("/artwork/") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    pathname === "/icon.svg"
   ) {
     return NextResponse.next();
   }

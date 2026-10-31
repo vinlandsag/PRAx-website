@@ -1,6 +1,6 @@
 "use client";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { applyTheme } from "@/components/layout/ThemeSync";
 import {
@@ -33,13 +33,15 @@ export default function SettingsPage() {
           <Skeleton className="h-64" label="Loading settings" />
         )
       ) : (
-        <SettingsForm
-          key={api.data.user.id}
-          data={api.data}
-          mutate={api.mutate}
-          error={api.error}
-          saving={api.saving}
-        />
+        <Suspense fallback={<Skeleton className="h-64" label="Loading settings" />}>
+          <SettingsForm
+            key={api.data.user.id}
+            data={api.data}
+            mutate={api.mutate}
+            error={api.error}
+            saving={api.saving}
+          />
+        </Suspense>
       )}
     </AppShell>
   );
@@ -56,7 +58,14 @@ function SettingsForm({
   saving: boolean;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState("account"),
+  const params = useSearchParams();
+  const requestedTab = params.get("tab");
+  const initialTab = ["account", "appearance", "notifications", "privacy", "security"].includes(
+    requestedTab || ""
+  )
+    ? requestedTab!
+    : "account";
+  const [tab, setTab] = useState(initialTab),
     [profile, setProfile] = useState(data.profile),
     [settings, setSettings] = useState(data.settings),
     [photo, setPhoto] = useState(false),

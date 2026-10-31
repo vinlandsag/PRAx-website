@@ -2,6 +2,7 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { TaskItem } from "./catalog";
 import type { WorkspaceData } from "./types";
 import Tasks from "@/app/tasks/page";
 import Space from "@/app/space/page";
@@ -41,6 +42,59 @@ vi.mock("./use-workspace", () => ({
     mutate: mocks.mutate,
     refresh: mocks.refresh,
   }),
+}));
+const taskFixtures: TaskItem[] = [
+  {
+    id: "1",
+    title: "Optimise one slow SQL query",
+    description: "Query performance",
+    category: "Backend",
+    pointsMax: 35,
+    deadline: "",
+    status: "Open",
+    thumbnailType: "code",
+  },
+  {
+    id: "2",
+    title: "Ship a landing page in 3 hours",
+    description: "A responsive landing page",
+    category: "Frontend",
+    pointsMax: 40,
+    deadline: "",
+    status: "Open",
+    thumbnailType: "doc",
+  },
+  {
+    id: "3",
+    title: "Build a REST API for habits",
+    description: "An API",
+    category: "Backend",
+    pointsMax: 60,
+    deadline: "",
+    status: "Approved",
+    thumbnailType: "terminal",
+  },
+];
+vi.mock("@/lib/api/use-resource", () => ({
+  useResource: (path: string | null) => {
+    let data: unknown = null;
+    if (path === "/api/tasks") data = { tasks: taskFixtures };
+    else if (path?.startsWith("/api/tasks/"))
+      data = { task: taskFixtures.find((task) => task.id === path.split("/").at(-1)) };
+    else if (path?.startsWith("/api/leaderboard"))
+      data = {
+        entries: path.includes("alltime")
+          ? [
+              { id: "other", name: "Other Builder", points: 1610, rank: 1, streak: 8 },
+              { id: "usr_member_01", name: "Test Builder", points: 1240, rank: 2, streak: 4 },
+            ]
+          : [
+              { id: "other", name: "Other Builder", points: 301, rank: 1, streak: 8 },
+              { id: "usr_member_01", name: "Test Builder", points: 185, rank: 2, streak: 4 },
+            ],
+      };
+    return { data, error: "", loading: false, refresh: mocks.refresh };
+  },
 }));
 function fixture(): WorkspaceData {
   return {
@@ -130,22 +184,23 @@ describe("functional member controls", () => {
     chat.unmount();
     render(<Leaderboard />);
     expect(
-      screen.getByRole("link", { name: "View profile of Kabir Nair" }).getAttribute("href")
-    ).toBe("/members/demo_kabir?from=leaderboard");
+      screen.getByRole("link", { name: "View profile of Other Builder" }).getAttribute("href")
+    ).toBe("/members/other?from=leaderboard");
     expect(screen.queryByRole("link", { name: "Members" })).toBeNull();
   });
-  it("labels a sample profile and returns to its originating leaderboard", async () => {
+  it("shows an API-provided profile and returns to its originating leaderboard", async () => {
     mocks.params = "from=leaderboard";
-    mocks.paramId = "demo_meera";
+    mocks.paramId = "other";
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ profile: fixture().profile, isDemo: true }),
+        json: async () => ({ profile: fixture().profile }),
       })
     );
     render(<MemberProfile />);
-    expect(await screen.findByText(/Sample profile/)).toBeDefined();
+    expect(await screen.findByRole("heading", { name: "Test Builder", level: 2 })).toBeDefined();
+    expect(screen.queryByText(/Sample profile/)).toBeNull();
     expect(screen.getByRole("link", { name: "← Back to leaderboard" }).getAttribute("href")).toBe(
       "/leaderboard"
     );
@@ -275,8 +330,8 @@ describe("functional member controls", () => {
     expect(screen.getByText("185 points this week")).toBeDefined();
     fireEvent.click(screen.getByRole("tab", { name: "All-time" }));
     expect(screen.getByText("1,240 points all time")).toBeDefined();
-    expect(screen.getByText("#5")).toBeDefined();
-    expect(screen.getByLabelText("All-time podium").textContent).toContain("Meera Shah");
+    expect(screen.getByText("#2")).toBeDefined();
+    expect(screen.getByLabelText("All-time podium").textContent).toContain("Other Builder");
   });
   it("edits own chat messages through three dots and disables foreign edits", async () => {
     render(<Chat />);

@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useWorkspace } from "@/lib/workspace/use-workspace";
 import { Avatar } from "../ui/Avatar";
 import { NavItem } from "./MemberSidebar";
 
@@ -82,7 +83,6 @@ export const adminNavItems: NavItem[] = [
   {
     label: "Chat Moderation",
     href: "/admin/moderation",
-    badge: 5,
     icon: (
       <svg
         className="w-4 h-4"
@@ -103,6 +103,7 @@ export const adminNavItems: NavItem[] = [
 
 function AdminSidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const pathname = usePathname();
+  const { data } = useWorkspace();
 
   return (
     <aside className="w-64 bg-sidebar text-white flex flex-col justify-between shrink-0 h-screen select-none border-r border-sidebar-hover">
@@ -190,19 +191,14 @@ function AdminSidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) 
         {/* Admin profile widget */}
         <div className="flex items-center justify-between px-2 py-1.5 rounded-xl bg-sidebar-hover/30 border border-sidebar-hover/60">
           <div className="flex items-center gap-2.5 min-w-0">
-            <Avatar name="Lena V." size="sm" colorScheme="orange" />
+            <Avatar name={data?.profile.name || "Administrator"} size="sm" colorScheme="orange" />
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold text-white truncate">Lena V.</span>
+              <span className="text-xs font-semibold text-white truncate">
+                {data?.profile.name || "Administrator"}
+              </span>
               <span className="text-[10px] text-sidebar-subtext truncate">Administrator</span>
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="Admin options"
-            className="text-text-muted text-xs cursor-pointer hover:text-white p-1"
-          >
-            ···
-          </button>
         </div>
       </div>
     </aside>

@@ -1,5 +1,47 @@
 # PROJECT_STATE.md
 
+## Authorized GitHub delivery of current work (2026-10-31)
+
+User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
+
+Fresh pre-push checks passed: 226 tests/13 files in 8.91 s; tsc --noEmit and full ESLint exit 0; Git whitespace check clean. Limited scan of 157 text candidates found no high-confidence secret markers or configured private session key. .env.local, .next, node_modules and .vercel remain ignored; only blank .env.example is included. Last production build is the passed 47/47 hosting preflight; it was not repeated for this Git-only action.
+
+No global Git author identity is configured; use existing repository convention PRAX Agent <prax-agent@local> for this commit command only. Publish normally to donel, without force pushing or changing main; verify HEAD against the remote receipt afterward. This note records scope/checks before commit/push so the final delivery hash is available from Git history. Keep the local test account and existing local server; do not restart cloud hosting.
+
+## Latest clarification — run locally (2026-10-31)
+
+User clarified “host it” means local hosting. This supersedes the pending Vercel deployment/sign-in next step. Do not continue cloud deployment or request Vercel authorization for this task. Prior device-login exec session 44678 is no longer available; no site was deployed. Existing hosting-preparation files remain harmless local changes; no application code changed in this run.
+
+Started npm run dev -- --hostname 127.0.0.1 --port 3000 using installed Node/npm (exec session 41439), ready in 728 ms. Confirmed health HTTP 200/environment development and login page HTTP 200; queued the local login browser panel. Server remains running on loopback only. The original local member test account is preserved; backend-dependent data remains disconnected. No secret, commit, push or remote deployment. Tests/lint/build not repeated for this server-only action. Next step: open http://127.0.0.1:3000/login and use the retained test credentials.
+
+## Hosting preparation — awaiting Vercel sign-in (2026-10-31, D-023)
+
+User requested hosting. Native Next.js deployment selected to preserve the existing framework. No existing Vercel/Netlify CLI, project link or hosting manifest was found. Inspected connected Sites workflow (Workers/Vinext/static) but did not create a Site or migrate this Next project. Installed official Vercel CLI 65.9.0 through npm exec/cache without adding it to project dependencies. whoami reported logged out. Temporary unauthenticated attempt was unavailable and CLI started its device login instead. No site/project/deployment URL exists yet.
+
+Prepared .vercelignore as an application/config-only upload allowlist, excluding .env files, credentials, Git, build/dependency folders, memory/reference docs and source PDF. Pinned Node 24.x in package.json and the lock root to match the tested runtime. Verified 17 inclusion/exclusion examples and matching engines, package formatting/diff check, and a fresh successful production build (47/47). App/test-account code unchanged in this hosting follow-up; prior 226 tests remain last full-suite evidence.
+
+Pending Vercel device authorization in exec session 44678 (original command deploy --temporary --dry --json). The device link was provided to the user, not written here. The command is dry-run and must not be mistaken for a completed deployment. After the user signs in, inspect that session and CLI account/project scope, then deploy current local source normally and verify the resulting URL. Do not upload .env.local or enable the local-only test account online. No Git commit/push or remote source publication occurred.
+
+## Current follow-up — keep the local test account (2026-10-31, D-022)
+
+User correction: do not remove the test account. Restored the original local member sign-in (member@prax.build / MemberPass123!) and authenticated current-user lookup. The exception is isolated in src/lib/auth/development-member.ts and the login/me handlers, enabled only in NODE_ENV=development with loopback request hosts. No removed workspace/catalog/chat/upload/database/points stores were restored. Production and other accounts still require backend implementation. Login fields remain blank.
+
+Fixture sessions carry a signed developmentOnly marker and are rejected outside development, including when a production run uses the same private signing key. Wrong credentials, foreign Origin writes and nonlocal hosts are rejected; login attempts are rate-limited. A random private SESSION_SECRET was generated in ignored .env.local because none was configured; its value was not printed or committed. No shared default signing key restored.
+
+Passed: 226 tests/13 files, full lint/typecheck/scoped formatting, production build 47/47. Live temporary localhost:3100 login/me/dashboard returned 200; authenticated workspace remains 503 as intended. Temporary server was stopped after verification, so it will not block npm run dev. Changes remain local on donel; no new commit/push. Preserve this test account in future cleanup unless the user explicitly changes that preference.
+
+## Current state — frontend cleanup and backend handoff (2026-10-29, D-021)
+
+This section supersedes the older prototype functionality below. The user explicitly chose **Remove mock APIs too**. Removed seeded authentication/accounts/invites, in-memory workspace/chat/upload/rubric/submission/audit/points implementations, sample catalog/rankings/public identities, canned application metrics/activity and fake-success fallbacks. Preserved the design system, local Inter, cursor assets, typed UI controls and request contracts. Application reads now use service contracts and explicit loading/unavailable/retry/empty states; no mock database or browser-storage replacement was added.
+
+All unimplemented service routes now return 503 BACKEND_NOT_CONFIGURED after existing session/role/status guards where applicable. Health remains 200 and reports backend not_configured; logout only clears its cookie. Sign-in, account changes, chat/media and persistence intentionally require a real backend. Default signing secrets are removed; SESSION_SECRET (or NEXTAUTH_SECRET) must contain at least 32 characters for signed sessions. There are no runtime demo credentials. .env.example contains blank configuration values, and real env files remain ignored.
+
+NotificationBell opens the shared accessible dialog, shows loading/error/retry/empty or server-provided notifications, derives unread count from returned data, and marks all read only after server acceptance. Escape/close/backdrop dismissal, focus trapping/restoration and settings-tab links are covered. No fake unread dot or notification delivery implementation. Default Next branding/assets and dev indicator removed; PRAX title/icon used.
+
+Validation: 212 tests/12 files, full lint, typecheck, scoped source formatting and production build passed (47/47 pages). Browser checked the real bell in the development review page: unauthenticated service state, Escape, restored focus and no horizontal overflow at the natural narrow panel size. Live login 503/no session, private workspace/notifications 401, health 200/backend not_configured and PRAX icon 200 verified. All data-rich frontend tests use test-only fixtures. No real backend/database connection or authenticated end-to-end save is claimed.
+
+Local changes remain on donel after published commit 409d475; this cleanup has not been committed or pushed. The user's existing port-3000 server was reachable and reused. Next step: backend team implements authentication/current-user lookup, followed by workspace/task/notification contracts in API_CONTRACTS.md.
+
 ## Latest update — profiles through interactions and chat media (2026-10-29)
 
 The latest user instruction removes the standalone Members section. Other profiles now open directly from names/avatars in chat and the leaderboard, with a context-specific return link. Approved real accounts load before their first workspace visit; inactive/unknown accounts return 404. Sample leaderboard/chat identities resolve to explicitly labelled read-only sample profiles, never new login accounts. Public reads retain portfolio privacy and exclude private account/workspace data.
@@ -268,3 +310,6 @@ The commit includes the PDF-based design foundation, explicit Inter/assets, curs
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
+
+### Login screenshot diagnosis (2026-10-29)
+User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

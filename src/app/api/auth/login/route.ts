@@ -1,85 +1,61 @@
-/**
- * src/app/api/auth/login/route.ts
- *
- * Password authentication endpoint.
- * Validates credentials, checks account status, enforces rate limiting,
- * and sets secure HTTP-only signed session cookie.
- */
-
 import { NextResponse } from "next/server";
-import { authStore } from "@/lib/db/auth-store";
-import { verifyPassword } from "@/lib/auth/password";
-import { signSession, getSessionCookieOptions } from "@/lib/auth/session";
-import { rateLimit, getClientIp, RATE_LIMIT_POLICIES } from "@/lib/auth/rate-limit";
+import { backendUnavailable } from "@/lib/api/backend";
+import {
+  localDevelopmentMember,
+  hasSameOrigin,
+  verifyDevelopmentPassword,
+} from "@/lib/auth/development-member";
+import { getSessionCookieOptions, signSession, SESSION_DURATION_MS } from "@/lib/auth/session";
+import { rateLimit, RATE_LIMIT_POLICIES } from "@/lib/auth/rate-limit";
 import { apiError, errors } from "@/lib/errors";
-import type { SessionUser } from "@/lib/auth/types";
+import { env } from "@/lib/env";
 
 export async function POST(request: Request) {
-  const ip = getClientIp(request);
-  const ipRl = rateLimit(
-    `login:ip:${ip}`,
-    RATE_LIMIT_POLICIES.login.limit * 2,
-    RATE_LIMIT_POLICIES.login.windowMs
-  );
-  if (!ipRl.success) {
+  const member = localDevelopmentMember(request);
+  if (!member) return backendUnavailable();
+  if (!hasSameOrigin(request)) return errors.forbidden();
+  const policy = RATE_LIMIT_POLICIES.login;
+  if (!rateLimit("local-development-member-login", policy.limit, policy.windowMs).success)
     return errors.rateLimited();
-  }
-
+  let data: unknown;
   try {
-    const body = await request.json();
-    const { email, password } = body;
-
-    if (!email || typeof email !== "string" || !password || typeof password !== "string") {
-      return apiError("VALIDATION_ERROR", "Email and password are required.", 400);
-    }
-
-    const emailKey = email.trim().toLowerCase();
-    const userRl = rateLimit(
-      `login:email:${emailKey}`,
-      RATE_LIMIT_POLICIES.login.limit,
-      RATE_LIMIT_POLICIES.login.windowMs
-    );
-    if (!userRl.success) {
-      return errors.rateLimited(
-        "Too many login attempts for this account. Please wait before retrying."
-      );
-    }
-
-    const user = await authStore.findUserByEmail(emailKey);
-    if (!user || !user.passwordHash) {
-      return apiError("UNAUTHENTICATED", "Invalid email or password.", 401);
-    }
-
-    const passwordValid = await verifyPassword(password, user.passwordHash);
-    if (!passwordValid) {
-      return apiError("UNAUTHENTICATED", "Invalid email or password.", 401);
-    }
-
-    // Check account lifecycle status (MVP_SPEC §3)
-    if (user.status === "REJECTED" || user.status === "SUSPENDED" || user.status === "DISABLED") {
-      return apiError(
-        "ACCOUNT_NOT_ACTIVE",
-        `Your account status is ${user.status.toLowerCase()}. Access is restricted.`,
-        403
-      );
-    }
-
-    const sessionUser: SessionUser = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      status: user.status,
-    };
-
-    const token = signSession(sessionUser);
-    const cookieOptions = getSessionCookieOptions();
-
-    const response = NextResponse.json({ user: sessionUser }, { status: 200 });
-    response.cookies.set(cookieOptions.name, token, cookieOptions);
-
-    return response;
+    const body = await request.text();
+    if (body.length > 4096)
+      return apiError("VALIDATION_ERROR", "Sign-in request is too large.", 400);
+    data = JSON.parse(body);
   } catch {
-    return errors.internal();
+    return apiError("VALIDATION_ERROR", "Enter an email address and password.", 400);
   }
+  if (!data || typeof data !== "object" || Array.isArray(data))
+    return apiError("VALIDATION_ERROR", "Enter an email address and password.", 400);
+  const { email, password } = data as Record<string, unknown>;
+  if (
+    typeof email !== "string" ||
+    !email.trim() ||
+    email.length > 254 ||
+    typeof password !== "string" ||
+    !password ||
+    password.length > 1024
+  )
+    return apiError("VALIDATION_ERROR", "Enter a valid email address and password.", 400);
+  if (email.trim().toLowerCase() !== member.email) return backendUnavailable();
+  if (env.sessionSecret.length < 32)
+    return apiError(
+      "BACKEND_NOT_CONFIGURED",
+      "Local test sign-in requires a configured SESSION_SECRET.",
+      503
+    );
+  if (!(await verifyDevelopmentPassword(password)))
+    return apiError("UNAUTHENTICATED", "Email or password is incorrect.", 401);
+  const response = NextResponse.json(
+    { user: member },
+    { headers: { "Cache-Control": "no-store" } }
+  );
+  const cookie = getSessionCookieOptions();
+  response.cookies.set(
+    cookie.name,
+    signSession(member, SESSION_DURATION_MS, { developmentOnly: true }),
+    cookie
+  );
+  return response;
 }

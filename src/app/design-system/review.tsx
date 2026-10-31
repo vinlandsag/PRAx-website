@@ -1,4 +1,5 @@
 "use client";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   Button,
@@ -92,6 +93,7 @@ const sections = [
   "Upload",
   "Feedback",
   "Dialog",
+  "Notifications",
 ];
 export default function DesignSystemReview() {
   const [fontStatus, setFontStatus] = useState("Checking Inter…");
@@ -814,6 +816,15 @@ export default function DesignSystemReview() {
         </div>
       </Dialog>
       {toast && <Toast message={toast} onDismiss={() => setToast("")} />}
+      <Section
+        id="notifications"
+        title="Notifications"
+        description="Uses the real API contract; disconnected services show an error, never fake updates."
+      >
+        <Specimen>
+          <NotificationBell />
+        </Specimen>
+      </Section>
     </main>
   );
 }

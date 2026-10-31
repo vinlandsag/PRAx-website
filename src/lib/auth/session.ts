@@ -14,7 +14,10 @@ export const SESSION_COOKIE_NAME = "prax_session";
 export const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function getSecretKey(): string {
-  return env.sessionSecret || "prax-default-session-secret-key-at-least-32-chars";
+  const secret = env.sessionSecret;
+  if (secret.length < 32)
+    throw new Error("A SESSION_SECRET of at least 32 characters is required.");
+  return secret;
 }
 
 function base64UrlEncode(str: string): string {
@@ -33,10 +36,17 @@ function base64UrlDecode(str: string): string {
   return Buffer.from(base64, "base64").toString("utf-8");
 }
 
-export function signSession(user: SessionUser, ttlMs: number = SESSION_DURATION_MS): string {
+export function signSession(
+  user: SessionUser,
+  ttlMs: number = SESSION_DURATION_MS,
+  options: { developmentOnly?: boolean } = {}
+): string {
+  if (options.developmentOnly && process.env.NODE_ENV !== "development")
+    throw new Error("Development sessions cannot be created outside development.");
   const now = Date.now();
   const payload: SessionPayload = {
     user,
+    ...(options.developmentOnly ? { developmentOnly: true as const } : {}),
     issuedAt: now,
     expiresAt: now + ttlMs,
   };
@@ -78,6 +88,8 @@ export function verifySession(token: string | null | undefined): SessionPayload 
 
     const payloadJson = base64UrlDecode(encodedPayload);
     const payload = JSON.parse(payloadJson) as SessionPayload;
+
+    if (payload.developmentOnly && process.env.NODE_ENV !== "development") return null;
 
     if (!payload.user || !payload.expiresAt) {
       return null;

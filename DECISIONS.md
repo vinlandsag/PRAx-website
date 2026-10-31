@@ -1,5 +1,41 @@
 # DECISIONS.md
 
+## Authorized GitHub delivery of current work (2026-10-31)
+
+User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
+
+Fresh pre-push checks passed: 226 tests/13 files in 8.91 s; tsc --noEmit and full ESLint exit 0; Git whitespace check clean. Limited scan of 157 text candidates found no high-confidence secret markers or configured private session key. .env.local, .next, node_modules and .vercel remain ignored; only blank .env.example is included. Last production build is the passed 47/47 hosting preflight; it was not repeated for this Git-only action.
+
+No global Git author identity is configured; use existing repository convention PRAX Agent <prax-agent@local> for this commit command only. Publish normally to donel, without force pushing or changing main; verify HEAD against the remote receipt afterward. This note records scope/checks before commit/push so the final delivery hash is available from Git history. Keep the local test account and existing local server; do not restart cloud hosting.
+
+## Latest clarification — run locally (2026-10-31)
+
+User clarified “host it” means local hosting. This supersedes the pending Vercel deployment/sign-in next step. Do not continue cloud deployment or request Vercel authorization for this task. Prior device-login exec session 44678 is no longer available; no site was deployed. Existing hosting-preparation files remain harmless local changes; no application code changed in this run.
+
+Started npm run dev -- --hostname 127.0.0.1 --port 3000 using installed Node/npm (exec session 41439), ready in 728 ms. Confirmed health HTTP 200/environment development and login page HTTP 200; queued the local login browser panel. Server remains running on loopback only. The original local member test account is preserved; backend-dependent data remains disconnected. No secret, commit, push or remote deployment. Tests/lint/build not repeated for this server-only action. Next step: open http://127.0.0.1:3000/login and use the retained test credentials.
+
+## D-023 — preserve Next.js for hosting (2026-10-31)
+
+User explicitly requested hosting the current website. Use a native Next.js host rather than converting the app to a different server framework or static clone. Available Sites tooling was inspected but its Worker/Vinext/static workflow was not applied to this native Next project. Vercel CLI is the selected deployment path; no Vercel account is currently authenticated, so real deployment awaits provider device authorization. No extra conversational publishing permission is required after sign-in, provided the target is this project and existing protection is preserved.
+
+Pin Node 24.x to match the tested project runtime and restrict uploaded source with an explicit .vercelignore allowlist. Exclude all local secrets and generated/dependency files. Current local changes may be deployed without pushing stale GitHub source or committing on the user's behalf. Keep the D-022 fixture local-only; do not expose it through a public production login or change audiences/protection to avoid authentication. Temporary hosting was considered, but the provider declined that mode for this attempt. No live-hosting or permanence claim until a deployment receipt is verified.
+
+## D-022 — preserve the local development test member (2026-10-31)
+
+Explicit user correction: “did u removed the test acount. pls don't remove it”. Restore and retain the original member test login as a narrow development exception to D-021. Do not recreate the removed mock database, mutable account store, canned metrics/activity or fake data APIs. Keep member@prax.build / MemberPass123! available for local testing and keep production authentication disconnected until backend integration. No admin fixture added because it was not requested.
+
+Use existing session/password/rate-limit helpers, immutable fixture identity, development-only execution and loopback Host checks. Require same-origin browser login, a private configured signing key and rate limits. Generate a missing local key only in ignored .env.local; do not restore a built-in default key. Mark issued sessions developmentOnly in the signed payload and reject them outside development, even when the same key is configured. Preserve existing success shape {user} and cookie settings. Do not remove this test member in later cleanup without a new explicit user instruction.
+
+## D-021 — remove mock backend for team integration (2026-10-29)
+
+The user requested removal of website junk that could conflict with backend/database work and explicitly selected **Remove mock APIs too**. This supersedes D-018/D-020 process-memory functionality for the current checkout. Preserve Next/React/TypeScript/Tailwind, reusable design tokens/components and typed contracts; do not select a database, ORM, email provider or external API server without team input.
+
+Delete prototype runtime stores/seeded accounts, catalogs, metrics, messages, upload bytes, invite fallbacks, audit lists and simulated points transactions. Replace their route implementations with explicit no-store 503 BACKEND_NOT_CONFIGURED, retaining private server-side session/role/status checks and documented paths/methods. These are integration seams, not fabricated successful API responses. Keep health truthful and logout functional. Existing authenticated frontend behavior is tested with fixtures only; full operation depends on real backend integration. Remove hardcoded signing fallbacks and require a 32+ character private secret. No browser-storage backend or auth bypass.
+
+Keep illustrative data only inside tests and the already development-only component review. Application UI must not fabricate a named identity, metrics, progress, review results, notifications, invitation codes or successful writes. Metadata/starter icons and unfinished magic-link product controls are cleaned up. Keep requested cursor and source/reference artwork.
+
+Notification icon opens the reusable dialog rather than a new notification service. Show actual feed/error states, count only returned unread notifications, allow mark-all-read via the declared endpoint and keep failed writes unread. Reuse Modal keyboard/focus behavior. Real delivery and persistence belong to the backend team. Current cleanup remains local on the user's donel branch; the earlier push request was fulfilled by 409d475 and is not treated as automatic authorization to publish later changes.
+
 ## D-020 — profiles through interactions and temporary chat media (2026-10-29)
 
 The user's latest steering requests profile access from chat/leaderboard and removal of the Members section, plus images/video/files in chat. Keep the existing stack, shared primitives, authorization and process-local storage; no directory feature, new login accounts, external storage service or production deployment.
@@ -125,3 +161,6 @@ The commit includes the PDF-based design foundation, explicit Inter/assets, curs
 
 Commit preflight note: first commit attempt failed because user.name/user.email are unset. Existing repository history uses PRAX Agent <prax-agent@local>; use that same neutral agent identity via per-command Git configuration for this delivery, without changing global identity or attributing the work to a guessed human account.
 
+
+### Login screenshot diagnosis (2026-10-29)
+User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.

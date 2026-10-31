@@ -27,7 +27,7 @@ export function ThemeSync() {
         })
         .catch(() => {});
     };
-    sync();
+    if (pathname !== "/login" && !pathname.startsWith("/design-system")) sync();
     const update = (event: Event) => {
       const theme = (event as CustomEvent<{ settings?: { theme?: string } }>).detail?.settings
         ?.theme;

@@ -7,9 +7,12 @@ import { Tabs } from "@/components/ui/Tabs";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 
-import { tasks as mockTasks, type TaskItem } from "@/lib/workspace/catalog";
+import type { TaskItem } from "@/lib/workspace/catalog";
 import { filterTasks } from "@/lib/workspace/filter";
 import { EmptyState } from "@/components/ui/Feedback";
+import { ResourceState } from "@/components/ui/ResourceState";
+import { useResource } from "@/lib/api/use-resource";
+import type { TaskFeed } from "@/lib/api/contracts";
 
 export default function TasksPage() {
   const [activeTab, setActiveTab] = useState("all");
@@ -17,13 +20,15 @@ export default function TasksPage() {
 
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("newest");
-  const filteredTasks = filterTasks(search, category, activeTab, sort);
+  const api = useResource<TaskFeed>("/api/tasks");
+  const tasks = api.data?.tasks ?? [];
+  const filteredTasks = filterTasks(search, category, activeTab, sort, tasks);
   const counts = {
-    all: mockTasks.length,
-    open: mockTasks.filter((t) => t.status === "Open").length,
-    submitted: mockTasks.filter((t) => t.status === "Pending").length,
-    approved: mockTasks.filter((t) => t.status === "Approved").length,
-    rejected: mockTasks.filter((t) => t.status === "Rejected").length,
+    all: tasks.length,
+    open: tasks.filter((t) => t.status === "Open").length,
+    submitted: tasks.filter((t) => t.status === "Pending").length,
+    approved: tasks.filter((t) => t.status === "Approved").length,
+    rejected: tasks.filter((t) => t.status === "Rejected").length,
   };
 
   const getStatusBadge = (status: TaskItem["status"]) => {
@@ -118,11 +123,9 @@ export default function TasksPage() {
             className="bg-surface border border-border text-xs rounded-xl px-3 py-2 text-text font-medium cursor-pointer focus-visible:outline-none"
           >
             <option value="all">Category: All</option>
-            <option>Backend</option>
-            <option>Frontend</option>
-            <option>UI/UX Design</option>
-            <option>Writing</option>
-            <option>Developer tools</option>
+            {[...new Set(tasks.map((task) => task.category))].sort().map((value) => (
+              <option key={value}>{value}</option>
+            ))}
           </select>
           <select
             aria-label="Sort tasks"
@@ -143,19 +146,24 @@ export default function TasksPage() {
           activeTab={activeTab}
           onChange={setActiveTab}
           tabs={[
-            { id: "all", label: "All", count: counts.all },
-            { id: "open", label: "Open", count: counts.open },
-            { id: "submitted", label: "Submitted", count: counts.submitted },
-            { id: "approved", label: "Approved", count: counts.approved },
-            { id: "rejected", label: "Rejected", count: counts.rejected },
+            { id: "all", label: "All", count: api.data ? counts.all : undefined },
+            { id: "open", label: "Open", count: api.data ? counts.open : undefined },
+            { id: "submitted", label: "Submitted", count: api.data ? counts.submitted : undefined },
+            { id: "approved", label: "Approved", count: api.data ? counts.approved : undefined },
+            { id: "rejected", label: "Rejected", count: api.data ? counts.rejected : undefined },
           ]}
         />
       </div>
 
-      <p role="status" className="mb-3 text-xs text-text-muted">
-        {filteredTasks.length} matching tasks
-      </p>
-      {!filteredTasks.length && (
+      {(api.loading || api.error) && (
+        <ResourceState loading={api.loading} error={api.error} onRetry={() => void api.refresh()} />
+      )}
+      {api.data && (
+        <p role="status" className="mb-3 text-xs text-text-muted">
+          {filteredTasks.length} matching tasks
+        </p>
+      )}
+      {!api.loading && !api.error && !filteredTasks.length && (
         <EmptyState
           title="No matching tasks"
           description="Try another search, category or status."
