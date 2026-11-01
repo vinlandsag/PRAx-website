@@ -11,7 +11,7 @@
 - Kept Supabase as the PostgreSQL host and Prisma 7 as the sole ORM/migration path, following the backend branch decision.
 - Excluded main's unused Supabase JS helper layer and parallel SQL schema/seed files from this merge. Those definitions duplicate Prisma-owned tables, include Chat/Personal Space without privacy sign-off, and assume Supabase Auth RLS while the app uses signed HMAC sessions.
 - Kept `.env.example` with placeholders for pooled `DATABASE_URL` and migration `DIRECT_URL`; no credentials were added. Updated README setup/backend claims to match actual Prisma features and migration status.
-- Main's Supabase scaffolding remains in Git history if later reviewed and intentionally reintroduced.
+- Main's Supabase scaffolding remains in Git history if later reviewed and intentionally reintroduced. Conflict resolution was committed locally as `9eb4d7b`; not pushed.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 

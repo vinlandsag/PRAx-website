@@ -4,7 +4,7 @@
 
 Supabase is the PostgreSQL host; Prisma 7 is the sole ORM and migration system, as recorded in D-024 and implemented on `milan`. Task, submission, points and streak services use Prisma. The Supabase JS helpers and Supabase CLI SQL migration/schema/seed from `main` were not integrated with routes and overlap Prisma-owned tables. They are excluded from this integration. Do not apply the parallel SQL schema. Its Chat/Personal Space tables and Supabase Auth `auth.uid()` policies also need ownership, session-auth compatibility, and Person 4 privacy review before any future adoption.
 
-The incoming branch state was checked against current `origin/main` and `origin/milan`. The conflicts are resolved locally on `milan`; no merge commit or push has been made yet. The merge preserves main frontend/config changes and uses Prisma as the only migration path. Relevant checks are recorded in `TEST_LOG.md`; no database migration was run.
+The incoming branch state was checked against current `origin/main` and `origin/milan`. The conflicts were resolved in local merge commit `9eb4d7b` on `milan`. The merge preserves main frontend/config changes and uses Prisma as the only migration path. Relevant checks are recorded in `TEST_LOG.md`; no database migration was run. The commit has not been pushed.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 

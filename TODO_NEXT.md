@@ -5,7 +5,8 @@
 - [x] Select Supabase Postgres hosting and Prisma 7 as sole ORM/migration path (D-024).
 - [x] Exclude unused duplicate Supabase JS/SQL schema scaffold from branch integration; retain main's frontend changes.
 - [x] Resolve local merge conflicts and run unit tests, lint, typecheck, Prisma validation, and production webpack build.
-- [ ] Review and commit the local merge on `milan`, then push it to origin so the GitHub PR can update.
+- [x] Review and commit the local merge on `milan` (`9eb4d7b`).
+- [ ] Push `milan` to origin so the GitHub PR can update.
 - [ ] Have Person 4 review the Chat/Personal Space privacy boundary before any schema adoption for those domains.
 - [ ] Person 1 to connect persisted auth and admin review to points approval service.
 - [ ] Run PostgreSQL integration tests only against isolated migrated `TEST_DATABASE_URL`.
