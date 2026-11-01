@@ -259,3 +259,21 @@ After the user observed `P2028` during registration's interactive transaction, u
 # D-036 — Keep invite registrations in approval waiting state
 
 After successful invite registration, issue the existing signed HttpOnly session for the server-created MEMBER/PENDING_APPROVAL account so it can see `/onboarding`. Keep the proxy's existing pending restrictions: only onboarding and persisted current-user status are allowed; workspace pages redirect and APIs return ACCOUNT_PENDING. Poll current persisted status and navigate only after server approval refreshes the session. Do not grant workspace access from client state.
+
+## D-037 — Split Chat and Personal Space out of /api/workspace (2026-11-01, Stage 3)
+
+Approved by Aleena (Person 4) after the Stage 1 audit and Stage 2 plan. Chat (shared) and Personal Space (private) no longer travel in one `/api/workspace` payload. `/api/workspace` stays a `pendingEndpoint` 503 stub for account data and the public member profile; `WorkspaceData` is now `{user, profile, settings}` (`src/lib/workspace/types.ts`). Profile and settings are served by `/api/users/me/{profile,settings}` as before.
+
+Approved product choices: single `#general` channel (no Channel table); soft delete via `deletedAt`; plain-text notes; fixed six-emoji palette (👍 ❤️ 😂 🎉 👀 🙌), one reaction per user per emoji, separate toggle route; `chatRulesAcceptedAt` on `UserPreferences`, server rejects posting until accepted, no rules versioning; `Todo.taskId` is an FK to `Task` with `onDelete: SetNull`, published tasks only, and the link is hidden from members when the task is no longer published; message content max 500; cursor paging 50 per page; cascade on user delete for all new models; no audit log and no Report button yet; chat attachments deferred to last (blocked on a team answer about files versus links and storage).
+
+Stage 3 implemented the client side only (types, `useChat`, `useSpace`, pages, components, tests). The routes (`/api/space`, `/api/chat/messages…`, `/api/chat/rules/accept`) and the Prisma models do not exist yet; the pages report load errors until Stages 4 and 5 are done. No data is simulated. Reversible: yes.
+
+## D-038 — Chat cursor polling contract and failed-poll behavior (2026-11-01, Stage 3)
+
+Chat reads use `GET /api/chat/messages?limit=50[&before=<id>|&after=<id>][&updatedSince=<ISO>]`. The response carries `messages` (oldest first), `updates` (edited, pinned or reacted messages and `{id, deleted:true}` tombstones for messages the client already holds), `pinned`, `hasMore`, `nextBefore`, `rulesAccepted`, `viewer`, `serverTime` and an optional `resync`. The client polls every 15 seconds with `after=<newest id>` and `updatedSince=<last serverTime minus 2 s>`, repeats at once when a page is full, and reloads the latest page on `resync`. This is also the seam for a push transport later (D-003 stays PENDING; no real-time library is installed).
+
+Fix recorded: previously one failed poll set the shared workspace data to null, which blanked the chat and, because the polling effect depended on that data, stopped polling (`use-workspace.ts` refresh and `chat/page.tsx` effect). `useChat` keeps loaded messages on a failed poll, shows a non-blocking reconnecting notice, never overlaps requests, and keeps its interval independent of loaded data. Covered by `src/lib/workspace/use-chat.test.tsx`. `use-workspace.ts` still clears its data on a failed fetch; the layout falls back to placeholder names, and it was left unchanged on purpose.
+
+## D-039 — Personal Space isolation rule for the API stage (2026-11-01, Stage 3)
+
+Recorded ahead of implementation (Stage 5). Isolation is application-level only, with no encryption. The owner id comes only from the persisted session account (`requirePersistedAccount`) and is part of the `where` clause of every to-do, note and goal query. Updates and deletes use owner-scoped `updateMany`/`deleteMany` and a foreign or missing id returns 404. No client-supplied user id is accepted, no admin route reads these tables, and `resourceOwnerId`/`allowAdminResourceOverride` are not relied on. Admins hold `view:space` and `edit:own_space` (`src/lib/auth/rbac.ts`), so the database predicate, not the permission, provides the separation. Nothing in this rule is implemented yet.

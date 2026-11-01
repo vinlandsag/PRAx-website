@@ -1,5 +1,6 @@
 "use client";
 import React, { Suspense, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import {
@@ -17,9 +18,11 @@ import {
   Tabs,
   Textarea,
 } from "@/components/ui";
-import { useWorkspace } from "@/lib/workspace/use-workspace";
+import { useSpace } from "@/lib/workspace/use-space";
+import { useResource } from "@/lib/api/use-resource";
+import type { TaskFeed } from "@/lib/api/contracts";
 import { filterTodos } from "@/lib/workspace/filter";
-import { todayIST, type Difficulty, type Todo, type WorkspaceData } from "@/lib/workspace/types";
+import { todayIST, type Difficulty, type SpaceData, type Todo } from "@/lib/workspace/types";
 
 type Section = "todos" | "notes" | "goals";
 type Draft = {
@@ -31,6 +34,7 @@ type Draft = {
   dueDate: string;
   completed: boolean;
   progress: number;
+  taskId: string | null;
 };
 const blank: Draft = {
   title: "",
@@ -41,7 +45,10 @@ const blank: Draft = {
   dueDate: "",
   completed: false,
   progress: 0,
+  taskId: null,
 };
+// /api/tasks allows at most 100 items per page (MAX_PAGE_SIZE in src/lib/api/pagination.ts).
+const TASK_OPTIONS_PATH = "/api/tasks?limit=100";
 export default function PersonalSpacePage() {
   return (
     <Suspense fallback={<Skeleton className="h-48" label="Loading personal space" />}>
@@ -50,7 +57,7 @@ export default function PersonalSpacePage() {
   );
 }
 function SpaceLoader() {
-  const api = useWorkspace();
+  const api = useSpace();
   const params = useSearchParams();
   if (!api.data)
     return (
@@ -67,12 +74,7 @@ function SpaceLoader() {
       </AppShell>
     );
   return (
-    <SpaceContent
-      key={`${api.data.user.id}:${params.toString()}`}
-      {...api}
-      data={api.data}
-      params={params.toString()}
-    />
+    <SpaceContent key={params.toString()} {...api} data={api.data} params={params.toString()} />
   );
 }
 function SpaceContent({
@@ -82,7 +84,7 @@ function SpaceContent({
   mutate,
   refresh,
   params,
-}: { data: WorkspaceData; params: string } & Omit<ReturnType<typeof useWorkspace>, "data">) {
+}: { data: SpaceData; params: string } & Omit<ReturnType<typeof useSpace>, "data">) {
   const search = new URLSearchParams(params);
   const requested = search.get("tab");
   const initial: Section = requested === "notes" || requested === "goals" ? requested : "todos";
@@ -103,8 +105,15 @@ function SpaceContent({
     setEditor({ section, id, editing: !id });
     setRemove(false);
   };
-  const update = (key: keyof Draft, value: string | number | boolean) =>
+  const update = (key: keyof Draft, value: string | number | boolean | null) =>
     setDraft((d) => ({ ...d, [key]: value }));
+  // Task choices load only while a to-do is being edited. Members receive published tasks only.
+  const taskFeed = useResource<TaskFeed>(
+    editor?.section === "todos" && editor.editing ? TASK_OPTIONS_PATH : null
+  );
+  const linkedTitle = data.todos.find((t) => t.id === editor?.id)?.taskTitle ?? null;
+  const taskOptions = taskFeed.data?.tasks ?? [];
+  const hasOption = taskOptions.some((t) => t.id === draft.taskId);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!editor) return;
@@ -117,6 +126,7 @@ function SpaceContent({
             priority: draft.priority,
             dueDate: draft.dueDate,
             completed: draft.completed,
+            taskId: draft.taskId,
           }
         : editor.section === "notes"
           ? { title: draft.title, content: draft.content }
@@ -255,6 +265,7 @@ function SpaceContent({
                               ? `Due ${todo.dueDate}${todo.dueDate < todayIST() && !todo.completed ? " · Overdue" : ""}`
                               : "No due date"}{" "}
                             · {todo.priority} priority
+                            {todo.taskTitle ? ` · Task: ${todo.taskTitle}` : ""}
                           </span>
                         </button>
                         <Badge
@@ -501,6 +512,29 @@ function SpaceContent({
                   onInput={(e) => update("dueDate", e.currentTarget.value)}
                   onChange={(e) => update("dueDate", e.target.value)}
                 />
+                <Select
+                  label="Linked platform task (optional)"
+                  className="min-h-11"
+                  value={draft.taskId ?? ""}
+                  onChange={(e) => update("taskId", e.target.value || null)}
+                  helperText={
+                    taskFeed.error
+                      ? "Tasks could not load. You can still save this to-do without a task link."
+                      : taskFeed.data?.pagination?.hasMore
+                        ? "Showing the first 100 published tasks."
+                        : undefined
+                  }
+                >
+                  <option value="">No linked task</option>
+                  {draft.taskId && !hasOption && (
+                    <option value={draft.taskId}>{linkedTitle ?? "Linked task"}</option>
+                  )}
+                  {taskOptions.map((task) => (
+                    <option key={task.id} value={task.id}>
+                      {task.title}
+                    </option>
+                  ))}
+                </Select>
                 <Checkbox
                   label="Completed"
                   checked={draft.completed}
@@ -538,6 +572,19 @@ function SpaceContent({
                 <dd>{draft.dueDate || "Not set"}</dd>
                 <dt>Status</dt>
                 <dd>{draft.completed ? "Completed" : "Open"}</dd>
+                <dt>Linked task</dt>
+                <dd>
+                  {draft.taskId && linkedTitle ? (
+                    <Link
+                      href={`/tasks/${encodeURIComponent(draft.taskId)}`}
+                      className="text-primary hover:underline"
+                    >
+                      {linkedTitle}
+                    </Link>
+                  ) : (
+                    "Not linked"
+                  )}
+                </dd>
               </dl>
             )}
             {editor?.section === "goals" && (

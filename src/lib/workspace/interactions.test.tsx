@@ -3,11 +3,10 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { TaskItem } from "./catalog";
-import type { WorkspaceData } from "./types";
+import type { SpaceData, WorkspaceData } from "./types";
 import Tasks from "@/app/tasks/page";
 import Space from "@/app/space/page";
 import Leaderboard from "@/app/leaderboard/page";
-import Chat from "@/app/chat/page";
 import Settings from "@/app/settings/page";
 import { EditableProfile } from "@/components/profile/EditableProfile";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
@@ -24,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   pathname: "/settings",
   paramId: "usr_member_01",
   data: null as WorkspaceData | null,
+  space: null as SpaceData | null,
 }));
 vi.mock("@/components/layout/AppShell", () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
@@ -37,6 +37,17 @@ vi.mock("next/navigation", () => ({
 vi.mock("./use-workspace", () => ({
   useWorkspace: () => ({
     data: mocks.data,
+    error: "",
+    saving: false,
+    mutate: mocks.mutate,
+    refresh: mocks.refresh,
+  }),
+}));
+// Personal Space is served by GET/PATCH /api/space, which does not exist until the API stage.
+// These tests mock the hook; no route, storage or data is simulated by the application.
+vi.mock("./use-space", () => ({
+  useSpace: () => ({
+    data: mocks.space,
     error: "",
     saving: false,
     mutate: mocks.mutate,
@@ -99,7 +110,9 @@ vi.mock("@/lib/api/use-resource", () => ({
         profile: fixture().profile,
         settings: fixture().settings,
       };
-    else if (path === "/api/tasks") data = { tasks: taskFixtures };
+    else if (path === "/api/tasks" || path === "/api/tasks?limit=100")
+      data = { tasks: taskFixtures };
+    else if (path === "/api/space") data = spaceFixture(); // mocked: the route is not built yet
     else if (path?.startsWith("/api/tasks/"))
       data = { task: taskFixtures.find((task) => task.id === path.split("/").at(-1)) };
     else if (path?.startsWith("/api/leaderboard")) {
@@ -159,6 +172,10 @@ function fixture(): WorkspaceData {
       chatNotifications: false,
       showPortfolio: true,
     },
+  };
+}
+function spaceFixture(): SpaceData {
+  return {
     todos: [
       {
         id: "todo-1",
@@ -168,31 +185,13 @@ function fixture(): WorkspaceData {
         priority: "High",
         dueDate: "2026-11-01",
         completed: false,
+        taskId: null,
+        taskTitle: null,
       },
     ],
     notes: [{ id: "note-1", title: "Research", content: "Useful notes", updatedAt: "2026-10-29" }],
     goals: [
       { id: "goal-1", title: "Ship toolkit", description: "Reusable controls", progress: 30 },
-    ],
-    messages: [
-      {
-        id: "message-1",
-        authorId: "usr_member_01",
-        author: "Test Builder",
-        content: "My update",
-        createdAt: "2026-10-29T10:00:00Z",
-        edited: false,
-        pinned: false,
-      },
-      {
-        id: "message-2",
-        authorId: "someone",
-        author: "Other builder",
-        content: "Other update",
-        createdAt: "2026-10-29T10:00:00Z",
-        edited: false,
-        pinned: false,
-      },
     ],
   };
 }
@@ -203,6 +202,7 @@ beforeEach(() => {
   mocks.pathname = "/settings";
   mocks.paramId = "usr_member_01";
   mocks.data = fixture();
+  mocks.space = spaceFixture();
 });
 afterEach(() => {
   cleanup();
@@ -212,12 +212,7 @@ afterEach(() => {
 });
 
 describe("functional member controls", () => {
-  it("opens profiles from chat and leaderboard without a Members directory", () => {
-    const chat = render(<Chat />);
-    expect(
-      screen.getByRole("link", { name: "View profile of Other builder" }).getAttribute("href")
-    ).toBe("/members/someone?from=chat");
-    chat.unmount();
+  it("opens leaderboard profiles without a Members directory", () => {
     render(<Leaderboard />);
     expect(
       screen.getByRole("link", { name: "View profile of Other Builder" }).getAttribute("href")
@@ -239,20 +234,6 @@ describe("functional member controls", () => {
     expect(screen.queryByText(/Sample profile/)).toBeNull();
     expect(screen.getByRole("link", { name: "← Back to leaderboard" }).getAttribute("href")).toBe(
       "/leaderboard"
-    );
-  });
-  it("offers community pinning to an admin through the action dialog", async () => {
-    mocks.data!.user = { ...mocks.data!.user, id: "usr_admin_01", role: "ADMIN" };
-    render(<Chat />);
-    fireEvent.click(screen.getByRole("button", { name: "Message actions for Other builder" }));
-    fireEvent.click(screen.getByRole("button", { name: "Pin" }));
-    await waitFor(() =>
-      expect(mocks.mutate).toHaveBeenCalledWith({
-        resource: "messages",
-        operation: "pin",
-        id: "message-2",
-        data: {},
-      })
     );
   });
   it("loads the requested public profile without private edit actions", async () => {
@@ -374,26 +355,68 @@ describe("functional member controls", () => {
     expect(screen.getByText("/ 21 builders")).toBeDefined();
     expect(screen.getByText("Showing 21–21 of 21")).toBeDefined();
   });
-  it("edits own chat messages through three dots and disables foreign edits", async () => {
-    render(<Chat />);
-    fireEvent.click(screen.getByRole("button", { name: "Message actions for Test Builder" }));
+  it("links a to-do to a published task and can clear the link", async () => {
+    mocks.space!.todos[0] = {
+      ...mocks.space!.todos[0],
+      taskId: "2",
+      taskTitle: "Ship a landing page in 3 hours",
+    };
+    render(<Space />);
+    expect(
+      screen.getByRole("button", { name: /Polish forms.*Task: Ship a landing page/ })
+    ).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /Polish forms/ }));
+    expect(
+      screen.getByRole("link", { name: "Ship a landing page in 3 hours" }).getAttribute("href")
+    ).toBe("/tasks/2");
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Message" }), {
-      target: { value: "Revised update" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save message" }));
+    const picker = screen.getByRole("combobox", {
+      name: /Linked platform task/,
+    }) as HTMLSelectElement;
+    expect(picker.value).toBe("2");
+    expect(
+      within(picker).getByRole("option", { name: "Build a REST API for habits" })
+    ).toBeDefined();
+    fireEvent.change(picker, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     await waitFor(() =>
-      expect(mocks.mutate).toHaveBeenCalledWith({
-        resource: "messages",
-        operation: "update",
-        id: "message-1",
-        data: { content: "Revised update" },
-      })
+      expect(mocks.mutate).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          resource: "todos",
+          operation: "update",
+          id: "todo-1",
+          data: expect.objectContaining({ taskId: "3" }),
+        })
+      )
     );
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    fireEvent.click(screen.getByRole("button", { name: "Message actions for Other builder" }));
-    expect((screen.getByRole("button", { name: "Edit" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "Pin" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /Polish forms/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByRole("combobox", { name: /Linked platform task/ }), {
+      target: { value: "" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenLastCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ taskId: null }) })
+      )
+    );
+  });
+  it("new to-dos start without a task link", async () => {
+    render(<Space />);
+    fireEvent.click(screen.getByRole("button", { name: "New to-do" }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Title/ }), {
+      target: { value: "Write tests" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(mocks.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resource: "todos",
+          operation: "create",
+          data: expect.objectContaining({ title: "Write tests", taskId: null }),
+        })
+      )
+    );
   });
   it("connects profile and skill editors and offers missing portfolio setup", async () => {
     const savedProfile = {
@@ -526,5 +549,15 @@ describe("functional member controls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search platform" }));
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("search finds the member's own plans from the space data and opens the item", () => {
+    render(<GlobalSearch />);
+    fireEvent.click(screen.getByRole("button", { name: "Search platform" }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Search" }), {
+      target: { value: "polish" },
+    });
+    const option = within(screen.getByRole("listbox")).getByRole("option");
+    expect(option.textContent).toContain("Your to-dos");
+    expect(option.getAttribute("href")).toBe("/space?tab=todos&item=todo-1");
   });
 });

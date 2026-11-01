@@ -1191,3 +1191,19 @@ Session close results: `npm run typecheck` passed; targeted `npx eslint src/comp
 - `npm test -- --run src/app/api/auth/auth-routes.test.ts src/app/onboarding/page.test.tsx src/lib/auth/rbac.test.ts` — passed, 3 files / 52 tests. Covers signed pending registration cookie, onboarding access, dashboard redirect and protected API denial, waiting-page polling and approval redirect, plus existing RBAC cases.
 - `npm run typecheck`, targeted ESLint and Prettier checks, and `git diff --check` passed. `npx next build --webpack` passed and generated 50/50 pages.
 - PostgreSQL auth integration remains opt-in and was not run against the separate test DB in this environment; real browser approval polling was not exercised.
+
+## Stage 3 verification — chat and Personal Space UI (2026-11-01, Person 4)
+
+Environment: Node v24.21.0, npm 11.19.0; installed versions match package.json (next 16.4.3, react 19.3.0, prisma 7.10.1, vitest 3.2.7, typescript 5.9.3, eslint 9.39.5). `package-lock.json` was not read or changed. Nothing failed in a way that points to version drift.
+
+Passed:
+
+- `npm test`: exit 0; 43 test files passed, 7 skipped (database-gated); 440 tests passed, 35 skipped. (Before Stage 3: 383 passed, 35 skipped.)
+- `npm run typecheck`: exit 0 (after `npx next typegen`; the first run, before the types existed, failed only on `LayoutProps` in `src/app/layout.tsx`).
+- `npx eslint src`: exit 0, no problems.
+- `npx prettier --check` on the files changed or created in Stage 3 (except `src/lib/workspace/interactions.test.tsx`, which was already not Prettier-clean at HEAD and was not reformatted): clean.
+- Mutation check: temporarily making a failed poll blank the chat made the two failed-poll tests in `use-chat.test.tsx` fail (20 of 22 passed); the change was reverted and all 22 pass.
+
+Failed (pre-existing, unchanged): `npm run lint` exit 1 with 13 errors and 73 warnings, all in `praxora-admin/`; zero in any other path. Not fixed, per instruction.
+
+Not run: browser or manual UI check, `npm run test:integration` (no database configured), production build, any request to the real routes (they do not exist yet). The UI tests mock the hooks or `fetch`; the mocks are labelled and nothing is simulated by the application.

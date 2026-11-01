@@ -480,3 +480,12 @@ Latest diagnostic: `P2028` at transaction stage. Explicit 10-second max wait and
 - [x] Add safe stage/Prisma-code diagnostics and regression coverage for unexpected registration failures.
 - [x] Match registration transaction limits to bootstrap after observing P2028.
 - [ ] Restart/reload local server and retry once with a fresh invite; confirm 201 or capture only safe stage/code if it still fails.
+
+## Person 4 — chat and Personal Space (2026-11-01)
+
+- [x] Stage 3: split chat and space hooks/types, avatars, first-visit rules dialog, reactions UI, task link on to-dos, Upcoming filter fix, soft-delete wording, polling-failure fix, tests.
+- [ ] Stage 4: add Todo, Note, Goal, ChatMessage, MessageReaction and `UserPreferences.chatRulesAcceptedAt`; write the migration SQL for review; do not apply it until told "go", and only to the owner's dev database.
+- [ ] Stage 5: build `/api/space` and the `/api/chat/…` routes with `authorize` + `requirePersistedAccount`, owner-scoped queries, and the isolation, state and validation tests.
+- [ ] Stage 6: D-003 (Pusher vs Socket.io) stays PROPOSED until the team confirms; install nothing before then.
+- [ ] Last: chat attachments, blocked on a team answer (files versus links, storage). The Attach button is untouched and fails against the 503 stub until then.
+- [ ] Chat Report button: waiting on Juel's moderation work; out of scope for now.

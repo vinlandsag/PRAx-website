@@ -407,3 +407,7 @@ The registration interactive transaction has a bounded 10-second acquisition wai
 # 2026-11-01 — Pending registration sessions
 
 Registration issues a signed HttpOnly session only after transactionally creating the account as MEMBER/PENDING_APPROVAL. The proxy allows this status only at `/onboarding` and `GET /api/users/me`; it redirects all workspace pages and denies protected APIs until approval. The polling current-user API reloads role/status from the database and refreshes the signed cookie before navigation. No client-supplied role/status is used.
+
+## Stage 3 chat and Personal Space client boundary (2026-11-01, Person 4)
+
+Client-side only; no server enforcement exists yet for the new routes. Changes with a privacy effect: chat polling no longer downloads the member's private to-dos, notes and goals every 15 seconds (it uses its own feed), and global search requests `/api/space` only while the search dialog is open. The first-visit rules acceptance is stored through the server, not localStorage; the server must reject posting until accepted (Stage 5). Avatar URLs in chat keep the existing behavior (user-supplied HTTP(S) URLs are loaded by each viewer's browser), as decided. The isolation rule for Personal Space (owner id only from the session, in every query, 404 for foreign ids, no admin read path) is recorded as D-039 and is not implemented until Stage 5. Person 4 privacy sign-off for Chat/Personal Space remains to be given by the owner.

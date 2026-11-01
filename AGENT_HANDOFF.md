@@ -445,3 +445,11 @@ Fixed the registration/onboarding seam: successful registration now issues the e
 ## Requested delivery to `milan` (2026-11-01)
 
 The user authorized committing and pushing the current connected Profile/Settings/Dashboard and auth/onboarding changes to `origin/milan`. The checked-out `main` is a fast-forward descendant of `origin/milan` (`origin/milan...HEAD` was 0/4 before this delivery), including the already merged Juel PR #8. A normal fast-forward push may carry that existing main merge commit to `milan`; do not force-push, deploy, or run DB commands.
+
+## Stage 3 handoff — chat and Personal Space UI (2026-11-01, Person 4)
+
+Done: types split, `src/lib/workspace/use-chat.ts` and `use-space.ts`, `src/components/chat/ChatReactions.tsx` and `ChatRulesDialog.tsx`, rewritten `src/app/chat/page.tsx`, updated `src/app/space/page.tsx` and `GlobalSearch.tsx`, filter fix, tests. The contract the UI expects is under "PLANNED chat and Personal Space contract" in API_CONTRACTS.md.
+
+Next (each needs the owner's "go"): Stage 4 add the Prisma models and write migration SQL for review (do not apply it); Stage 5 build the routes, services, authorization and isolation tests; Stage 6 D-003 stays PROPOSED until the team confirms. Known pending: the Attach button still posts to the 503 `/api/chat/attachments` stub and will fail; attachments are blocked on a team answer (files versus links, storage). Until Stage 5 the chat and space pages cannot load data; that is expected, not a regression to patch with fake data (D-018, D-021).
+
+Environment note: `npm run typecheck` needs the generated Next types (`.next/types`, created by `npx next typegen`, `next dev` or `next build`); without them it reports `LayoutProps` not found in `src/app/layout.tsx`. Whole-repo lint failures are all inside `praxora-admin/` and were not touched.

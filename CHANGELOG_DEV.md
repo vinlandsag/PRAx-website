@@ -737,3 +737,12 @@ Documentation updated for this handoff: `PROJECT_STATE.md`, `CHANGELOG_DEV.md`, 
 - Successful registration now sets the existing signed HttpOnly session for its server-created `MEMBER/PENDING_APPROVAL` account. The existing login page routes it to `/onboarding`.
 - Onboarding checks `/api/users/me` every five seconds and routes to `/dashboard` only after the database reports APPROVED; existing proxy rules block pending sessions from workspace pages and APIs.
 - Added coverage for pending-session cookie scope, workspace denial, waiting-state polling, and approval redirect. No database schema or migration change.
+
+## 2026-11-01 — Stage 3: chat and Personal Space UI gaps (Person 4)
+
+- Split chat and Personal Space out of the `useWorkspace` payload. New `useChat` (cursor polling, mutations) and `useSpace` hooks; `WorkspaceData` is now `{user, profile, settings}`. `/api/workspace` is unchanged.
+- Chat page: author avatar images, first-visit community-rules dialog with a saved accepted flag (no localStorage), fixed six-emoji reactions, pinned strip, "Load older messages" paging, reconnecting notice, soft-delete wording ("removes the message … for everyone"). The failed-poll bug (chat blanked and polling stopped after one failed refresh) is fixed.
+- Personal Space: optional linked platform task on to-dos (picker loads published tasks, up to 100). The Upcoming filter now includes open to-dos with no due date. Global search loads private plans only while the search dialog is open.
+- 44px targets set on the controls touched. Attach button and `ChatComposer` untouched.
+- New tests: `filter.test.ts`, `use-chat.test.tsx`, `use-space.test.tsx`, `chat-reactions.test.tsx`, `app/chat/page.test.tsx`; `interactions.test.tsx` updated for the split.
+- The routes these screens call (`/api/space`, `/api/chat/messages…`, `/api/chat/rules/accept`) and the database models do not exist yet (Stages 4–5). No schema, migration, package or `package-lock.json` change.

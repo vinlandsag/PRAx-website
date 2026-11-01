@@ -6,6 +6,7 @@ import { Button, EmptyState, Icon, Input, Modal } from "@/components/ui";
 import { searchWorkspace } from "@/lib/workspace/filter";
 import { useResource } from "@/lib/api/use-resource";
 import type { TaskFeed } from "@/lib/api/contracts";
+import type { SpaceData } from "@/lib/workspace/types";
 import { useWorkspace } from "@/lib/workspace/use-workspace";
 
 export function GlobalSearch() {
@@ -16,7 +17,9 @@ export function GlobalSearch() {
   const input = useRef<HTMLInputElement>(null);
   const { data, error } = useWorkspace();
   const taskFeed = useResource<TaskFeed>(open ? "/api/tasks" : null);
-  const results = searchWorkspace(query, data, taskFeed.data?.tasks);
+  // Private plans are fetched only while search is open, never on every page.
+  const space = useResource<SpaceData>(open ? "/api/space" : null);
+  const results = searchWorkspace(query, space.data, taskFeed.data?.tasks, data?.user.role);
   useEffect(() => {
     const hotkey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -111,7 +114,7 @@ export function GlobalSearch() {
             Type to search. Use arrow keys and Enter to open a result.
           </p>
         )}
-        {error && (
+        {(error || space.error) && (
           <p className="mt-2 text-xs text-text-muted">
             Some content could not load. You can still search platform pages.
           </p>
