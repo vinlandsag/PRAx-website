@@ -7,15 +7,21 @@ import { memberProfileHref } from "@/lib/workspace/members";
 import { useResource } from "@/lib/api/use-resource";
 import { ResourceState } from "@/components/ui/ResourceState";
 import type { LeaderboardFeed } from "@/lib/api/contracts";
-import { useWorkspace } from "@/lib/workspace/use-workspace";
 
 export default function LeaderboardPage() {
   const [period, setPeriod] = useState<"weekly" | "alltime">("weekly");
-  const { data } = useWorkspace();
-  const api = useResource<LeaderboardFeed>(`/api/leaderboard?period=${period}`);
+  const [offset, setOffset] = useState(0);
+  const api = useResource<LeaderboardFeed>(`/api/leaderboard?period=${period}&offset=${offset}`);
   const ranked = api.data?.entries ?? [],
-    own = ranked.find((b) => b.id === data?.user.id),
-    next = own && ranked[own.rank - 2];
+    own = api.data?.currentUser,
+    next = api.data?.userAhead;
+  const pagination = api.data?.pagination;
+  const isFirstPage = (pagination?.offset ?? 0) === 0;
+  const podium = isFirstPage
+    ? [ranked[1], ranked[0], ranked[2]].filter(
+        (builder): builder is NonNullable<typeof builder> => !!builder
+      )
+    : [];
   const periodLabel = period === "weekly" ? "Weekly" : "All-time";
   return (
     <AppShell breadcrumbs={["PRAX", "Leaderboard"]}>
@@ -25,7 +31,10 @@ export default function LeaderboardPage() {
         <Tabs
           variant="segmented"
           activeTab={period}
-          onChange={(value) => setPeriod(value as typeof period)}
+          onChange={(value) => {
+            setPeriod(value as typeof period);
+            setOffset(0);
+          }}
           tabs={[
             { id: "weekly", label: "Weekly" },
             { id: "alltime", label: "All-time" },
@@ -40,7 +49,7 @@ export default function LeaderboardPage() {
       {(api.loading || api.error) && (
         <ResourceState loading={api.loading} error={api.error} onRetry={() => void api.refresh()} />
       )}
-      {!api.loading && !api.error && !ranked.length && (
+      {!api.loading && !api.error && api.data?.total === 0 && (
         <EmptyState
           title="No rankings yet"
           description="Rankings will appear after work has been approved."
@@ -52,44 +61,42 @@ export default function LeaderboardPage() {
             aria-label={`${periodLabel} podium`}
             className="flex items-end justify-center gap-3 border-b border-border pb-6 pt-3 sm:gap-6"
           >
-            {[ranked[1], ranked[0], ranked[2]]
-              .filter((builder): builder is NonNullable<typeof builder> => !!builder)
-              .map((builder) => (
-                <div
-                  key={builder.id}
-                  className="flex min-w-0 flex-1 flex-col items-center text-center sm:flex-none"
-                >
-                  <Link
-                    href={memberProfileHref(builder.id, "leaderboard")}
-                    aria-label={`View profile of ${builder.name}`}
-                  >
-                    <Avatar
-                      name={builder.name}
-                      size={builder.rank === 1 ? "xl" : "lg"}
-                      colorScheme={
-                        builder.rank === 1 ? "orange" : builder.rank === 2 ? "purple" : "blue"
-                      }
-                    />
-                    <span className="mt-2 block text-xs font-semibold hover:text-primary">
-                      {builder.name}
-                    </span>
-                  </Link>
-                  <span className="mt-1 mb-3 text-[11px] text-text-muted">
-                    {builder.points.toLocaleString()} points
-                  </span>
-                  <div
-                    className={`flex w-full items-center justify-center rounded-t-xl border text-2xl font-bold sm:w-24 ${builder.rank === 1 ? "h-32 border-warning-border bg-warning-bg text-warning-text" : builder.rank === 2 ? "h-24 border-lavender-border bg-lavender text-lavender-text" : "h-16 border-info-border bg-info-bg text-info-text"}`}
-                  >
-                    {builder.rank}
-                  </div>
-                </div>
-              ))}
-          </div>
-          <div aria-label={`${periodLabel} rankings`} className="divide-y divide-border">
-            {ranked.slice(3).map((builder) => (
+            {podium.map((builder) => (
               <div
                 key={builder.id}
-                className={`flex items-center justify-between gap-3 rounded-lg px-2 py-3 ${builder.id === data?.user.id ? "bg-lavender" : ""}`}
+                className="flex min-w-0 flex-1 flex-col items-center text-center sm:flex-none"
+              >
+                <Link
+                  href={memberProfileHref(builder.id, "leaderboard")}
+                  aria-label={`View profile of ${builder.name}`}
+                >
+                  <Avatar
+                    name={builder.name}
+                    size={builder.rank === 1 ? "xl" : "lg"}
+                    colorScheme={
+                      builder.rank === 1 ? "orange" : builder.rank === 2 ? "purple" : "blue"
+                    }
+                  />
+                  <span className="mt-2 block text-xs font-semibold hover:text-primary">
+                    {builder.name}
+                  </span>
+                </Link>
+                <span className="mt-1 mb-3 text-[11px] text-text-muted">
+                  {builder.points.toLocaleString()} points
+                </span>
+                <div
+                  className={`flex w-full items-center justify-center rounded-t-xl border text-2xl font-bold sm:w-24 ${builder.rank === 1 ? "h-32 border-warning-border bg-warning-bg text-warning-text" : builder.rank === 2 ? "h-24 border-lavender-border bg-lavender text-lavender-text" : "h-16 border-info-border bg-info-bg text-info-text"}`}
+                >
+                  {builder.rank}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div aria-label={`${periodLabel} rankings`} className="divide-y divide-border">
+            {ranked.slice(isFirstPage ? 3 : 0).map((builder) => (
+              <div
+                key={builder.id}
+                className={`flex items-center justify-between gap-3 rounded-lg px-2 py-3 ${builder.id === own?.id ? "bg-lavender" : ""}`}
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="w-5 text-xs text-text-muted">
@@ -106,7 +113,7 @@ export default function LeaderboardPage() {
                       href={memberProfileHref(builder.id, "leaderboard")}
                       className="text-xs font-semibold hover:text-primary hover:underline"
                     >
-                      {builder.id === data?.user.id ? `You · ${data.profile.name}` : builder.name}
+                      {builder.id === own?.id ? `You · ${builder.name}` : builder.name}
                     </Link>
                     <p className="text-[11px] text-text-muted">{builder.streak} day streak</p>
                   </div>
@@ -117,6 +124,36 @@ export default function LeaderboardPage() {
               </div>
             ))}
           </div>
+          {pagination && pagination.total > 0 && ranked.length === 0 && (
+            <p className="py-5 text-center text-xs text-text-muted">
+              No builders on this page. Try the previous page.
+            </p>
+          )}
+          {pagination && (
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
+              <button
+                type="button"
+                className="rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={pagination.offset === 0 || api.loading}
+                onClick={() => setOffset(Math.max(0, pagination.offset - pagination.limit))}
+              >
+                Previous
+              </button>
+              <span className="text-xs text-text-muted">
+                {pagination.total === 0
+                  ? "0 builders"
+                  : `Showing ${pagination.offset + 1}–${Math.min(pagination.offset + ranked.length, pagination.total)} of ${pagination.total}`}
+              </span>
+              <button
+                type="button"
+                className="rounded-lg border border-border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!pagination.hasMore || api.loading}
+                onClick={() => setOffset(pagination.offset + pagination.limit)}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </Card>
         <div className="space-y-5">
           <Card className="space-y-3 p-5">
@@ -131,7 +168,7 @@ export default function LeaderboardPage() {
                 <p className="text-3xl font-extrabold text-primary">
                   #{own.rank}
                   <span className="ml-2 text-xs font-normal text-text-muted">
-                    / {ranked.length} builders
+                    / {api.data?.total ?? 0} builders
                   </span>
                 </p>
                 <p className="text-xs text-text-muted">
@@ -143,7 +180,7 @@ export default function LeaderboardPage() {
                     <Progress
                       label={`Progress toward ${next.name}`}
                       value={own.points}
-                      max={next.points + 1}
+                      max={Math.max(next.points + 1, 1)}
                     />
                     <p className="text-[11px] text-text-muted">
                       {next.points - own.points + 1} points to pass {next.name}.

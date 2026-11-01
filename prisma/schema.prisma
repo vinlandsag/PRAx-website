@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  MEMBER
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+  DISABLED
+}
+
+enum ThemePreference {
+  LIGHT
+  DARK
+}
+
+enum InviteCodeStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  REVOKED
+}
+
+enum TaskLifecycle {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TaskThumbnailType {
+  CODE
+  TERMINAL
+  BARS
+  DOC
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REVISION_REQUESTED
+  WITHDRAWN
+}
+
+model User {
+  id             String             @id @default(cuid())
+  email          String             @unique
+  passwordHash   String?
+  name           String
+  handle         String?            @unique @db.VarChar(50)
+  bio            String             @default("") @db.VarChar(500)
+  skills         String[]           @default([])
+  currentProject String             @default("") @db.VarChar(200)
+  portfolioUrl   String             @default("") @db.VarChar(2048)
+  githubUrl      String             @default("") @db.VarChar(2048)
+  linkedinUrl    String             @default("") @db.VarChar(2048)
+  avatarUrl      String             @default("") @db.VarChar(2048)
+  role           UserRole           @default(MEMBER)
+  status         UserStatus         @default(PENDING_APPROVAL)
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @default(now()) @updatedAt @db.Timestamptz(3)
+  tasksCreated   Task[]             @relation("TaskCreator")
+  submissions    Submission[]       @relation("SubmissionAuthor")
+  reviews        Submission[]       @relation("SubmissionReviewer")
+  pointsReceived PointTransaction[] @relation("PointsRecipient")
+  pointsReviewed PointTransaction[] @relation("PointsReviewer")
+  invitesCreated InviteCode[]       @relation("InviteCreator")
+  streak         Streak?
+  streakDays     StreakDay[]
+  preferences    UserPreferences?
+
+  @@index([status, role])
+}
+
+model Task {
+  id            String            @id @default(cuid())
+  title         String            @db.VarChar(120)
+  description   String            @db.VarChar(8000)
+  category      String            @db.VarChar(64)
+  pointsMax     Int
+  dueAt         DateTime?         @db.Date
+  checklist     String[]          @default([])
+  lifecycle     TaskLifecycle     @default(PUBLISHED)
+  thumbnailType TaskThumbnailType @default(DOC)
+  createdById   String
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
+  publishedAt   DateTime?         @db.Timestamptz(3)
+  createdBy     User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  submissions   Submission[]
+
+  @@index([lifecycle, dueAt, createdAt])
+  @@index([category])
+}
+
+model Submission {
+  id               String            @id @default(cuid())
+  taskId           String
+  userId           String
+  proofUrl         String            @db.VarChar(2048)
+  note             String            @db.VarChar(8000)
+  codeSnippet      String?
+  checklist        String[]          @default([])
+  status           SubmissionStatus  @default(SUBMITTED)
+  pointsAwarded    Int?
+  rubricVersion    String?
+  feedback         String?
+  reviewedById     String?
+  reviewedAt       DateTime?         @db.Timestamptz(3)
+  submittedAt      DateTime          @default(now()) @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
+  task             Task              @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  author           User              @relation("SubmissionAuthor", fields: [userId], references: [id], onDelete: Restrict)
+  reviewer         User?             @relation("SubmissionReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  pointTransaction PointTransaction?
+
+  // The partial unique index for active attempts is maintained in SQL migrations.
+  @@index([userId, submittedAt])
+  @@index([status, submittedAt])
+  @@index([taskId, userId, submittedAt])
+  @@index([userId, taskId, submittedAt])
+  @@index([userId, status])
+}
+
+model PointTransaction {
+  id             String     @id @default(cuid())
+  userId         String
+  submissionId   String     @unique
+  reviewedById   String
+  amount         Int
+  maxPoints      Int
+  rubricVersion  String
+  idempotencyKey String     @unique
+  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
+  user           User       @relation("PointsRecipient", fields: [userId], references: [id], onDelete: Restrict)
+  submission     Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  reviewer       User       @relation("PointsReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([createdAt, userId])
+}
+
+model Streak {
+  userId         String    @id
+  current        Int       @default(0)
+  longest        Int       @default(0)
+  lastApprovedAt DateTime? @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+/// One activity marker per approved member per India Standard Time calendar day.
+/// Approval records remain the source events; this table is the idempotent daily index.
+model StreakDay {
+  userId         String
+  activityDate   DateTime @db.Date
+  lastApprovedAt DateTime @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([userId, activityDate])
+  @@index([activityDate, userId])
+}
+
+/// Per-account UI and notification preferences. These values never grant access.
+model UserPreferences {
+  userId              String          @id
+  theme               ThemePreference @default(LIGHT)
+  reviewNotifications Boolean         @default(true)
+  streakReminder      Boolean         @default(true)
+  chatNotifications   Boolean         @default(false)
+  showPortfolio       Boolean         @default(true)
+  createdAt           DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InviteCode {
+  id          String           @id @default(cuid())
+  codeHash    String           @unique
+  maxUses     Int              @default(1)
+  usedCount   Int              @default(0)
+  status      InviteCodeStatus @default(ACTIVE)
+  expiresAt   DateTime?        @db.Timestamptz(3)
+  createdById String
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime         @default(now()) @updatedAt @db.Timestamptz(3)
+  createdBy   User             @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([status, expiresAt])
+  @@index([createdById, createdAt])
+}

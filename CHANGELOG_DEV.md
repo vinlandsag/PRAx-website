@@ -1,32 +1,48 @@
+## 2026-11-01 — Phase 9 performance reconnaissance
+
+- Benchmarked seven route-handler reads against the separate migrated Supabase test project in `eu-north-1` using a synthetic dataset (501 users, 2,500 tasks, 10,000 approved submissions, 10,000 point transactions, 42 streak days; 5 warmups and 30 measurements).
+- All route p95s were below 2 seconds. Removed the unused reviewer relation from member submission history; its p95 moved from 1,730.6 ms to 1,314.4 ms. No index, leaderboard, task, or caching change was justified by the measurements.
+- Added an opt-in, tagged-fixture benchmark harness with isolated-project guard and cleanup. Profile remains unmeasured because `/api/workspace` returns 503. Timings exclude HTTP/TLS; query plans were not captured.
+- No migration or production database operation was run. Full database test failures and check results are recorded in TEST_LOG.md.
+
+## 2026-11-01 — Phase 10 team integration
+
+- Implemented admin review queue, approval, rejection and revision-request endpoints, retaining the current frontend payloads and response projections.
+- Approval validates score bounds in the points service, takes reviewer identity and the fixed `mvp-default-v1` rubric version from server state, then atomically updates approval, points ledger and streak.
+- Approval writes PostgreSQL `CURRENT_TIMESTAMP` truncated to the `TIMESTAMPTZ(3)` column precision so the streak function does not reject a rounded-forward timestamp.
+- Added denied/forged-input/transition unit coverage, an isolated DB route-handler end-to-end fixture, and `npm run test:integration` with database identity and read-only connectivity/schema guards.
+- Database integration could not run here because the separate Supabase test host is unreachable. No schema migration or primary-database operation was run. Results are in TEST_LOG.md.
+- The user's later reachable DB run exposed timestamp precision, stale Streak fixture cleanup and non-isolated task fixture failures. Fixed these after the run. The user reports a subsequent `npm run test:integration` passed: 31/31 tests across 5 files. This environment could not independently reach the test host.
+
 # CHANGELOG_DEV.md
 
-## 2026-10-31 — Supabase Database Setup & Persistence Architecture (D-024)
+## 2026-11-01 — Connect Settings preferences
 
-- **Phase:** Phase 8 / Database Lead (Supabase PostgreSQL 16 Persistence)
-- **Files Added:**
-  - `supabase/migrations/20261031000000_prax_schema.sql` (Full PostgreSQL 16 DDL with 14 tables, enums, triggers, RLS, and leaderboard view)
-  - `supabase/schema.sql` (Unified 1-click SQL script for Supabase Dashboard SQL Editor with seed data and verification queries)
-  - `supabase/seed.sql` (Pre-seeded admin/member users, invite code, v1 rubric, starter tasks, channels, points, and streaks)
-  - `src/lib/supabase/types.ts` (PostgREST v2 GenericSchema compliant TypeScript database types)
-  - `src/lib/supabase/client.ts` (Browser Supabase client singleton)
-  - `src/lib/supabase/server.ts` (Administrative server client with service-role key bypassing RLS + standard server client)
-  - `src/lib/supabase/db.ts` (Typed data access query helpers for users, tasks, submissions, rubrics, channels, points, and audit logs)
-  - `src/lib/supabase/supabase.test.ts` (5 unit tests covering client singleton, admin client, query helpers, and env access)
-- **Files Modified:**
-  - `src/lib/env.ts` (Added `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `isSupabaseConfigured`)
-  - `.env.example` (Updated with Supabase connection string and API key instructions)
-  - `.prettierrc` (Added `"endOfLine": "auto"` for consistent cross-platform formatting)
-  - `package.json` / `package-lock.json` (Installed `@supabase/supabase-js` v2; resolved esbuild platform version entry)
-  - Memory documents: `PROJECT_STATE.md`, `CHANGELOG_DEV.md`, `AGENT_HANDOFF.md`, `DECISIONS.md`, `API_CONTRACTS.md`, `TEST_LOG.md`, `SECURITY_NOTES.md`, `TODO_NEXT.md`
-- **Commands Run:**
-  - `npx supabase init` (Initialized local Supabase structure)
-  - `npm install @supabase/supabase-js` (Installed Supabase JS client)
-  - `npm test` (231/231 tests pass across 14 test suites)
-  - `npm run typecheck` (tsc --noEmit exits 0)
-  - `npm run lint` (eslint . exits 0)
-  - `npm run format:check` (prettier --check . passes 100%)
-  - `npm run build` (Turbopack builds all 47 routes and proxy middleware)
-- **Known Issues:** None. Database schema is production-ready for 1-click execution in Supabase.
+- Added a one-to-one `UserPreferences` model related to the existing `User`, with defaults for theme, review/streak/chat notifications, and portfolio visibility. Added additive Prisma migration `20261101173000_user_preferences`; neither this nor the preceding profile migration was applied by this agent.
+- Added self-only `GET/PATCH /api/users/me/settings` with existing session authorization, persisted-approved-account checks, bounded JSON, strict allowlisting/type validation, no-store responses, and server-derived ownership.
+- Rewired Settings to load the persisted profile and preferences from their APIs, reuse the own-profile API for account edits, and save the active section. ThemeSync now reads the saved server theme.
+- Email and role remain read-only; sign-out uses the existing logout endpoint. Preferences persist but notification delivery is not implemented. Portfolio visibility is stored, but public member profile reads remain unavailable.
+- Added service and route tests and updated Settings/theme interaction coverage. Verification is recorded in TEST_LOG.md.
+
+## 2026-11-01 — Connect own Profile to Prisma
+
+- Added profile columns and a nullable unique handle to the existing `User` model with additive Prisma migration `20261101170000_user_profile_fields`; no database migration was executed.
+- Added `GET/PATCH /api/users/me/profile`, using the signed session and persisted approved account, field validation, own-row selection/update, no-store responses, duplicate-handle conflict handling, and signed-session name refresh.
+- Switched the existing Profile editor from the disconnected Workspace endpoint to the self-profile API, with loading/retry, optional-field empty, save-error, and success states.
+- Added service, route, and component tests; updated schema/API/release handoff notes. Chat, Personal Space, Settings, public profiles, points, and streaks remain outside this phase.
+
+## 2026-10-31 — Phase 2 backend conventions and foundation
+
+- Added bounded JSON request parsing, shared pagination, and safe allowlisted API logging while retaining existing route guards and error envelopes.
+- Added unit tests and documented local setup and backend conventions.
+- Recorded test outcomes in TEST_LOG.md; this historical entry is retained as a report of that phase.
+
+## 2026-11-01 — Merge reconciliation
+
+- Kept Supabase as the PostgreSQL host and Prisma 7 as the sole ORM/migration path, following the backend branch decision.
+- Excluded main's unused Supabase JS helper layer and parallel SQL schema/seed files from this merge. Those definitions duplicate Prisma-owned tables, include Chat/Personal Space without privacy sign-off, and assume Supabase Auth RLS while the app uses signed HMAC sessions.
+- Kept `.env.example` with placeholders for pooled `DATABASE_URL` and migration `DIRECT_URL`; no credentials were added. Updated README setup/backend claims to match actual Prisma features and migration status.
+- Main's Supabase scaffolding remains in Git history if later reviewed and intentionally reintroduced. Conflict resolution was committed locally as `9eb4d7b`; not pushed.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 
@@ -611,3 +627,113 @@ Commit preflight note: first commit attempt failed because user.name/user.email 
 ### Login screenshot diagnosis (2026-10-29)
 
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.
+
+### Phase 3 — task lifecycle API implementation (2026-10-31)
+
+Added Prisma 7/Supabase PostgreSQL schema and offline-generated initial migration (not applied), lazy pooled database client, task list/detail/admin POST/PATCH persistence endpoints, request/query validation, persisted User revalidation, member-specific status derivation, pagination/sorting/search, safe error logging, and API/unit/database integration tests. Updated setup, API contracts, decisions, schema and handoff docs. Chat/Personal Space remain excluded. No live Supabase data was accessed. npm dependency installation reported 22 audit findings (20 moderate, 2 critical); no automatic audit fix was run. See TEST_LOG for final checks and skipped database tests.
+
+### Phase 4 — submission lifecycle APIs (2026-10-31)
+
+Implemented own submission list/detail/create/edit/withdraw routes and persisted services. The current frontend submission action creates `SUBMITTED` directly. Owner edits and soft withdrawal are conditional on a pre-review state; reviewed attempts are locked. Rejected/revision-requested resubmission creates a new attempt and retains prior feedback. Added safe HTTP(S) proof-link and bounded note validation, session-derived owner IDs, status filtering/pagination, route/unit tests, and opt-in PostgreSQL integration tests. Added `WITHDRAWN` and a partial unique active-attempt index in an additive migration; the user reported applying it to Supabase. Admin review actions and persistent submission uploads remain unimplemented. Verification: 300 tests passed, 12 database integration tests skipped; lint, typecheck, Prisma validation/generation, formatting and webpack production build passed. See `TEST_LOG.md`.
+
+### Phase 5 — transactional points engine (2026-10-31)
+
+Added a transaction-bound approval/points service and protected leaderboard read. Award service derives recipient/task maximum from persisted rows, verifies approved author and administrator, bounds integer scores, conditionally approves the submission, and inserts an immutable unique ledger record atomically. Exact retry is idempotent; conflicting retry is rejected. Leaderboard totals sum the ledger directly; weekly period starts Monday 00:00 IST. Existing schema constraints were sufficient, so no migration was added. Chat/Personal Space remain outside score calculations. Admin review/rubric routes are still stubs and must invoke the boundary when integrated. PostgreSQL tests are opt-in and require a separate `TEST_DATABASE_URL`; see test log.
+
+### Phase 6 — weekly and all-time leaderboard APIs (2026-10-31)
+
+Paginated leaderboard API now uses shared query validation, deterministic tie ordering, and returns the current user's rank and immediately higher row regardless of page. The UI consumes the API standing and has Previous/Next controls. Aggregate SQL only counts point transactions joined to currently approved submissions for approved members; weekly uses Monday 00:00 IST. Added submission user/status and points date/user indexes in an additive migration. Migration and PostgreSQL integration tests remain pending a separate test database. See D-027 and `API_CONTRACTS.md`.
+
+### Phase 7 — automated streak engine (2026-10-31)
+
+- Added `StreakDay` composite primary key `(userId,activityDate)` and an RLS-enabled additive migration with secured PostgreSQL functions for transactional per-approval refresh and Supabase Cron reconciliation.
+- Wired `dispatchApprovedPoints` to record an approved submission's streak day in its existing transaction; zero-point approvals count, and database failure rolls back approval and points together.
+- Replaced the `/api/streaks` 503 stub with a signed-session/persisted-account endpoint returning current, longest, and distinct active IST dates from the last 42 dates.
+- Recorded D-028 and updated schema/API/Cron instructions. Admin review integration and Supabase migration/Cron rollout remain pending.
+- Verification: 320 tests passed; 27 opt-in PostgreSQL tests skipped without `TEST_DATABASE_URL`; lint/typecheck/Prisma validation and generation/scoped formatting/build passed. No database was accessed.
+
+### Phase 8 — isolation and security audit (2026-10-31)
+
+- Closed malformed account-status claims in both route authorization and proxy page/API checks; added regression tests.
+- Changed persisted-account checks to select only `id`, `name`, `role`, and `status`, avoiding password-hash reads.
+- Scoped member submission detail lookup by ID and session owner in the database query; made empty owner IDs fail closed.
+- Preserved award-time `maxPoints` snapshot semantics for retries after task edits; added a regression test.
+- Audited all active routes, object queries, RLS migrations, and points/streak data dependencies. Chat/Workspace remain 503 and are not queried for scoring/streaks.
+- Documented authorized admin submission detail/email exposure, pending Person 4 sign-off, disconnected admin review/auth flows, and unrun PostgreSQL integration coverage.
+## 2026-11-01 — Phase 11 release readiness and handoff
+
+- Rewrote README with clean install and secret-safe environment setup, Prisma migration procedure, no-seed policy, verification commands, auth/RBAC limits, scheduler setup, idempotency/logging, Phase 9 performance evidence, rollback notes, release blockers, and Person 5 deployment coordination.
+- Reconciled current release facts in project state, API contracts, schema/security/handoff notes, decisions, test log, and TODO; historical test failures remain recorded with the later passing rerun.
+- Ran Node/npm version checks, unit suite, lint, typecheck, Prisma validation, and webpack production build. Unit suite: 338 passed, 32 DB/opt-in skipped; build generated 47/47 static pages.
+- User-reported database integration run: 31/31 passed. This environment retried it but the separate DB host was unreachable, so its runner stopped before Vitest. No migration, seed, Cron change, deployment, commit, or push was made.
+
+## 2026-11-01 — Persisted auth and invite onboarding
+
+- Connected registration, invite validation, password login, current-user lookup, admin invite management, pending-member list/approval, and guarded first-admin bootstrap to existing Prisma User/InviteCode tables. No migration/schema change.
+- Registration transactionally consumes invitation capacity and creates only `MEMBER/PENDING_APPROVAL`; sessions and admin checks retain existing HMAC/RBAC conventions. The admin UI shows a generated invite code once.
+- Added unit and isolated PostgreSQL integration coverage; test runner includes auth flow suite. Auth unit tests pass; DB flow was not run here because isolated test host was unreachable.
+- Updated README/operator instructions, contracts, schema state, security notes, decision log, test log and handoff. Magic link and remaining admin member actions remain unfinished; process-local rate limiting and absent durable audit model are documented.
+- Verification: 344 unit tests passed / 35 skipped, lint/typecheck passed, webpack production build passed (48 pages); default Turbopack build hit sandbox process/port restriction. No DB, migration or deployment was performed.
+
+## 2026-11-01 — First-admin bootstrap troubleshooting
+
+- Changed the advisory lock query to materialize the lock in a CTE while returning an integer scalar to Prisma, avoiding raw result decoding of PostgreSQL `void`.
+- Added a focused regression assertion. The user reports migrations are current and a read-only `SELECT 1` via the runtime URL succeeds; their bootstrap request had returned HTTP 500.
+- Verification: auth route tests 11/11, typecheck and targeted ESLint passed, `git diff --check` passed. Full `npm run lint` fails on 13 existing errors in Juel's `praxora-admin` subtree, unrelated to the changed files. No DB retry, migration, or deployment performed.
+
+- Follow-up: user retried and still received HTTP 500. Added sanitized bootstrap log context (`stage` plus validated Prisma code only), with tests proving diagnostic text is filtered. Auth/logger focused tests now pass 15/15; typecheck, targeted lint and diff check pass. Restart server and retry once to identify the transaction failure.
+
+- User-provided diagnostic identified Prisma `P2028` during `database_transaction`. Set explicit first-admin transaction `maxWait` to 10 seconds and `timeout` to 15 seconds; added a test for these bounds. No database mutation. Live retry pending.
+
+- User reports bootstrap then returned HTTP 201 (5.1 seconds). The first admin was created. Remove the temporary bootstrap token and restart the app before normal sign-in; then create an invite from Admin → Members.
+# 2026-11-01 — Phase 5 remaining tabs: Dashboard connected
+
+- Replaced `GET /api/dashboard` 503 placeholder with a Prisma-backed, signed-session-only read.
+- Dashboard now derives points from approved ledger entries, weekly rank from the existing IST leaderboard service, current streak from `Streak`, and task count/recent activity from the member's approved submissions.
+- Added route tests for anonymous denial, returned metrics, empty state, persisted-account denial, and caller-scoped query predicates.
+- Audited remaining visible tabs and documented the verified 503 causes/dependencies. No Personal Space/Chat storage, notification delivery, rubric, moderation, audit, or admin status behavior was invented.
+- No schema or migration/database changes.
+# 2026-11-01 — Phase 6 API/database integration audit
+
+- Audited the Dashboard API against established Prisma/PostgreSQL, session, persisted-account, error-envelope, no-store, and safe-logging patterns.
+- Confirmed all data access uses the shared Prisma client; no direct Supabase client/query path or schema change is needed.
+- Confirmed only the leaderboard read needs its existing repeatable-read transaction; dashboard reads do not form a multi-write operation.
+- No product code or endpoint response changed in this audit.
+# 2026-11-01 — Phase 7 affected-page verification
+
+- Added Dashboard page tests for loading, no-activity state, API error/retry, and populated metrics/activity.
+- Added Settings page tests for loading, preference save, reloading the saved response after remount, and API error/retry.
+- Existing Profile page/API/service tests were included in focused and full runs; no profile code changes were needed.
+- Recorded full-suite, lint, typecheck, integration-preflight, and production-build outcomes in `TEST_LOG.md`.
+# 2026-11-01 — Phase 8 documentation and handoff
+
+Documentation-only consolidation; no product code or schema changed in Phase 8.
+
+Connected page/API implementation files already present in this worktree:
+
+- Dashboard: `src/app/api/dashboard/route.ts`, `src/app/api/dashboard/dashboard-route.test.ts`, `src/app/dashboard/page.test.tsx`.
+- Profile: `src/app/api/users/me/profile/route.ts`, `src/app/api/users/me/profile/profile-route.test.ts`, `src/lib/profile/service.ts`, `src/lib/profile/service.test.ts`, `src/components/profile/EditableProfile.tsx`, `src/components/profile/EditableProfile.test.tsx`; additive migration `prisma/migrations/20261101170000_user_profile_fields/migration.sql` and existing `User` model edits in `prisma/schema.prisma`.
+- Settings: `src/app/api/users/me/settings/route.ts`, `src/app/api/users/me/settings/settings-route.test.ts`, `src/lib/settings/service.ts`, `src/lib/settings/service.test.ts`, `src/app/settings/page.tsx`, `src/app/settings/page.test.tsx`, `src/components/layout/ThemeSync.tsx`; additive migration `prisma/migrations/20261101173000_user_preferences/migration.sql` and existing `UserPreferences` model edits in `prisma/schema.prisma`.
+
+Dashboard reads server-derived score, weekly rank, streak, approved-task count, and up to five latest approved submissions. Profile reads/updates the caller's own persisted User profile. Settings reads/updates the caller's profile preferences. Automated coverage, actual commands/results, migration limits, and outstanding services are recorded in `TEST_LOG.md`, `DB_SCHEMA.md`, and `TODO_NEXT.md`.
+
+Documentation updated for this handoff: `PROJECT_STATE.md`, `CHANGELOG_DEV.md`, `API_CONTRACTS.md`, `DB_SCHEMA.md`, `TEST_LOG.md`, `AGENT_HANDOFF.md`, and `TODO_NEXT.md`.
+# 2026-11-01 — Admin sign-in rate-limit diagnosis
+
+- Diagnosed the user's screenshot as the existing `429 RATE_LIMITED` response: login allows five attempts per client IP per 15-minute window, with an in-process counter.
+- No application behavior, account, database, or API contract changed. Recovery steps and the account-email mismatch caution are in `AGENT_HANDOFF.md` and `TODO_NEXT.md`.
+## 2026-11-01 — Global sign-out access
+
+- Added a persistent Sign out control to `src/components/layout/TopNav.tsx`, using the existing `POST /api/auth/logout` endpoint and redirecting to `/login` on success.
+- Root cause: header avatar only linked to Profile; Settings' sign-out control was only rendered after its approved-account settings request succeeded. Inactive accounts therefore had no visible sign-out action.
+- Added `src/components/layout/TopNav.test.tsx` for successful logout and failed logout feedback. No new endpoint or schema change.
+## 2026-11-01 — Safe registration failure diagnostics
+
+- Registration 500s now log the allowlisted failure stage and Prisma code, matching bootstrap admin diagnostics. Request fields and exception text remain excluded.
+- Added a route regression test that injects a simulated P2028 transaction error and checks only safe fields are logged. The actual cause of the user's earlier 500 is still unknown pending another attempt with this diagnostic change.
+- After the user reported `database_transaction` / `P2028`, aligned registration's Prisma transaction `maxWait` (10 s) and `timeout` (15 s) with bootstrap and asserted them in auth route tests. Live confirmation remains pending.
+## 2026-11-01 — Registration to approval waiting flow
+
+- Successful registration now sets the existing signed HttpOnly session for its server-created `MEMBER/PENDING_APPROVAL` account. The existing login page routes it to `/onboarding`.
+- Onboarding checks `/api/users/me` every five seconds and routes to `/dashboard` only after the database reports APPROVED; existing proxy rules block pending sessions from workspace pages and APIs.
+- Added coverage for pending-session cookie scope, workspace denial, waiting-state polling, and approval redirect. No database schema or migration change.

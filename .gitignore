@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Backend team configuration template
 !.env.example
+
+# Generated Prisma client
+/src/generated/prisma/

@@ -1,5 +1,11 @@
 export type SubmissionStatus =
-  "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "REVISION_REQUESTED";
+  | "DRAFT"
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+  | "REVISION_REQUESTED"
+  | "WITHDRAWN";
 
 export interface Submission {
   id: string;

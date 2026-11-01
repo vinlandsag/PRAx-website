@@ -13,20 +13,33 @@ import {
   Skeleton,
   Toggle,
 } from "@/components/ui";
-import { useWorkspace } from "@/lib/workspace/use-workspace";
-import type { WorkspaceData, WorkspaceMutation } from "@/lib/workspace/types";
+import { apiRequest } from "@/lib/api/client";
+import { useResource } from "@/lib/api/use-resource";
+import type { OwnProfile } from "@/lib/profile/service";
+import type { Settings } from "@/lib/workspace/types";
 import { isSafeUrl } from "@/lib/utils/url";
 
+interface SettingsResponse {
+  user: { email: string; role: "MEMBER" | "ADMIN" };
+  profile: OwnProfile;
+  settings: Settings;
+}
+interface SettingsPatchResponse {
+  user: SettingsResponse["user"];
+  settings: Settings;
+}
+
 export default function SettingsPage() {
-  const api = useWorkspace();
+  const api = useResource<SettingsResponse>("/api/users/me/settings");
+  const error = api.error;
   return (
     <AppShell breadcrumbs={["PRAX", "Settings"]}>
       <h1 className="text-2xl font-bold">Settings</h1>
       <p className="mt-1 mb-6 text-xs text-text-muted">Your account, your preferences</p>
       {!api.data ? (
-        api.error ? (
+        error ? (
           <Notice tone="danger">
-            {api.error}
+            {error}
             <Button onClick={() => void api.refresh()}>Retry</Button>
           </Notice>
         ) : (
@@ -34,29 +47,13 @@ export default function SettingsPage() {
         )
       ) : (
         <Suspense fallback={<Skeleton className="h-64" label="Loading settings" />}>
-          <SettingsForm
-            key={api.data.user.id}
-            data={api.data}
-            mutate={api.mutate}
-            error={api.error}
-            saving={api.saving}
-          />
+          <SettingsForm key={api.data.user.email} data={api.data} error={error} />
         </Suspense>
       )}
     </AppShell>
   );
 }
-function SettingsForm({
-  data,
-  mutate,
-  error,
-  saving,
-}: {
-  data: WorkspaceData;
-  mutate: (value: WorkspaceMutation) => Promise<boolean>;
-  error: string;
-  saving: boolean;
-}) {
+function SettingsForm({ data, error }: { data: SettingsResponse; error: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const requestedTab = params.get("tab");
@@ -68,25 +65,49 @@ function SettingsForm({
   const [tab, setTab] = useState(initialTab),
     [profile, setProfile] = useState(data.profile),
     [settings, setSettings] = useState(data.settings),
+    [savedSettings, setSavedSettings] = useState(data.settings),
     [photo, setPhoto] = useState(false),
     [notice, setNotice] = useState(""),
-    [logoutError, setLogoutError] = useState("");
+    [logoutError, setLogoutError] = useState(""),
+    [saveError, setSaveError] = useState(""),
+    [saving, setSaving] = useState(false);
   const update = (key: keyof typeof settings, value: boolean | "light" | "dark") =>
     setSettings((s) => ({ ...s, [key]: value }));
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setNotice("");
-    if (
-      !(await mutate({
-        resource: "profile",
-        operation: "update",
-        data: { name: profile.name, handle: profile.handle, avatarUrl: profile.avatarUrl },
-      }))
-    )
-      return;
-    if (await mutate({ resource: "settings", operation: "update", data: { ...settings } })) {
-      applyTheme(settings.theme);
+    setSaveError("");
+    setSaving(true);
+    try {
+      if (tab === "account") {
+        const response = await apiRequest<{ profile: OwnProfile }>("/api/users/me/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: profile.name,
+            handle: profile.handle,
+            avatarUrl: profile.avatarUrl,
+          }),
+        });
+        setProfile(response.profile);
+      } else {
+        const response = await apiRequest<SettingsPatchResponse>("/api/users/me/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(settings),
+        });
+        setSettings(response.settings);
+        setSavedSettings(response.settings);
+        applyTheme(response.settings.theme);
+        window.dispatchEvent(
+          new CustomEvent("prax:settings", { detail: { theme: response.settings.theme } })
+        );
+      }
       setNotice("Your settings are saved.");
+    } catch (cause) {
+      setSaveError(cause instanceof Error ? cause.message : "Could not save your settings.");
+    } finally {
+      setSaving(false);
     }
   };
   const logout = async () => {
@@ -115,7 +136,7 @@ function SettingsForm({
         ))}
       </nav>
       <div className="space-y-4">
-        {error && <Notice tone="danger">{error}</Notice>}
+        {(error || saveError) && <Notice tone="danger">{saveError || error}</Notice>}
         {notice && <Notice tone="success">{notice}</Notice>}
         <Card className="p-5 sm:p-6">
           <h2 className="mb-5 text-base font-bold capitalize">{tab}</h2>
@@ -129,7 +150,7 @@ function SettingsForm({
                     size="lg"
                   />
                   <div>
-                    <p className="text-sm font-bold">{data.profile.name}</p>
+                    <p className="text-sm font-bold">{profile.name}</p>
                     <p className="text-xs text-text-muted">{data.user.email}</p>
                   </div>
                 </div>
@@ -184,8 +205,8 @@ function SettingsForm({
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setSettings(data.settings);
-                  applyTheme(data.settings.theme);
+                  setSettings(savedSettings);
+                  applyTheme(savedSettings.theme);
                 }}
               >
                 Reset preview

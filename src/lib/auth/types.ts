@@ -41,7 +41,8 @@ export interface SessionPayload {
 
 export interface InviteCode {
   id: string;
-  code: string;
+  /** Present only in the successful creation response; never retrievable later. */
+  code: string | null;
   maxUses: number;
   usedCount: number;
   status: InviteCodeStatus;

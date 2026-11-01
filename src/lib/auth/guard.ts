@@ -15,7 +15,13 @@
 import { NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth/session";
 import { apiError, errors } from "@/lib/errors";
-import { type AppPermission, canAccessResource, hasPermission, isValidRole } from "./rbac";
+import {
+  type AppPermission,
+  canAccessResource,
+  hasPermission,
+  isValidRole,
+  isValidUserStatus,
+} from "./rbac";
 import type { SessionUser, UserRole, UserStatus } from "./types";
 
 export interface GuardOptions {
@@ -73,6 +79,15 @@ export function authorize(request: Request, options: GuardOptions = {}): GuardRe
 
   // 3. Deny-by-default for unknown or forged roles (e.g. "SUPER_ADMIN", "HACKER", empty string)
   if (!isValidRole(user.role)) {
+    return {
+      authorized: false,
+      user,
+      errorResponse: errors.forbidden(),
+    };
+  }
+
+  // Reject malformed or obsolete status claims instead of treating them as active.
+  if (!isValidUserStatus(user.status)) {
     return {
       authorized: false,
       user,
@@ -141,7 +156,7 @@ export function authorize(request: Request, options: GuardOptions = {}): GuardRe
   }
 
   // 9. Data resource ownership check
-  if (resourceOwnerId) {
+  if (resourceOwnerId !== undefined) {
     const canAccess = canAccessResource(user, resourceOwnerId, {
       allowAdmin: allowAdminResourceOverride,
     });

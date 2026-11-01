@@ -21,6 +21,7 @@ export default function AdminMembersPage() {
   const [reject, setReject] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [copied, setCopied] = useState<string | null>(null);
+  const [newInviteCode, setNewInviteCode] = useState<string | null>(null);
   const act = async (path: string, body?: unknown) => {
     setSaving(true);
     setError("");
@@ -44,6 +45,23 @@ export default function AdminMembersPage() {
       setCopied(code);
     } catch {
       setError("Could not copy this invitation. Select and copy the code manually.");
+    }
+  };
+  const createInvite = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const result = await apiRequest<{ invite: InviteCode }>("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxUses: 1 }),
+      });
+      setNewInviteCode(result.invite.code);
+      await invites.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not create this invitation.");
+    } finally {
+      setSaving(false);
     }
   };
   return (
@@ -101,11 +119,22 @@ export default function AdminMembersPage() {
             <Button
               size="sm"
               disabled={!invites.data || saving}
-              onClick={() => void act("/api/invites", { maxUses: 1 })}
+              onClick={() => void createInvite()}
             >
               Create invitation
             </Button>
           </div>
+          {newInviteCode && (
+            <Notice tone="success">
+              <div className="flex flex-wrap items-center gap-3">
+                <span>Copy this invitation now. It is only shown once:</span>
+                <code className="font-mono">{newInviteCode}</code>
+                <Button size="sm" variant="secondary" onClick={() => void copy(newInviteCode)}>
+                  {copied === newInviteCode ? "Copied" : "Copy code"}
+                </Button>
+              </div>
+            </Notice>
+          )}
           {!invites.data ? (
             <ResourceState
               loading={invites.loading}
@@ -117,14 +146,21 @@ export default function AdminMembersPage() {
               {invites.data.invites.map((invite) => (
                 <li key={invite.id} className="space-y-2 py-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <code className="break-all text-xs">{invite.code}</code>
+                    <code className="break-all text-xs">
+                      {invite.code ?? "Code hidden after creation"}
+                    </code>
                     <Badge>{invite.status}</Badge>
                   </div>
                   <p className="text-xs text-text-muted">
                     {invite.usedCount} / {invite.maxUses} uses
                   </p>
-                  <Button size="sm" variant="text" onClick={() => void copy(invite.code)}>
-                    {copied === invite.code ? "Copied" : "Copy code"}
+                  <Button
+                    size="sm"
+                    variant="text"
+                    disabled={!invite.code}
+                    onClick={() => invite.code && void copy(invite.code)}
+                  >
+                    {invite.code && copied === invite.code ? "Copied" : "Copy code"}
                   </Button>
                 </li>
               ))}

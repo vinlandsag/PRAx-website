@@ -21,19 +21,18 @@ export const env = {
   get sessionSecret() {
     return optional("SESSION_SECRET", optional("NEXTAUTH_SECRET"));
   },
+  get firstAdminBootstrapToken() {
+    return optional("FIRST_ADMIN_BOOTSTRAP_TOKEN");
+  },
 
-  // Database (Supabase / Postgres — D-005 / D-016)
-  databaseUrl: optional("DATABASE_URL"),
-  supabaseUrl: optional("NEXT_PUBLIC_SUPABASE_URL"),
-  supabaseAnonKey: optional("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-  supabaseServiceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY"),
-  get isSupabaseConfigured(): boolean {
-    return Boolean(this.supabaseUrl && this.supabaseAnonKey);
+  // Supabase Postgres: pooled runtime URL and direct migration URL.
+  get databaseUrl() {
+    return optional("DATABASE_URL");
+  },
+  get directDatabaseUrl() {
+    return optional("DIRECT_URL");
   },
 
   // App
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
-
-  // Streak configuration (A-006)
-  streakWindowDays: parseInt(optional("STREAK_WINDOW_DAYS", "7"), 10),
 } as const;

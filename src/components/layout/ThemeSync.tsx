@@ -19,7 +19,7 @@ export function ThemeSync() {
       if (saved === "dark" || saved === "light") applyTheme(saved);
     } catch {}
     const sync = () => {
-      void fetch("/api/workspace", { cache: "no-store" })
+      void fetch("/api/users/me/settings", { cache: "no-store" })
         .then(async (response) => (response.ok ? response.json() : null))
         .then((result) => {
           if (active && (result?.settings?.theme === "light" || result?.settings?.theme === "dark"))
@@ -29,15 +29,14 @@ export function ThemeSync() {
     };
     if (pathname !== "/login" && !pathname.startsWith("/design-system")) sync();
     const update = (event: Event) => {
-      const theme = (event as CustomEvent<{ settings?: { theme?: string } }>).detail?.settings
-        ?.theme;
+      const theme = (event as CustomEvent<{ theme?: string }>).detail?.theme;
       if (theme === "dark" || theme === "light") applyTheme(theme);
       else sync();
     };
-    window.addEventListener("prax:workspace", update);
+    window.addEventListener("prax:settings", update);
     return () => {
       active = false;
-      window.removeEventListener("prax:workspace", update);
+      window.removeEventListener("prax:settings", update);
     };
   }, [pathname]);
   return null;

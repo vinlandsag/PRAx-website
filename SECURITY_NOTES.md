@@ -1,20 +1,24 @@
+## 2026-11-01 — Authenticated own-profile boundary
+
+`/api/users/me/profile` accepts no user identifier and always queries/updates by the persisted account ID matched to the signed session. It revalidates approved account status and role/name using `requirePersistedAccount`; a missing or mismatched account is denied. The profile query selects only profile columns and ID needed for fallback handle generation, never email or passwordHash. PATCH uses same-origin validation, bounded JSON, an allowlist of editable fields, length/shape limits, credential-free HTTP(S)-only URLs, and a unique database handle constraint. The response is private/no-store. The updated name claim is re-signed so subsequent persisted-account checks continue to pass. Display metrics are read-only projections from the existing points ledger, leaderboard, streak, and approved-submission records; profile input cannot modify them. This API does not access Chat or Personal Space data or affect their privacy boundaries.
+
+## Performance benchmark data boundary (2026-11-01)
+
+Phase 9 used only the separate migrated test Supabase project and synthetic records. The opt-in harness checks that its project differs from `DATABASE_URL` and `DIRECT_URL`, scopes rows with a random `perf-` prefix, and deletes only those rows during cleanup. It does not print connection strings or write user content; no primary-project fixture or load test was run. Keep `TEST_DATABASE_URL` local and never commit or share it.
+
+## Review-to-award boundary (2026-11-01)
+
+Review actions require the existing signed ADMIN session and a matching persisted APPROVED ADMIN account. Approval rejects extra client fields and derives reviewer ID, rubric marker, recipient, task maximum and idempotency key on the server. The points service commits status, immutable ledger row and streak refresh in one transaction. Rejection/revision condition writes are limited to reviewable statuses and award no points. The integration harness creates synthetic approved users, signed test sessions and tagged task/submission records only; Chat and Personal Space are not queried. Persisted auth lifecycle remains outside this phase.
+
 # SECURITY_NOTES.md
 
-## Supabase Security & Row Level Security (RLS) Architecture (2026-10-31, D-024)
+## Phase 11 release boundary (2026-11-01)
 
-- **Row Level Security (RLS) Enforced:**
-  - RLS enabled across all 14 database tables (`users`, `invite_codes`, `magic_link_tokens`, `rubrics`, `rubric_versions`, `tasks`, `submissions`, `point_transactions`, `streaks`, `channels`, `messages`, `personal_space_pages`, `audit_logs`, `notifications`).
-  - Default deny-by-default posture for anonymous access.
-  - Public reads permitted only for approved member profiles, active tasks, active rubric, and public channels.
-  - User-scoped access enforces `user_id = auth.uid()` for personal space, submissions, and notifications.
-- **Service Role Key Boundary:**
-  - `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and is restricted exclusively to server-side route handlers (`src/lib/supabase/server.ts`).
-  - It is NEVER exposed to the browser, client components, or committed into version control.
-  - Browser components use exclusively `NEXT_PUBLIC_SUPABASE_ANON_KEY` via `src/lib/supabase/client.ts`.
-- **Scrypt Password & Token Hashing:**
-  - Passwords in `seed.sql` use scrypt random-salted hashes matching `src/lib/auth/password.ts`.
-  - Magic link tokens are stored exclusively as SHA-256 hashes (`token_hash`), never raw plaintext.
-  - Secret keys and database credentials are excluded via `.gitignore` (`.env*`); only `.env.example` placeholder template is tracked.
+Production sign-in is not ready: durable registration/login/current-user and admin bootstrap are not connected. The retained test member is loopback/development-only and must not be seeded or enabled online. Never place secret values in README, logs, CI output, or chat. Logger emits only fixed event names and validated opaque request IDs. Migration execution, test fixtures, and scheduler setup must target their explicitly designated non-production or approved project; the integration harness refuses the same project identity as app/migration URLs. The production project identity, backup/restore, and Cron state are not verified here. No production operation was performed.
+
+## Database and session security boundary (2026-11-01)
+
+The application uses Prisma against Supabase PostgreSQL and authorizes API requests with its existing signed HMAC session and server-side account/role checks. No Supabase service-role client is used in application routes. The Supabase SQL scaffold from `main` is not part of this integration: its `auth.uid()` RLS policies rely on Supabase Auth identity, which is not the application's current session mechanism. Do not apply those policies/schema as a substitute for route authorization. Chat and Personal Space remain outside scoring/streak queries and need Person 4's review before database ownership is changed.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 
@@ -314,3 +318,92 @@ Commit preflight note: first commit attempt failed because user.name/user.email 
 ### Login screenshot diagnosis (2026-10-29)
 
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.
+
+# Phase 2 API logging and input handling note (2026-10-31)
+
+`readJsonObject()` enforces JSON content type and a byte limit before parsing and returns only the standard validation error envelope. Routes remain responsible for field validation and authorization. `logApiFailure()` accepts fixed event values and a validated opaque request ID; it deliberately does not accept/serialize exception objects or request payloads. Do not log credentials, tokens, email, proof URLs, request bodies, or database records. No production data store or new secret was introduced in this phase.
+
+### Phase 3 task API security boundary (2026-10-31)
+
+Task routes use existing signed-session/RBAC guards and then re-read the persisted User, requiring APPROVED status and matching session role/name. Task creator IDs derive from that row; no user IDs or task lifecycle can be supplied in create/update payloads. Members only query published tasks and their own latest submission status; hidden task details return not found. Reads use no-store. SQL search is parameterized and wildcard escaped; query/body inputs are bounded. Failures log only a fixed event and optional opaque request ID. The initial migration enables RLS without anon policies on all six tables; server-side access must use the configured server connection. The user reported both migrations applied. Do not put Supabase credentials in docs/chat or enable browser access to these tables.
+
+### Phase 4 submission ownership and state transitions (2026-10-31)
+
+Submission routes re-read the persisted approved User row and derive `userId` from that account. Member list queries are always scoped to the session user; foreign item access returns 404. Write payloads reject identity, status, reviewer, feedback, score, task-ID-on-edit, and other unknown fields. Proof links must be absolute HTTP(S) URLs; text is bounded. PATCH/DELETE use conditional updates limited to `DRAFT`/`SUBMITTED`; DELETE preserves history as `WITHDRAWN`. Resubmission after rejected/revision-requested decisions creates a separate attempt. The user reported that the additive partial unique index migration was applied to Supabase. No upload metadata or storage key is accepted because there is no persistent submission storage. Admin review endpoints remain 503; when implemented, review claims must transition atomically to `UNDER_REVIEW` so member edits/withdrawals stop.
+
+### Phase 5 points award and leaderboard boundary (2026-10-31)
+
+The points service treats review payload identity/maximum as untrusted: it looks up the submission's author/task and verifies the reviewer is an approved ADMIN. It accepts only integer scores `0..Task.pointsMax`, and writes approval metadata plus the immutable ledger row in one transaction. Unique submission and idempotency indexes prevent duplicate awards; exact retries are acknowledged and conflicting values fail. API errors do not expose raw Prisma exceptions. Leaderboard access requires a signed session and persisted approved account; only public display name, score, rank and streak are returned. No email, proof, chat or Personal Space data enters points calculations. Integration tests were not run without a separate `TEST_DATABASE_URL`; do not use primary Supabase for test fixtures.
+
+### Phase 6 leaderboard privacy and eligibility (2026-10-31)
+
+Leaderboard queries use only User, Streak, Submission, and PointTransaction. Users must be APPROVED and have at least one point transaction attached to a currently APPROVED submission. Request identity comes from the validated session; the caller cannot provide a current-user ID. Public response fields are limited to id, display name, points, rank, and streak, plus pagination metadata. Private workspace, Personal Space, Chat, proof URLs, and email are excluded. Pagination is bounded; sort order includes deterministic name/ID tie breaks. Integration verification requires a separate test database.
+
+### Phase 7 streak data boundary (2026-10-31)
+
+`GET /api/streaks` requires the signed session and persisted approved User row; all queries use that server-derived user ID, ignoring client-supplied IDs. Active days are sourced only from approved submissions with server-generated `reviewedAt`, mapped to IST dates. `StreakDay` has RLS enabled and no browser policies. Security-definer database functions pin `search_path`, derive user/date from persisted submissions, serialize per-user refresh with a transaction advisory lock, and revoke execution from `PUBLIC`, `anon`, and `authenticated`; only server/database roles can invoke them. No request payload, points value, Chat data, or Personal Space data enters streak calculations. Migration and SQL function execution have not yet been tested against PostgreSQL; apply only after reviewing the intended Supabase target.
+
+## Phase 8 isolation and security audit (2026-10-31)
+
+### Fixes made
+
+- `authorize()` and the Next.js proxy now whitelist account statuses and reject malformed claims; they previously checked unknown roles but could pass an unknown status.
+- `requirePersistedAccount()` now selects only `id`, `name`, `role`, and `status`, instead of reading the full User row including `passwordHash`.
+- Member submission detail reads now include both submission ID and owner ID in the SQL predicate. The approved-ADMIN override remains because the current API contract explicitly allows it.
+- Resource ownership checks now fail closed when a caller passes an empty owner ID.
+- Award retry identity deliberately ignores `maxPoints`, which is an immutable award-time snapshot rather than request identity; task maximums may be edited after an award.
+
+### Isolation and exposure findings
+
+- Task member queries are restricted to published tasks and the requesting member's latest submission. Member submission list/write predicates use the persisted session owner. Leaderboard and streak reads use the caller's persisted identity, not query-string user IDs.
+- The scoring and streak implementations only query User, Task, Submission, PointTransaction, Streak, and StreakDay. There are no imports or queries for Workspace, Chat, attachments, Todo, Note, Goal, or private profile data. Workspace and Chat API handlers are guarded 503 placeholders in this checkout.
+- The current Submission DTO includes the author's email for its owner or an approved ADMIN. This is authorized by the existing contract, but no frontend use was found. Review whether the field is still required before broadening admin review APIs.
+- `dispatchApprovedPoints` accepts an internal `reviewedById` argument and validates that it names an approved ADMIN. The unimplemented Person 1 review route must pass the actor ID from its persisted authenticated session; it must never forward a request-body reviewer ID.
+- Admin review and durable auth routes remain 503, so this audit cannot verify their future implementation or session revocation in production. The pages/proxy use signed claims; connected API handlers re-read persisted account status/role/name.
+- No Slack, Teams, or other Person 4 messaging connector is available in the workspace. Code-level privacy exclusion was verified; Person 4's sign-off is still outstanding.
+- RLS is enabled in the checked-in migrations for the platform tables and StreakDay, with no browser policies. Live database policy/function execution was not tested because no isolated PostgreSQL test database is configured.
+## Phase 10 verification note (2026-11-01)
+
+The user reports the database-backed integration suite passed after fixes: 31/31 tests across 5 files. The synthetic integration fixtures use approved persisted test users and signed test sessions; Chat and Personal Space are not part of scoring/streak fixtures. This environment could not independently reach the separate test database.
+
+## Persisted auth and onboarding review (2026-11-01)
+
+- Registration derives role/status on the server, hashes passwords with the existing scrypt implementation, normalizes email, and transactionally consumes a hashed invitation with account creation. Invite validation does not expose invite details. Raw invitation codes appear only once in the admin create response; list responses return `code: null`.
+- Login uses constant-work dummy hash verification for unknown email and a generic wrong-credential response. Session is the existing HMAC signed HttpOnly cookie. `/api/users/me` and admin-sensitive routes revalidate persisted account status/role. Pending users cannot access approved-member APIs.
+- First-admin bootstrap requires a temporary secret header and same-origin request; endpoint is hidden unless configured. PostgreSQL transaction advisory lock serializes calls, and persisted ADMIN count prevents any second bootstrap admin. Bootstrap returns no session. Operator must remove the token and restart after success.
+- Registration/login/invite/bootstrap rate limits are in process memory. A multi-instance deployment needs a shared edge/provider rate limit before production exposure. The current schema has no durable admin audit model; invite creation/revocation and approval are not recorded as durable audit events.
+- Auth route unit tests passed. The auth PostgreSQL integration suite could not run because the test DB preflight failed on unreachable host; no database writes occurred in this verification. No migration or deploy was performed. Verify the full flow using a separate isolated test database before release.
+
+### Bootstrap transaction follow-up
+
+The initial-admin route's advisory lock now returns an integer through a materialized CTE instead of exposing PostgreSQL `void` to Prisma raw-result decoding. Lock scope and transaction are unchanged. This is a suspected fix for the user's HTTP 500 after read-only DB connectivity succeeded; live retry is pending. The password the user entered into chat must be considered compromised and should not be reused.
+
+After another HTTP 500, bootstrap now logs only its fixed processing stage and a validated Prisma error code. Raw database error text and request values remain suppressed. Use the diagnostic line from the local server terminal for troubleshooting; never share the token/password/URL.
+
+The reported sanitized code was `P2028` during the transaction. The bootstrap transaction now waits up to 10 seconds for a connection and has a 15-second execution timeout; atomicity and transaction-scoped locking are unchanged. Retry remains unverified.
+
+The user subsequently reported HTTP 201 for bootstrap. The one-time admin was created. Remove the bootstrap token from `.env.local` and restart the server so the endpoint is disabled; do not reuse the password previously shared in chat.
+
+### Settings preferences boundary (2026-11-01)
+
+`GET/PATCH /api/users/me/settings` takes identity only from the signed session and revalidates the matching persisted approved account. Reads select only the one-to-one preference row and return account email/role from authenticated account context; writes enforce same-origin, bounded JSON, strict allowlisting, enum/boolean validation, and upsert using the server-derived user ID. User IDs, roles, account state, email, and password are not editable through this endpoint. The new preferences table has RLS enabled with no browser-facing policy; the app accesses it through the existing server-side Prisma connection. Preferences grant no authorization and are not read by points/streak or private Chat/Personal Space services. Theme is a display preference; notification toggles do not imply delivery. Portfolio visibility is saved but not yet enforced by a public profile API, which remains a documented 503 seam.
+# Phase 5 Dashboard boundary (2026-11-01)
+
+`GET /api/dashboard` authenticates the existing signed session, then revalidates the corresponding persisted approved account. All per-user database filters use that persisted account ID, never a request parameter. Only approved submissions contribute to visible task count/activity, and only ledger entries linked to approved submissions contribute points. The response contains no email, proof, chat, Personal Space, or other user's private data. Dashboard is `no-store`. Other tabs that currently return the deliberate 503 remain unavailable; do not enable them with client-only authorization or process-local substitute data.
+# Phase 6 Dashboard data access review (2026-11-01)
+
+The Dashboard integration uses the existing signed cookie guard, then rechecks the persisted account before reads. Prisma receives only that server-derived account ID in per-member predicates. Failures return the shared generic 500 envelope; logs contain a fixed stage and validated request ID, never secrets, raw SQL errors, or user data. No direct Supabase service-role access or RLS identity assumption was introduced. The response remains private/no-store.
+# Sign-in rate limit troubleshooting (2026-11-01)
+
+Password login is limited to five attempts per client IP per 15 minutes. The current limiter is in-process memory, so restarting the local app clears the counter; waiting for the full window also restores attempts. This is a local troubleshooting fact, not a production distributed-rate-limit guarantee. Do not log credentials, email addresses, request bodies, or environment values when diagnosing login. The first-admin bootstrap endpoint cannot be reused after an ADMIN already exists; do not manually alter account rows as a workaround.
+# 2026-11-01 — Sign-out availability
+
+Global header sign-out reuses the existing same-origin POST logout route, which expires the HttpOnly session cookie. It does not accept an identity or alter account status. This makes cookie clearing available even when an inactive account cannot read Settings.
+# 2026-11-01 — Safe registration failure diagnostics
+
+Unexpected registration errors now log only a fixed stage and validated Prisma error code, matching the bootstrap route's safe diagnostics. Password, invite code, email, request body, and raw exception text are not logged.
+
+The registration interactive transaction has a bounded 10-second acquisition wait and 15-second execution timeout. It remains atomic across invite-use and account creation.
+# 2026-11-01 — Pending registration sessions
+
+Registration issues a signed HttpOnly session only after transactionally creating the account as MEMBER/PENDING_APPROVAL. The proxy allows this status only at `/onboarding` and `GET /api/users/me`; it redirects all workspace pages and denies protected APIs until approval. The polling current-user API reloads role/status from the database and refreshes the signed cookie before navigation. No client-supplied role/status is used.
