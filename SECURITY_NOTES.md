@@ -1,4 +1,16 @@
+## Performance benchmark data boundary (2026-11-01)
+
+Phase 9 used only the separate migrated test Supabase project and synthetic records. The opt-in harness checks that its project differs from `DATABASE_URL` and `DIRECT_URL`, scopes rows with a random `perf-` prefix, and deletes only those rows during cleanup. It does not print connection strings or write user content; no primary-project fixture or load test was run. Keep `TEST_DATABASE_URL` local and never commit or share it.
+
+## Review-to-award boundary (2026-11-01)
+
+Review actions require the existing signed ADMIN session and a matching persisted APPROVED ADMIN account. Approval rejects extra client fields and derives reviewer ID, rubric marker, recipient, task maximum and idempotency key on the server. The points service commits status, immutable ledger row and streak refresh in one transaction. Rejection/revision condition writes are limited to reviewable statuses and award no points. The integration harness creates synthetic approved users, signed test sessions and tagged task/submission records only; Chat and Personal Space are not queried. Persisted auth lifecycle remains outside this phase.
+
 # SECURITY_NOTES.md
+
+## Phase 11 release boundary (2026-11-01)
+
+Production sign-in is not ready: durable registration/login/current-user and admin bootstrap are not connected. The retained test member is loopback/development-only and must not be seeded or enabled online. Never place secret values in README, logs, CI output, or chat. Logger emits only fixed event names and validated opaque request IDs. Migration execution, test fixtures, and scheduler setup must target their explicitly designated non-production or approved project; the integration harness refuses the same project identity as app/migration URLs. The production project identity, backup/restore, and Cron state are not verified here. No production operation was performed.
 
 ## Database and session security boundary (2026-11-01)
 
@@ -346,3 +358,14 @@ Leaderboard queries use only User, Streak, Submission, and PointTransaction. Use
 - Admin review and durable auth routes remain 503, so this audit cannot verify their future implementation or session revocation in production. The pages/proxy use signed claims; connected API handlers re-read persisted account status/role/name.
 - No Slack, Teams, or other Person 4 messaging connector is available in the workspace. Code-level privacy exclusion was verified; Person 4's sign-off is still outstanding.
 - RLS is enabled in the checked-in migrations for the platform tables and StreakDay, with no browser policies. Live database policy/function execution was not tested because no isolated PostgreSQL test database is configured.
+## Phase 10 verification note (2026-11-01)
+
+The user reports the database-backed integration suite passed after fixes: 31/31 tests across 5 files. The synthetic integration fixtures use approved persisted test users and signed test sessions; Chat and Personal Space are not part of scoring/streak fixtures. This environment could not independently reach the separate test database.
+
+## Persisted auth and onboarding review (2026-11-01)
+
+- Registration derives role/status on the server, hashes passwords with the existing scrypt implementation, normalizes email, and transactionally consumes a hashed invitation with account creation. Invite validation does not expose invite details. Raw invitation codes appear only once in the admin create response; list responses return `code: null`.
+- Login uses constant-work dummy hash verification for unknown email and a generic wrong-credential response. Session is the existing HMAC signed HttpOnly cookie. `/api/users/me` and admin-sensitive routes revalidate persisted account status/role. Pending users cannot access approved-member APIs.
+- First-admin bootstrap requires a temporary secret header and same-origin request; endpoint is hidden unless configured. PostgreSQL transaction advisory lock serializes calls, and persisted ADMIN count prevents any second bootstrap admin. Bootstrap returns no session. Operator must remove the token and restart after success.
+- Registration/login/invite/bootstrap rate limits are in process memory. A multi-instance deployment needs a shared edge/provider rate limit before production exposure. The current schema has no durable admin audit model; invite creation/revocation and approval are not recorded as durable audit events.
+- Auth route unit tests passed. The auth PostgreSQL integration suite could not run because the test DB preflight failed on unreachable host; no database writes occurred in this verification. No migration or deploy was performed. Verify the full flow using a separate isolated test database before release.

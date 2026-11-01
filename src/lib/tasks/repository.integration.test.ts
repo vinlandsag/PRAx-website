@@ -33,6 +33,7 @@ suite("task repository PostgreSQL integration", () => {
 
   async function dataset() {
     const suffix = crypto.randomUUID();
+    const category = `Test-${suffix}`;
     const user = await prisma!.user.create({
       data: {
         id: `task-test-${suffix}`,
@@ -57,7 +58,7 @@ suite("task repository PostgreSQL integration", () => {
           data: {
             title: name,
             description: `Synthetic ${name}`,
-            category: "Testing",
+            category,
             pointsMax,
             checklist: ["Synthetic acceptance item"],
             lifecycle,
@@ -87,43 +88,45 @@ suite("task repository PostgreSQL integration", () => {
       role: user.role,
       status: user.status,
     };
-    return { session, rows };
+    return { session, rows, category };
   }
 
-  async function list(user: SessionUser, query: string) {
-    const parsed = parseTaskListQuery(new URLSearchParams(query), user.role);
+  async function list(user: SessionUser, query: string, category?: string) {
+    const params = new URLSearchParams(query);
+    if (category) params.set("category", category);
+    const parsed = parseTaskListQuery(params, user.role);
     if (!parsed.ok) throw new Error("The integration fixture query must be valid.");
     return listTasks(prisma!, user, parsed.value);
   }
 
   it("filters member task status from the latest submission and hides unpublished tasks", async () => {
-    const { session, rows } = await dataset();
-    expect((await list(session, "status=open")).tasks.map((task) => task.id)).toEqual([rows[0].id]);
-    expect((await list(session, "status=submitted")).tasks.map((task) => task.id)).toEqual([
+    const { session, rows, category } = await dataset();
+    expect((await list(session, "status=open", category)).tasks.map((task) => task.id)).toEqual([rows[0].id]);
+    expect((await list(session, "status=submitted", category)).tasks.map((task) => task.id)).toEqual([
       rows[1].id,
     ]);
-    expect((await list(session, "status=approved")).tasks.map((task) => task.id)).toEqual([
+    expect((await list(session, "status=approved", category)).tasks.map((task) => task.id)).toEqual([
       rows[2].id,
     ]);
-    expect((await list(session, "status=rejected")).tasks.map((task) => task.id)).toEqual([
+    expect((await list(session, "status=rejected", category)).tasks.map((task) => task.id)).toEqual([
       rows[3].id,
     ]);
   });
 
   it("sorts by newest/points and paginates with total metadata", async () => {
-    const { session, rows } = await dataset();
-    const newest = await list(session, "sort=newest&limit=2");
+    const { session, rows, category } = await dataset();
+    const newest = await list(session, "sort=newest&limit=2", category);
     expect(newest.tasks.map((task) => task.id)).toEqual([rows[3].id, rows[2].id]);
     expect(newest.pagination).toEqual({ limit: 2, offset: 0, total: 4, hasMore: true });
 
-    const points = await list(session, "sort=points&limit=1&offset=1");
+    const points = await list(session, "sort=points&limit=1&offset=1", category);
     expect(points.tasks.map((task) => task.id)).toEqual([rows[3].id]);
     expect(points.pagination).toEqual({ limit: 1, offset: 1, total: 4, hasMore: true });
   });
 
   it("returns a correctly paginated empty result", async () => {
     const { session } = await dataset();
-    const result = await list(session, "category=NoSuchCategory");
+    const result = await list(session, `category=NoSuchCategory-${crypto.randomUUID()}`);
     expect(result).toEqual({
       tasks: [],
       pagination: { limit: 20, offset: 0, total: 0, hasMore: false },
@@ -131,9 +134,9 @@ suite("task repository PostgreSQL integration", () => {
   });
 
   it("allows admins to filter draft/published/archived lifecycle separately", async () => {
-    const { session, rows } = await dataset();
+    const { session, rows, category } = await dataset();
     const admin = { ...session, id: "admin-in-test", role: "ADMIN" as const };
-    const drafts = await list(admin, "status=draft");
+    const drafts = await list(admin, "status=draft", category);
     expect(drafts.tasks.map((task) => task.id)).toEqual([rows[4].id]);
     expect(drafts.tasks[0].lifecycle).toBe("DRAFT");
   });

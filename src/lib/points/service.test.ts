@@ -12,13 +12,13 @@ function pointsFixture(prior: Record<string, unknown> | null = null, taskMax = 2
         task: { pointsMax: taskMax },
         author: { status: "APPROVED" },
       }),
-      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     pointTransaction: {
       findFirst: vi.fn().mockResolvedValue(prior),
       create: vi.fn().mockResolvedValue({ id: "point-log-1" }),
     },
     user: { findUnique: vi.fn().mockResolvedValue({ role: "ADMIN", status: "APPROVED" }) },
+    $executeRaw: vi.fn().mockResolvedValue(1),
     $queryRaw: vi.fn().mockResolvedValue([{ recorded: true }]),
   };
   const prisma = {
@@ -80,7 +80,7 @@ describe("points award validation", () => {
       const { tx, prisma } = pointsFixture();
       const result = await dispatchApprovedPoints(prisma, awardPayload(score));
       expect(result.success).toBe(false);
-      expect(tx.submission.updateMany).not.toHaveBeenCalled();
+      expect(tx.$executeRaw).not.toHaveBeenCalled();
       expect(tx.pointTransaction.create).not.toHaveBeenCalled();
     }
   );
@@ -108,7 +108,7 @@ describe("points award validation", () => {
       success: false,
       error: "REVIEWER_NOT_AUTHORIZED",
     });
-    expect(tx.submission.updateMany).not.toHaveBeenCalled();
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
     expect(tx.pointTransaction.create).not.toHaveBeenCalled();
   });
 
@@ -129,14 +129,14 @@ describe("points award validation", () => {
       alreadyProcessed: true,
       transactionId: "point-log-1",
     });
-    expect(exact.tx.submission.updateMany).not.toHaveBeenCalled();
+    expect(exact.tx.$executeRaw).not.toHaveBeenCalled();
 
     const changed = pointsFixture(prior);
     expect(await dispatchApprovedPoints(changed.prisma, awardPayload(11))).toMatchObject({
       success: false,
       error: "IDEMPOTENCY_CONFLICT",
     });
-    expect(changed.tx.submission.updateMany).not.toHaveBeenCalled();
+    expect(changed.tx.$executeRaw).not.toHaveBeenCalled();
   });
 
   it("acknowledges an exact retry after the task maximum is edited", async () => {
@@ -155,7 +155,7 @@ describe("points award validation", () => {
       success: true,
       alreadyProcessed: true,
     });
-    expect(tx.submission.updateMany).not.toHaveBeenCalled();
+    expect(tx.$executeRaw).not.toHaveBeenCalled();
   });
 
   it("propagates a ledger write failure from inside the transaction", async () => {
@@ -165,7 +165,7 @@ describe("points award validation", () => {
       "synthetic database failure"
     );
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(tx.submission.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(tx.pointTransaction.create).toHaveBeenCalledTimes(1);
   });
 
@@ -175,7 +175,7 @@ describe("points award validation", () => {
     await expect(dispatchApprovedPoints(prisma, awardPayload(0))).rejects.toThrow(
       "synthetic streak refresh failure"
     );
-    expect(tx.submission.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     expect(tx.pointTransaction.create).toHaveBeenCalledTimes(1);
     expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
   });

@@ -1,3 +1,37 @@
+## Phase 9 performance reconnaissance (2026-11-01)
+
+- Branch check: fetched origin; GitHub PR #4 is merged at `origin/main` `217b340`; working branch `milan` matches `origin/milan` `19ff1ea`.
+- **Environment/dataset:** dedicated migrated Supabase test project in `eu-north-1`; 501 synthetic users, 2,500 tasks, 10,000 approved submissions, 10,000 point transactions, and 42 streak days. Five warmups and 30 measured route-handler calls per endpoint. No real user content. Timings do not include HTTP/TLS transport or client latency. Profile was not measured because `GET /api/workspace` remains a 503 stub. Query plans were not captured.
+- **Baseline then after change (milliseconds; p50 / p95 / max):**
+
+  | Route | Baseline | After |
+  | --- | ---: | ---: |
+  | `GET /api/tasks?limit=20` | 1163.8 / 1206.8 / 1354.5 | 1095.9 / 1107.8 / 1485.3 |
+  | `GET /api/tasks?search=synthetic&limit=20` | 1166.8 / 1197.0 / 1234.8 | 1103.2 / 1232.8 / 1236.0 |
+  | `GET /api/tasks/:id` | 579.9 / 583.9 / 585.6 | 548.5 / 585.1 / 604.0 |
+  | `GET /api/submissions?limit=20` | 1546.9 / 1730.6 / 1942.1 | 1277.5 / 1314.4 / 1345.2 |
+  | `GET /api/leaderboard?period=weekly` | 1228.4 / 1292.2 / 1610.0 | 1144.5 / 1224.8 / 1251.0 |
+  | `GET /api/leaderboard?period=alltime` | 1228.7 / 1326.2 / 1334.5 | 1141.3 / 1146.7 / 1146.8 |
+  | `GET /api/streaks` | 386.9 / 390.6 / 391.4 | 365.3 / 372.9 / 373.1 |
+
+- **Tuning:** submission history no longer selects the unused reviewer relation; the response still exposes the same fields. A regression test checks that the relation is not queried and response shape is retained. Submission-list p95 fell 24.1% (1,730.6 to 1,314.4 ms) in these runs. Other routes/indexes were left as is because no further change was justified by the measurements. No cache was added.
+- **Benchmark checks:** `PERF_BENCHMARK=1 PERF_WARMUP_RUNS=5 PERF_MEASURED_RUNS=30 npm test -- src/lib/performance/endpoints.performance.test.ts --reporter=verbose --testTimeout=600000` — final after-change run passed (7 routes, 30 measurements each); tagged fixture cleanup completed and subsequent count check found no benchmark fixtures. The first baseline run completed timings/cleanup but exited failed because a test assertion expected 6 routes after 7 were added; corrected assertion to 7. Baseline measurements above came from that run.
+- **Full tests:** `npm test` with the isolated test URL loaded from ignored `.env.local` — failed: 353 passed, 5 failed, 1 skipped (359 total). Three points integration cases failed with `Approved submission streak could not be recorded.` Two task repository cases failed their expected listing/order assertions (extra rows/different IDs were returned); the other task integration cases passed. Streak and submission integration tests passed. Failures were not fixed as part of Phase 9. A later isolated task-suite rerun could not connect (P1001, database host unreachable), so the two task failures could not be triaged separately.
+- **Other checks:** `npm run lint` — passed; `npm run db:validate` — passed; `npm run build -- --webpack` — passed (compiled, TypeScript passed, 47/47 pages generated); `npm run typecheck` — passed when rerun after the concurrent build completed (the first concurrent attempt saw missing transient `.next/types`). The final `git diff --check` passed after adding the isolated test DB placeholder to `.env.example` in Phase 10.
+- `npm test -- src/lib/submissions/service.test.ts src/lib/performance/endpoints.performance.test.ts --reporter=verbose` — passed: 20 unit tests passed; opt-in DB benchmark skipped because `PERF_BENCHMARK` was not set for this unit-only rerun. The benchmark itself passed in the after-change run above.
+- **Database boundary:** read-only migration ledger showed all 4 expected Prisma migrations applied and none pending/failed before benchmark setup. No migrations were applied, and the primary Supabase project was not used.
+
+## Phase 10 team integration (2026-11-01)
+
+- `npm test` — passed: 338 tests passed across 26 files; 32 DB-gated/opt-in tests skipped (task, submission, points, streak, core loop and performance suites). A first run after enabling review routes had three stale generic-backend test requests rejected with 400 because they omitted required review payloads; updated those fixtures and the final full run passed.
+- Targeted review/points/task/submission/leaderboard/streak route and service tests — passed: 37 passed; 3 PostgreSQL core-loop tests skipped without process-level `TEST_DATABASE_URL`.
+- `npm run test:integration` — stopped in its read-only preflight: `Integration tests stopped: the separate test database is unreachable. No tests ran.` No integration fixtures were created in this attempt. The runner confirmed the configured test URL is separate before attempting connectivity and did not access the primary database.
+- `npm run lint` — passed. `npm run typecheck` — passed after Prisma Client generation. `npm run db:validate` — passed (schema unchanged). `npm run build -- --webpack` — passed; production compile/typecheck and 47/47 static pages completed.
+- Added tests for review queue validation/projection, reviewer attribution from the session, member denial, forged reviewer rejection, invalid scores, rejection/revision without points, resubmission, and concurrent duplicate approval with leaderboard/streak assertions. The PostgreSQL end-to-end tests are implemented but not executed here due test-host reachability.
+- No Prisma schema change or migration was needed; no migrations were applied. The agent's own preflight stopped before tests, but the user's later integration run wrote synthetic fixtures and points-suite cleanup failed on `Streak` foreign keys, so old reserved points fixtures may remain in the separate test database. The points suite now removes only users with its reserved synthetic email prefixes (and their dependent rows) before starting, then cleans fixture rows after each test. Review/login persistence and configurable rubric endpoints remain pending; test sessions are signed fixtures tied to persisted approved users.
+- **User-reported reachable DB run:** `npm run test:integration` completed 31 cases: 21 passed, 10 failed. Streak (3/3) and submission (8/8) suites passed; denial/rejection/revision core-loop cases passed. Approval returned 500 because `TIMESTAMPTZ(3)` rounded PostgreSQL's current timestamp forward of the microsecond transaction time. Points cleanup then failed on leftover `Streak` foreign keys, and two task repository tests included unrelated rows because fixture queries did not constrain a unique category. Changes after that run truncate `reviewedAt` to milliseconds, clean old reserved synthetic points fixtures and delete their `Streak`/`StreakDay` rows, and give task fixtures unique categories.
+- **User-reported retest:** `npm run test:integration` — passed: 5 test files, 31 tests (all passed). This covers streak (3), task repository (5), task-to-points core loop (3), submission repository (8), and points engine (12), including duplicate/concurrent awards, authorization denials, task filters/sorts, ownership, rejection/resubmission, leaderboard and IST streak updates. The run was performed by the user against the separate migrated database; this environment could not independently reach the test host.
+
 # TEST_LOG.md
 
 ## Merge of origin/main into milan (2026-11-01)
@@ -1008,3 +1042,25 @@ The user ran `npm run db:migrate:deploy` and provided output showing `2026103121
 - **Passed:** `npm run lint`; `npm run typecheck`; `npm run db:validate`; Prisma Client generation; scoped Prettier writes/checks on changed TypeScript; `npm run build -- --webpack` (47/47 static pages); `git diff --check`.
 - **Passed audit regressions:** malformed status claims rejected by route guard and proxy; empty resource owner denied; persisted account query excludes passwordHash; member detail read predicates include owner ID; award retries remain exact after task max edits.
 - **Skipped:** PostgreSQL ownership, points/streak concurrency, and live RLS/function execution. No database was accessed.
+## Phase 11 release readiness checks (2026-11-01)
+
+- Environment: `node --version` -> `v24.15.0`; `npm --version` -> `11.12.1`.
+- `npm test` — passed: 338 tests across 26 files; 32 DB-gated/opt-in tests skipped (370 total). Prisma Client pretest generation passed.
+- `npm run lint` — passed (exit 0).
+- `npm run typecheck` — passed (`tsc --noEmit`, exit 0; Prisma generation passed).
+- `npm run db:validate` — passed (Prisma schema valid).
+- `npm run build -- --webpack` — passed; production compile/typecheck and static generation completed for 47/47 pages.
+- `npm test -- src/lib/auth/rbac.test.ts src/lib/auth/development-member.test.ts src/app/api/admin/submissions/review-routes.test.ts` — passed: 55 tests across 3 files (RBAC, local-only development fixture, admin review authorization/validation).
+- User-reported separate-database `npm run test:integration` — passed: 31/31 tests, 5 files (recorded above in Phase 10). The agent retried the command in this environment; read-only preflight exited 1 with `Integration tests stopped: the separate test database is unreachable. No tests ran.` No DB test mutations were performed by this attempt.
+- No `npm ci` clean install was run because it removes/recreates `node_modules`; clean install steps are documented in README. No migration status/apply, seed, Cron change, deployment, commit, or push was performed. Production target and backup/restore state remain unverified.
+
+## Persisted auth/onboarding verification (2026-11-01)
+
+- **Passed:** `npm run typecheck` (Prisma generate + `tsc --noEmit`).
+- **Passed:** focused auth/admin regression command covering auth handlers, admin user routes, development fixture, backend placeholder contracts and review routes: 106 tests across 5 files.
+- **Passed:** `npm test` — 344 passed across 28 files; 35 DB-gated/opt-in tests skipped across 7 files.
+- **Passed:** `npm run lint`.
+- **Passed:** `npx next build --webpack` — production compile, TypeScript, and static generation completed for 48/48 pages.
+- **Failed, environment restricted:** default `npm run build` Turbopack panic while creating a process/binding to a port (`Operation not permitted`); webpack build passed as an alternative.
+- **Not run (guard stopped before tests):** `npm run test:integration` — reported separate test database unreachable. This attempt executed no integration tests and made no database writes. The three new auth/invite PostgreSQL integration tests remain unverified here; prior 31-test user-reported integration result did not include these new tests.
+- **Not run:** migration, seed, Supabase SQL, Cron update, deployment, commit or push.

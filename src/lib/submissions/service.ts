@@ -14,7 +14,6 @@ const MAX_NOTE_LENGTH = 8000;
 const submissionInclude = {
   task: { select: { id: true, title: true, category: true, pointsMax: true } },
   author: { select: { id: true, name: true, email: true } },
-  reviewer: { select: { id: true, name: true } },
 } satisfies Prisma.SubmissionInclude;
 
 type SubmissionRecord = Prisma.SubmissionGetPayload<{ include: typeof submissionInclude }>;
@@ -132,7 +131,7 @@ export function parseSubmissionQuery(params: URLSearchParams): SubmissionQueryRe
   };
 }
 
-function toSubmission(record: SubmissionRecord): Submission {
+export function toSubmission(record: SubmissionRecord): Submission {
   return {
     id: record.id,
     taskId: record.taskId,

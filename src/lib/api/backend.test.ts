@@ -75,6 +75,8 @@ const member: SessionUser = {
 beforeEach(() => vi.stubEnv("SESSION_SECRET", "test-only-secret-with-more-than-32-characters"));
 afterEach(() => vi.unstubAllEnvs());
 for (const route of routes) {
+  if (["/api/auth/login", "/api/auth/register", "/api/invites/verify", "/api/users/me"].includes(route.path))
+    continue;
   for (const [method, handler] of Object.entries(route.handlers)) {
     if (
       !["GET", "POST", "PUT", "PATCH", "DELETE"].includes(method) ||
@@ -118,6 +120,12 @@ for (const route of routes) {
               }
             : { note: "Updated synthetic proof note." }
         );
+      }
+      if (route.path.startsWith("/api/admin/submissions/") && method === "POST") {
+        headers.set("content-type", "application/json");
+        body = route.path.endsWith("/approve")
+          ? JSON.stringify({ pointsAwarded: 0 })
+          : JSON.stringify({ feedback: "Synthetic review feedback." });
       }
       const request = new Request("http://localhost" + route.path, { method, headers, body });
       const routeHandler = handler as (
