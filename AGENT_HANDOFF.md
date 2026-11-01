@@ -1,8 +1,20 @@
 # AGENT_HANDOFF.md
 
+## Phase 4 — Settings persistence handoff (2026-11-01)
+
+The Settings UI now reads profile data from `/api/users/me/profile` and account preferences from `GET /api/users/me/settings`. Account edits reuse `PATCH /api/users/me/profile`; theme, notification preferences, and portfolio visibility use the new `PATCH /api/users/me/settings`. Settings are stored in `UserPreferences`, one-to-one with the existing `User`. Both writes derive ownership from the signed-in account and revalidate persisted approval. ThemeSync reads the server setting; browser local storage remains only an immediate fallback.
+
+New additive migration: `prisma/migrations/20261101173000_user_preferences/migration.sql`. The earlier profile migration `20261101170000_user_profile_fields` is also still pending according to the last agent verification. Review both and verify `.env.local` targets the intended Supabase project before running Prisma deploy; no DB migration was applied here. Notification delivery is not implemented. `showPortfolio` persists but cannot affect public profile reads until that API is implemented. Email and role remain read-only; existing logout handles sign-out.
+
+## Phase 3 — Profile persistence handoff (2026-11-01)
+
+Profile editing is wired to `GET/PATCH /api/users/me/profile`, backed by profile fields on the existing Prisma `User` row. The endpoint uses the signed session ID, rechecks the persisted approved account, rejects unknown fields and unsafe URLs, selects no password/email fields for the profile projection, and rotates the session cookie when display name changes (the existing account guard binds session name to persisted name).
+
+New migration: `prisma/migrations/20261101170000_user_profile_fields/migration.sql`. It is additive and was not applied. Before the user runs `npm run db:migrate:deploy`, they must verify `.env.local` targets the intended Supabase project and inspect the SQL; do not print or share connection strings. No destructive operation is included. The local dev fixture is intentionally unable to save because no persisted User row exists. Public member profile, Settings, Personal Space, Chat, and notification services remain disconnected. Verification: unit suite passed 361, typecheck and webpack build passed; full lint fails on pre-existing errors in the merged `praxora-admin` subtree. Run checks recorded in `TEST_LOG`, then apply the migration manually only to the intended database.
+
 ## Phase 11 release readiness handoff (2026-11-01)
 
-Start with README. Current environment verified Node `v24.15.0`, npm `11.12.1`, and Prisma `7.10.1`; four migrations are checked in. Setup uses `npm ci`, ignored `.env.local` copied from `.env.example`, and a private 32+ character `SESSION_SECRET`. There is no seed script. Runtime DB uses pooled `DATABASE_URL`; migration commands use direct/session `DIRECT_URL`; integration runner requires a distinct disposable `TEST_DATABASE_URL`.
+Start with README. Current environment verified Node `v24.15.0`, npm `11.12.1`, and Prisma `7.10.1`; five migrations are checked in. Setup uses `npm ci`, ignored `.env.local` copied from `.env.example`, and a private 32+ character `SESSION_SECRET`. There is no seed script. Runtime DB uses pooled `DATABASE_URL`; migration commands use direct/session `DIRECT_URL`; integration runner requires a distinct disposable `TEST_DATABASE_URL`.
 
 Latest auth implementation checks: `npm test` passed 344, with 35 database/opt-in skips; focused auth/admin tests passed 106; lint, typecheck, and `npx next build --webpack` passed (48/48). The user-reported 31/31 PostgreSQL result predates the auth flow integration tests. The agent rerun could not reach the separate DB and stopped before tests. Default Turbopack build hit the sandbox process/port restriction; webpack build passed.
 
@@ -372,3 +384,64 @@ Registration, invite verification, password login, current-user lookup, invite a
 Verification in this environment: 344 unit tests passed, 35 skipped; focused auth/admin suite 106 passed; typecheck, lint and `npx next build --webpack` passed. Default Turbopack build failed due sandbox process/port restriction. Auth PostgreSQL integration tests were not run because `npm run test:integration` failed its separate-test-host reachability preflight before executing tests. User's earlier 31/31 run predates these auth tests. No DB writes, migrations, seed, deploy, commit or push.
 
 Known remaining work: run the new auth integration tests against separate migrated `TEST_DATABASE_URL`; coordinate Person 5 release environment; configure/verify Cron; implement remaining admin reject/suspend/disable/unsuspend and configurable rubric; decide durable admin audit model and shared rate limiting. Prior Phase 8 statement that durable auth routes remain 503 is superseded by this section. Do not use the primary Supabase project for tests.
+
+## First-admin bootstrap HTTP 500 follow-up (2026-11-01)
+
+User verified `migrate status` up to date and a read-only runtime `DATABASE_URL` `SELECT 1` works; bootstrap still returned HTTP 500. Likely issue: Prisma raw-query result decoding of the advisory lock's PostgreSQL `void` value. Local code now executes that transaction-scoped lock inside a materialized CTE and returns an integer scalar. Focused auth test/typecheck/targeted lint pass. Restart the local Next server and retry with a newly chosen password only after confirming `FIRST_ADMIN_BOOTSTRAP_TOKEN` remains set. The earlier password shared in chat is exposed. The retry remains unverified; no database change was made by the agent.
+
+The user retried and still got HTTP 500. Bootstrap now logs only a fixed stage label and sanitized Prisma error code. After restarting the local Next server, retry once with a fresh password, then copy only the JSON diagnostic line from the server terminal. Do not share password/token/URL or raw request content. Focused auth/logger tests pass 15/15; runtime database transaction remains unresolved.
+
+The latest user diagnostic was `P2028` at `database_transaction`. The bootstrap Prisma transaction now has explicit `maxWait: 10_000` and `timeout: 15_000` because the default connection wait is a likely cause. Restart the dev server and retry once with a fresh password. If it still fails, share only the safe JSON log line. Tests 15/15, typecheck and targeted lint pass. No DB write/migration or commit/push.
+
+User reports the next bootstrap request succeeded with HTTP 201 in 5.1 seconds. First admin now exists in the user's configured database. Operator must remove `FIRST_ADMIN_BOOTSTRAP_TOKEN` from local `.env.local` and restart, then sign in and create the invite in Admin → Members. Bootstrap code/diagnostics are still uncommitted and unpushed on local `main`.
+# Phase 5 handoff — Dashboard and disconnected tabs (2026-11-01)
+
+The `/api/dashboard` retry is now backed by Prisma and the existing approved-data sources. It checks the persisted signed-in account, returns the existing response contract, and does not read Workspace/Chat data. Tests: `npm test -- --run src/app/api/dashboard/dashboard-route.test.ts` (4/4 pass); `npm run typecheck` (pass). No migration/database mutation occurred.
+
+For the next integration pass, use `API_CONTRACTS.md` for the verified remaining-tab matrix. Do not try to persist Personal Space/Chat/attachments or moderation reports until Person 4 privacy and ownership boundaries plus storage/transport are reviewed. Notifications, configurable rubric, durable audit, and admin user lifecycle routes also lack required schemas or agreed semantics. The current API contract intentionally returns 503 for these seams. Existing local modifications and profile/settings migrations were present before Phase 5 and must be preserved; migrations remain unapplied. Next best step: agree domain contracts with the responsible teammates, then implement additive Prisma migrations and endpoint-specific tests for the highest-priority area.
+# Phase 6 API/database integration audit (2026-11-01)
+
+The Phase 5 Dashboard route was reviewed against the repository's Prisma 7/PostgreSQL adapter, signed-session/persisted-account checks, standard response envelope, no-store policy, and safe logger. All database access flows through `getPrismaClient()`; no duplicate Supabase JS or direct `pg` route access is present. No schema change or code correction was indicated, and the existing response contract remains unchanged. The independent reads have no multi-write consistency requirement; `getLeaderboard()` already handles its ranking reads at repeatable-read isolation. Focused Dashboard tests (4/4), typecheck, and `git diff --check` passed. No database was contacted.
+# Phase 7 testing handoff (2026-11-01)
+
+Dashboard/Settings gained page-level UI tests; Profile's existing route/service/component tests were rerun. `npm test` passed 379 tests with 35 integration tests skipped; `npm run typecheck` and targeted ESLint passed. Full `npm run lint` still fails with 13 pre-existing errors (73 warnings) under `praxora-admin`. Default Turbopack `npm run build` is blocked here by a child-process port permission error; `npx next build --webpack` passed (50/50 static pages). `npm run test:integration` stopped at the safe preflight because the isolated test database is unreachable, so it ran no tests. UI persistence was simulated via mocked GET/PATCH responses; a live database save/reload and authenticated browser check remain outstanding. No database mutation occurred.
+# Phase 8 agent handoff — connected pages and remaining Retry seams (2026-11-01)
+
+## Verified current state
+
+- Dashboard: `/dashboard` → `GET /api/dashboard`, implemented with Prisma and the existing ledger/submission/streak/leaderboard records.
+- Profile: `/profile` editor → `GET/PATCH /api/users/me/profile`, self-only and backed by the existing `User` row plus server-derived stats.
+- Settings: `/settings` → `GET/PATCH /api/users/me/settings`, self-only `UserPreferences` persistence; account edits reuse Profile API.
+- Tasks, submissions, leaderboard, streaks, admin review, invite/member approval, and persisted auth have API implementations in this worktree. See `API_CONTRACTS.md`; use integration results with their stated database limitations.
+- Root cause of the original Retry screens was explicit `pendingEndpoint` 503 behavior. Dashboard was replaced with a real handler; Profile/Settings received dedicated handlers. Other 503 seams are listed in the API contract and TODO.
+
+## Next agent steps
+
+1. Preserve the current dirty worktree on `main`; do not reset, clean, stage, commit, or push unrelated user changes.
+2. For live Profile/Settings persistence, first confirm privately that `.env.local` points to the intended Supabase project. Do not print/share credentials. Review `20261101170000_user_profile_fields` and `20261101173000_user_preferences`; run read-only `npx prisma migrate status`. Apply reviewed migrations only with the database owner's approval, then run `npm run db:migrate:deploy` against that confirmed target and verify status again.
+3. Restore reachability of the isolated `TEST_DATABASE_URL` and run `npm run test:integration`. The runner has a database identity/reachability guard; the last attempt stopped before Vitest and created no fixtures.
+4. With a persisted approved account, verify Dashboard load; Profile edit/reload; Settings preference edit/reload; anonymous denial; same-origin writes; and a second user cannot read/update the first user's records. Capture only status/behavior, never credentials or private profile data.
+5. Coordinate Person 4 ownership/privacy and storage/transport before Workspace, Chat, attachments, or reports. Decide persistence/event semantics before notifications, rubric versioning before configurable rubric, audit retention before audit log, and allowed state transitions before admin reject/suspend/disable/unsuspend.
+6. Keep the release limitations visible: full lint has 13 pre-existing errors/73 warnings in `praxora-admin`; default Turbopack build is sandbox-blocked, while Webpack build passed; database integration and authenticated browser checks remain outstanding.
+
+Latest evidence is recorded in `TEST_LOG.md`. Phase 8 is documentation-only; no code/schema/database changes or deployment were made. Existing local changes remain uncommitted/unpushed.
+# Admin login troubleshooting (2026-11-01)
+
+The user's latest screenshot displays `Too many requests. Please try again later.` Verified source: `src/lib/auth/rate-limit.ts` sets login policy to 5 attempts per 15 minutes; the Map is in process memory. `src/app/api/auth/login/route.ts` checks this limiter before parsing credentials or looking up the account, so the screenshot does not indicate whether the email/password are valid. A full local dev-server process restart clears this in-memory counter; alternatively wait 15 minutes after the last attempt. Do not keep submitting attempts.
+
+After cooldown, sign in using the exact email and password entered when the first-admin bootstrap returned 201, and ensure the running app points to the same database used for bootstrap. The email visible in the screenshot appears different from the address shown in the earlier bootstrap terminal exchange. Do not put either address/password or `.env.local` values in shared logs. If the original password is unavailable, don't attempt another bootstrap or manually edit Supabase; the first-admin endpoint refuses once an ADMIN exists and no password reset flow is implemented. A database-owner-approved password recovery path would be needed. No login retry, account mutation, code change, or database operation was performed in this diagnosis.
+# Latest handoff — sign-out from inactive account (2026-11-01)
+
+Added a Sign out button to the shared TopNav so account-status API failures do not hide logout. It POSTs to the existing `/api/auth/logout`, which clears the session cookie, then redirects to `/login`; failed requests show an accessible error and keep the user on the page. `TopNav.test.tsx` covers both outcomes (2/2 pass). Typecheck, targeted ESLint/Prettier, `git diff --check`, and `npx next build --webpack` passed (50/50 pages). No schema/API change. User screenshot displayed `Your account is not active`; logout only clears the session and does not reactivate the account. If account access is needed, an administrator must separately review the persisted status. The user's pre-existing dirty changes remain; do not discard or reset them.
+# Latest handoff — registration 500 diagnosis (2026-11-01)
+
+The user reported `POST /api/auth/register 500` with only `unexpected_error`. Registration's catch previously omitted safe failure context unlike first-admin bootstrap, preventing diagnosis. It now logs allowlisted stage and Prisma code, covered by an injected P2028 route test. The earlier root cause remains unconfirmed until a retry produces the new safe stage/code. No DB/schema/API change. Never ask the user to share the invitation/password/email; the invite was visible in their screenshot and should be revoked by the issuing admin if still active.
+
+The user then supplied `stage=database_transaction`, `code=P2028`. Registration was given the same explicit Prisma transaction limits as bootstrap (10-second maxWait, 15-second timeout). Auth route tests and typecheck pass; live confirmation is still needed. Use a fresh invite because the screenshot exposed the prior code. Do not ask for credentials or the code.
+# Latest handoff — invite registration waiting page (2026-11-01)
+
+Fixed the registration/onboarding seam: successful registration now issues the existing signed HttpOnly cookie for the server-created pending MEMBER, allowing the existing `/onboarding` page and `GET /api/users/me` to work immediately. The page polls persisted status every five seconds and redirects to dashboard only when approved. Middleware already restricts pending sessions to onboarding/current-user status and rejects workspace page/API access. No schema/migration change. Focused auth/RBAC/onboarding tests passed 52/52. Typecheck, targeted ESLint/Prettier, diff check, and webpack build results are in TEST_LOG. Live DB/browser confirmation remains pending. Preserve all other existing dirty files.
+
+## Requested delivery to `milan` (2026-11-01)
+
+The user authorized committing and pushing the current connected Profile/Settings/Dashboard and auth/onboarding changes to `origin/milan`. The checked-out `main` is a fast-forward descendant of `origin/milan` (`origin/milan...HEAD` was 0/4 before this delivery), including the already merged Juel PR #8. A normal fast-forward push may carry that existing main merge commit to `milan`; do not force-push, deploy, or run DB commands.

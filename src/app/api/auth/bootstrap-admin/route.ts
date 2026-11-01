@@ -59,10 +59,18 @@ export async function POST(request: Request) {
 
   const prisma = getPrismaClient();
   if (!prisma) return backendUnavailable();
+  let failureStage = "password_hash";
   try {
     const passwordHash = await hashPassword(body.password);
+    failureStage = "database_transaction";
     const user = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended('prax:first-admin-bootstrap', 0))`;
+      // Return a Prisma-decodable scalar while evaluating the transaction-scoped lock.
+      await tx.$queryRaw`
+        WITH bootstrap_lock AS MATERIALIZED (
+          SELECT pg_advisory_xact_lock(hashtextextended('prax:first-admin-bootstrap', 0))
+        )
+        SELECT 1::int AS locked FROM bootstrap_lock
+      `;
       const adminCount = await tx.user.count({ where: { role: "ADMIN" } });
       if (adminCount > 0) {
         throw Object.assign(new Error("FIRST_ADMIN_ALREADY_EXISTS"), {
@@ -82,7 +90,8 @@ export async function POST(request: Request) {
         data: { email, name, passwordHash, role: "ADMIN", status: "APPROVED" },
         select: { id: true, email: true, name: true, role: true, status: true, createdAt: true },
       });
-    });
+    }, { maxWait: 10_000, timeout: 15_000 });
+    failureStage = "response_build";
     return NextResponse.json(
       { user: { ...user, createdAt: user.createdAt.toISOString() } },
       { status: 201, headers: { "Cache-Control": "no-store" } }
@@ -96,7 +105,10 @@ export async function POST(request: Request) {
       return apiError("INVALID_STATE_TRANSITION", "Initial administrator setup is already complete.", 409);
     if (authCode === "EMAIL_ALREADY_REGISTERED" || prismaErrorCode(error) === "P2002")
       return apiError("EMAIL_ALREADY_REGISTERED", "An account with this email already exists.", 409);
-    logApiFailure("unexpected_error", request.headers.get("x-request-id") ?? undefined);
+    logApiFailure("unexpected_error", request.headers.get("x-request-id") ?? undefined, {
+      stage: failureStage,
+      code: prismaErrorCode(error),
+    });
     return errors.internal();
   }
 }

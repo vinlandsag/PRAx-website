@@ -20,6 +20,11 @@ enum UserStatus {
   DISABLED
 }
 
+enum ThemePreference {
+  LIGHT
+  DARK
+}
+
 enum InviteCodeStatus {
   ACTIVE
   USED
@@ -55,6 +60,14 @@ model User {
   email          String             @unique
   passwordHash   String?
   name           String
+  handle         String?            @unique @db.VarChar(50)
+  bio            String             @default("") @db.VarChar(500)
+  skills         String[]           @default([])
+  currentProject String             @default("") @db.VarChar(200)
+  portfolioUrl   String             @default("") @db.VarChar(2048)
+  githubUrl      String             @default("") @db.VarChar(2048)
+  linkedinUrl    String             @default("") @db.VarChar(2048)
+  avatarUrl      String             @default("") @db.VarChar(2048)
   role           UserRole           @default(MEMBER)
   status         UserStatus         @default(PENDING_APPROVAL)
   createdAt      DateTime           @default(now()) @db.Timestamptz(3)
@@ -67,6 +80,7 @@ model User {
   invitesCreated InviteCode[]       @relation("InviteCreator")
   streak         Streak?
   streakDays     StreakDay[]
+  preferences    UserPreferences?
 
   @@index([status, role])
 }
@@ -160,6 +174,19 @@ model StreakDay {
 
   @@id([userId, activityDate])
   @@index([activityDate, userId])
+}
+
+/// Per-account UI and notification preferences. These values never grant access.
+model UserPreferences {
+  userId              String          @id
+  theme               ThemePreference @default(LIGHT)
+  reviewNotifications Boolean         @default(true)
+  streakReminder      Boolean         @default(true)
+  chatNotifications   Boolean         @default(false)
+  showPortfolio       Boolean         @default(true)
+  createdAt           DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model InviteCode {

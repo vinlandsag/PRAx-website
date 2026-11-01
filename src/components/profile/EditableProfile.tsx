@@ -3,23 +3,39 @@ import { useState, type FormEvent } from "react";
 import { ProfileView } from "./ProfileView";
 import { Button, Input, Modal, Notice, Skeleton, Textarea } from "@/components/ui";
 import { AppShell } from "@/components/layout/AppShell";
-import { useWorkspace } from "@/lib/workspace/use-workspace";
+import { apiRequest } from "@/lib/api/client";
+import { useResource } from "@/lib/api/use-resource";
 import type { Profile } from "@/lib/workspace/types";
+import type { OwnProfileStats } from "@/lib/profile/service";
 
 export function EditableProfile() {
-  const { data, error, saving, mutate, refresh } = useWorkspace();
+  const api = useResource<{ profile: Profile; stats: OwnProfileStats }>("/api/users/me/profile");
+  const [savedData, setSavedData] = useState<{
+    profile: Profile;
+    stats: OwnProfileStats;
+  } | null>(null);
   const [section, setSection] = useState<"profile" | "skills" | "project" | null>(null);
   const [draft, setDraft] = useState<Profile | null>(null),
-    [skills, setSkills] = useState("");
+    [skills, setSkills] = useState(""),
+    [saving, setSaving] = useState(false),
+    [saveError, setSaveError] = useState(""),
+    [success, setSuccess] = useState("");
+  const data = savedData ?? api.data;
+  const profile = data?.profile ?? null;
   const edit = (part: typeof section) => {
-    if (!data) return;
-    setDraft({ ...data.profile });
-    setSkills(data.profile.skills.join(", "));
+    if (!profile) return;
+    setDraft({ ...profile });
+    setSkills(profile.skills.join(", "));
+    setSaveError("");
+    setSuccess("");
     setSection(part);
   };
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!draft) return;
+    setSaving(true);
+    setSaveError("");
+    setSuccess("");
     const fields =
       section === "skills"
         ? {
@@ -38,7 +54,20 @@ export function EditableProfile() {
               linkedinUrl: draft.linkedinUrl,
               avatarUrl: draft.avatarUrl,
             };
-    if (await mutate({ resource: "profile", operation: "update", data: fields })) setSection(null);
+    try {
+      const result = await apiRequest<{ profile: Profile; stats: OwnProfileStats }>("/api/users/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      setSavedData(result);
+      setSection(null);
+      setSuccess("Your profile has been saved.");
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not save your profile.");
+    } finally {
+      setSaving(false);
+    }
   };
   const field = (key: Exclude<keyof Profile, "skills">, label: string, type = "text") => (
     <Input
@@ -52,13 +81,13 @@ export function EditableProfile() {
       onChange={(e) => setDraft((p) => (p ? { ...p, [key]: e.target.value } : p))}
     />
   );
-  if (!data)
+  if (!profile)
     return (
       <AppShell breadcrumbs={["PRAX", "My profile"]}>
-        {error ? (
+        {api.error ? (
           <Notice tone="danger">
-            {error}
-            <Button onClick={() => void refresh()}>Retry</Button>
+            {api.error}
+            <Button onClick={() => void api.refresh()}>Retry</Button>
           </Notice>
         ) : (
           <Skeleton className="h-64" label="Loading profile" />
@@ -67,8 +96,13 @@ export function EditableProfile() {
     );
   return (
     <>
+      {success && <Notice tone="success">{success}</Notice>}
       <ProfileView
-        {...data.profile}
+        {...profile}
+        totalPoints={data?.stats.totalPoints.toLocaleString()}
+        weeklyRank={data?.stats.weeklyRank === null ? "—" : `#${data?.stats.weeklyRank}`}
+        dayStreak={String(data?.stats.dayStreak ?? 0)}
+        tasksApproved={String(data?.stats.tasksApproved ?? 0)}
         onEditProfile={() => edit("profile")}
         onEditSkills={() => edit("skills")}
         onEditProject={() => edit("project")}
@@ -96,7 +130,7 @@ export function EditableProfile() {
           </>
         }
       >
-        {error && <Notice tone="danger">{error}</Notice>}
+        {saveError && <Notice tone="danger">{saveError}</Notice>}
         <form id="profile-editor" onSubmit={save} className="space-y-4">
           {section === "skills" ? (
             <Input

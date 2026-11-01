@@ -5,6 +5,9 @@ import { hashInviteCode, normalizeEmail, prismaErrorCode } from "@/lib/auth/pers
 import { getClientIp, rateLimit, RATE_LIMIT_POLICIES } from "@/lib/auth/rate-limit";
 import { getPrismaClient } from "@/lib/db/prisma";
 import { apiError, errors } from "@/lib/errors";
+import { env } from "@/lib/env";
+import { getSessionCookieOptions, signSession, SESSION_DURATION_MS } from "@/lib/auth/session";
+import { toSessionUser } from "@/lib/auth/persistence";
 import { logApiFailure } from "@/lib/api/logger";
 import { backendUnavailable } from "@/lib/api/backend";
 import { readJsonObject } from "@/lib/api/request";
@@ -50,68 +53,80 @@ export async function POST(request: Request) {
 
   const prisma = getPrismaClient();
   if (!prisma) return backendUnavailable();
+  if (env.sessionSecret.length < 32)
+    return apiError("BACKEND_NOT_CONFIGURED", "Registration is not configured.", 503);
 
+  let failureStage = "password_hash";
   try {
     const passwordHash = await hashPassword(body.password);
     const inviteHash = hashInviteCode(code);
-    const user = await prisma.$transaction(async (tx) => {
-      const invite = await tx.inviteCode.findUnique({
-        where: { codeHash: inviteHash },
-        select: { id: true, status: true, maxUses: true, usedCount: true, expiresAt: true },
-      });
-      const now = new Date();
-      if (
-        !invite ||
-        invite.status === "REVOKED" ||
-        invite.status === "EXPIRED" ||
-        (invite.expiresAt && invite.expiresAt <= now)
-      ) {
-        throw Object.assign(new Error("INVALID_INVITE"), { authCode: "INVALID_INVITE" });
-      }
-      if (invite.status !== "ACTIVE" || invite.usedCount >= invite.maxUses) {
-        throw Object.assign(new Error("INVITE_EXHAUSTED"), { authCode: "INVITE_EXHAUSTED" });
-      }
-
-      const claimed = await tx.inviteCode.updateMany({
-        where: {
-          id: invite.id,
-          status: "ACTIVE",
-          usedCount: { lt: invite.maxUses },
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
-        data: { usedCount: { increment: 1 } },
-      });
-      if (claimed.count !== 1) {
-        const current = await tx.inviteCode.findUnique({
-          where: { id: invite.id },
-          select: { status: true, maxUses: true, usedCount: true, expiresAt: true },
+    failureStage = "database_transaction";
+    const user = await prisma.$transaction(
+      async (tx) => {
+        const invite = await tx.inviteCode.findUnique({
+          where: { codeHash: inviteHash },
+          select: { id: true, status: true, maxUses: true, usedCount: true, expiresAt: true },
         });
+        const now = new Date();
         if (
-          current &&
-          current.status !== "REVOKED" &&
-          (!current.expiresAt || current.expiresAt > now) &&
-          (current.status === "USED" || current.usedCount >= current.maxUses)
+          !invite ||
+          invite.status === "REVOKED" ||
+          invite.status === "EXPIRED" ||
+          (invite.expiresAt && invite.expiresAt <= now)
         ) {
+          throw Object.assign(new Error("INVALID_INVITE"), { authCode: "INVALID_INVITE" });
+        }
+        if (invite.status !== "ACTIVE" || invite.usedCount >= invite.maxUses) {
           throw Object.assign(new Error("INVITE_EXHAUSTED"), { authCode: "INVITE_EXHAUSTED" });
         }
-        throw Object.assign(new Error("INVALID_INVITE"), { authCode: "INVALID_INVITE" });
-      }
 
-      await tx.inviteCode.updateMany({
-        where: { id: invite.id, status: "ACTIVE", usedCount: { gte: invite.maxUses } },
-        data: { status: "USED" },
-      });
+        const claimed = await tx.inviteCode.updateMany({
+          where: {
+            id: invite.id,
+            status: "ACTIVE",
+            usedCount: { lt: invite.maxUses },
+            OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (claimed.count !== 1) {
+          const current = await tx.inviteCode.findUnique({
+            where: { id: invite.id },
+            select: { status: true, maxUses: true, usedCount: true, expiresAt: true },
+          });
+          if (
+            current &&
+            current.status !== "REVOKED" &&
+            (!current.expiresAt || current.expiresAt > now) &&
+            (current.status === "USED" || current.usedCount >= current.maxUses)
+          ) {
+            throw Object.assign(new Error("INVITE_EXHAUSTED"), { authCode: "INVITE_EXHAUSTED" });
+          }
+          throw Object.assign(new Error("INVALID_INVITE"), { authCode: "INVALID_INVITE" });
+        }
 
-      return tx.user.create({
-        data: { email, name, passwordHash, role: "MEMBER", status: "PENDING_APPROVAL" },
-        select: { id: true, email: true, name: true, role: true, status: true, createdAt: true },
-      });
-    });
+        await tx.inviteCode.updateMany({
+          where: { id: invite.id, status: "ACTIVE", usedCount: { gte: invite.maxUses } },
+          data: { status: "USED" },
+        });
 
-    return NextResponse.json(
+        return tx.user.create({
+          data: { email, name, passwordHash, role: "MEMBER", status: "PENDING_APPROVAL" },
+          select: { id: true, email: true, name: true, role: true, status: true, createdAt: true },
+        });
+      },
+      { maxWait: 10_000, timeout: 15_000 }
+    );
+
+    failureStage = "response_build";
+    const sessionUser = toSessionUser(user);
+    const response = NextResponse.json(
       { user: { ...user, createdAt: user.createdAt.toISOString() } },
       { status: 201, headers: { "Cache-Control": "no-store" } }
     );
+    const cookie = getSessionCookieOptions();
+    response.cookies.set(cookie.name, signSession(sessionUser, SESSION_DURATION_MS), cookie);
+    return response;
   } catch (error) {
     const authCode =
       error && typeof error === "object" && "authCode" in error
@@ -122,8 +137,15 @@ export async function POST(request: Request) {
     if (authCode === "INVITE_EXHAUSTED")
       return apiError("INVITE_EXHAUSTED", "This invitation has no uses remaining.", 400);
     if (prismaErrorCode(error) === "P2002")
-      return apiError("EMAIL_ALREADY_REGISTERED", "An account with this email already exists.", 409);
-    logApiFailure("unexpected_error", request.headers.get("x-request-id") ?? undefined);
+      return apiError(
+        "EMAIL_ALREADY_REGISTERED",
+        "An account with this email already exists.",
+        409
+      );
+    logApiFailure("unexpected_error", request.headers.get("x-request-id") ?? undefined, {
+      stage: failureStage,
+      code: prismaErrorCode(error),
+    });
     return errors.internal();
   }
 }
