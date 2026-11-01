@@ -9,6 +9,7 @@ import { getSessionCookieOptions, signSession, SESSION_DURATION_MS } from "@/lib
 import { rateLimit, RATE_LIMIT_POLICIES } from "@/lib/auth/rate-limit";
 import { apiError, errors } from "@/lib/errors";
 import { env } from "@/lib/env";
+import { readJsonObject } from "@/lib/api/request";
 
 export async function POST(request: Request) {
   const member = localDevelopmentMember(request);
@@ -17,18 +18,12 @@ export async function POST(request: Request) {
   const policy = RATE_LIMIT_POLICIES.login;
   if (!rateLimit("local-development-member-login", policy.limit, policy.windowMs).success)
     return errors.rateLimited();
-  let data: unknown;
-  try {
-    const body = await request.text();
-    if (body.length > 4096)
-      return apiError("VALIDATION_ERROR", "Sign-in request is too large.", 400);
-    data = JSON.parse(body);
-  } catch {
-    return apiError("VALIDATION_ERROR", "Enter an email address and password.", 400);
-  }
-  if (!data || typeof data !== "object" || Array.isArray(data))
-    return apiError("VALIDATION_ERROR", "Enter an email address and password.", 400);
-  const { email, password } = data as Record<string, unknown>;
+  const parsed = await readJsonObject(request, {
+    maxBytes: 4096,
+    message: "Enter an email address and password.",
+  });
+  if (!parsed.ok) return parsed.response;
+  const { email, password } = parsed.value;
   if (
     typeof email !== "string" ||
     !email.trim() ||

@@ -34,11 +34,17 @@ export default function SubmissionsPage() {
           onChange={(e) => setStatus(e.target.value)}
         >
           <option value="all">All statuses</option>
-          {["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "REVISION_REQUESTED"].map(
-            (value) => (
-              <option key={value}>{value}</option>
-            )
-          )}
+          {[
+            "DRAFT",
+            "SUBMITTED",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "REJECTED",
+            "REVISION_REQUESTED",
+            "WITHDRAWN",
+          ].map((value) => (
+            <option key={value}>{value}</option>
+          ))}
         </Select>
       </div>
       {!api.data ? (

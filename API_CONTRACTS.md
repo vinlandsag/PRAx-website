@@ -1,29 +1,8 @@
 # API_CONTRACTS.md
 
-## Supabase Database Integration Contract — D-024 (2026-10-31)
+## Persistence configuration — D-024
 
-Supabase PostgreSQL 16 database established as the core persistence engine.
-
-- **Client Packages:** `@supabase/supabase-js` v2.
-- **Client Endpoints:**
-  - `src/lib/supabase/client.ts`: `getSupabaseBrowserClient()` and `supabase` singleton (browser with `NEXT_PUBLIC_SUPABASE_ANON_KEY`).
-  - `src/lib/supabase/server.ts`: `getSupabaseAdminClient()` (bypasses RLS with `SUPABASE_SERVICE_ROLE_KEY` for API routes) and `getSupabaseServerClient()`.
-  - `src/lib/supabase/db.ts`: Typed data access layer (`db.getUserById`, `db.getActiveTasks`, `db.getTaskById`, `db.getUserSubmissions`, `db.getReviewQueue`, `db.getLeaderboard`, `db.getChannels`, `db.getChannelMessages`, `db.createAuditLog`).
-- **Database Schema Models:**
-  - `users` (id, email, password_hash, name, role, status, avatar_url, headline, bio, skills, currently_building, created_at, updated_at)
-  - `invite_codes` (id, code, status, max_uses, used_count, created_by_id, expires_at, revoked_at)
-  - `magic_link_tokens` (id, email, token_hash, expires_at, used_at)
-  - `rubrics` & `rubric_versions` (id, version, title, criteria, max_points, updated_by_id)
-  - `tasks` (id, title, description, category, difficulty, max_points, rules, is_active, created_by_id)
-  - `submissions` (id, task_id, user_id, status, proof_url, note, checklist, points_awarded, feedback)
-  - `point_transactions` (id, user_id, amount, reason, idempotency_key, submission_id, admin_id)
-  - `streaks` (id, user_id, current_streak, longest_streak, last_activity_date)
-  - `channels` & `messages` (id, channel_id, user_id, content, attachments, is_deleted)
-  - `personal_space_pages` (id, user_id, title, content, blocks)
-  - `audit_logs` (id, event, actor_id, target_id, prior_state, new_state, reason, metadata)
-  - `notifications` (id, user_id, title, message, type, read, link)
-  - `user_leaderboard` (computed view aggregating non-negative points and streak ranks)
-- **1-Click SQL Script:** `supabase/schema.sql` (schema + seed + verification counts) ready for the Supabase SQL editor.
+Supabase hosts PostgreSQL. Prisma 7 is the application's sole ORM and migration system. Runtime access uses `DATABASE_URL`; Prisma migration commands use `DIRECT_URL`. The app's task, submission, points and streak services use Prisma. Do not apply a parallel Supabase CLI schema migration.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 
@@ -57,13 +36,14 @@ SessionPayload gains optional developmentOnly:true. signSession accepts optional
 
 Disconnected response: HTTP 503, Cache-Control: no-store, {error:{code:"BACKEND_NOT_CONFIGURED",message:"This service is not connected yet. Please try again later.",status:503}}. Never return empty success data or issue a session cookie to simulate integration. GET /api/health remains 200 with backend:"not_configured"; POST /api/auth/logout only expires the cookie. Session helpers require SESSION_SECRET or NEXTAUTH_SECRET >=32 characters, no built-in key. Existing paths/methods remain available as guarded integration seams.
 
-New frontend read/write shapes below are declared integration contracts, **not implemented backend features**. They are centralized in src/lib/api/contracts.ts; workspace/chat/attachment/settings shapes remain in src/lib/workspace/types.ts and attachment-policy.ts. Submission and rubric types moved to lib/db/submissions.ts and lib/rubric/types.ts; points payload types live in lib/points/types.ts with no ledger.
+New frontend shapes below remain integration contracts unless marked implemented. Task APIs and member submission APIs have persisted Prisma implementations; auth, admin review, workspace/chat/attachment/settings and scoring services remain disconnected. Types are centralized in `src/lib/api/contracts.ts`, `src/lib/workspace/types.ts`, `src/lib/db/submissions.ts`, and the corresponding feature modules.
 
 | Route                          | Methods / intended successful shape                                             |
 | ------------------------------ | ------------------------------------------------------------------------------- |
 | /api/tasks                     | GET {tasks:TaskItem[]}; admin POST task fields -> {task:{id,...}}               |
 | /api/tasks/[id]                | GET {task:TaskItem}; admin PATCH task fields                                    |
-| /api/submissions               | GET {submissions:Submission[]}; POST {taskId,proofUrl,note}                     |
+| /api/submissions               | GET own paginated submissions; POST {taskId,proofUrl,note} -> submitted attempt |
+| /api/submissions/[id]          | owner GET/PATCH; DELETE withdraws before review                                 |
 | /api/dashboard                 | GET {totalPoints,weeklyRank:number                                              | null,dayStreak,tasksApproved,activity:[{id,title,createdAt}]}                         |
 | /api/streaks                   | GET {current,longest,activeDays:string[]}                                       |
 | /api/leaderboard?period=weekly | alltime                                                                         | GET {entries:[{id,name,points,rank,streak}],total}; ranking/order computed by backend |
@@ -199,16 +179,28 @@ interface SessionUser {
 #### `POST /api/submissions`
 
 - Auth: APPROVED member
-- Body: `{ taskId: string, content: string }`
-- Response: `{ submission: Submission }` (status = DRAFT)
-- Errors: `ACCOUNT_PENDING`, `VALIDATION_ERROR`
+- Body: `{ taskId: string, proofUrl: string, note: string }`
+- Response: `{ submission: Submission }` (status = SUBMITTED; HTTP 201)
+- Errors: `ACCOUNT_PENDING`, `VALIDATION_ERROR`, `NOT_FOUND`, `SUBMISSION_IN_PROGRESS`
 
-#### `PATCH /api/submissions/:id/submit`
+#### `GET /api/submissions`
+
+- Auth: APPROVED member; returns only rows owned by the session user, with optional `status` and bounded `limit`/`offset` filters.
+- Response: `{ submissions: Submission[], pagination: { limit, offset, total, hasMore } }`
+
+#### `PATCH /api/submissions/:id`
 
 - Auth: Submission owner (APPROVED member)
-- Body: none
-- Response: `{ submission: Submission }` (status = SUBMITTED)
-- Errors: `NOT_FOUND`, `FORBIDDEN`, `SUBMISSION_IN_PROGRESS`, `INVALID_STATE_TRANSITION`
+- Body: partial `{ proofUrl?: string, note?: string }`; unknown fields such as `userId`, `status`, `pointsAwarded`, reviewer, or task ID are rejected.
+- Allowed while `DRAFT` or `SUBMITTED`; rejected once review starts or reaches a terminal state.
+
+#### `DELETE /api/submissions/:id`
+
+- Auth: Submission owner (APPROVED member)
+- Withdraws only `DRAFT`/`SUBMITTED` attempts by changing status to `WITHDRAWN`; preserves the row and its history.
+- Returns 409 `SUBMISSION_IN_PROGRESS` once `UNDER_REVIEW`; returns 422 `INVALID_STATE_TRANSITION` after a review decision.
+
+Resubmitting after `REJECTED` or `REVISION_REQUESTED` creates a new attempt, preserving the earlier review and feedback. A partial unique database index permits only one `DRAFT`, `SUBMITTED`, or `UNDER_REVIEW` attempt per member/task. New writes accept safe HTTP(S) proof links and non-empty bounded text. There is no persistent submission upload store in this repository, so upload metadata is not accepted.
 
 #### `GET /api/submissions/:id`
 
@@ -559,3 +551,171 @@ Commit preflight note: first commit attempt failed because user.name/user.email 
 ### Login screenshot diagnosis (2026-10-29)
 
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.
+
+# Phase 0 live contract reconciliation (2026-10-31)
+
+This verified snapshot distinguishes frontend expectations from live endpoint behavior. It supersedes any older statement in this file that describes feature endpoints as functioning services.
+
+## Frontend consumers and current backend behavior
+
+| Feature                | Frontend request / expected response                                                              | Live handler                                                                           | Integration status                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Task catalog           | `GET /api/tasks` → `{tasks: TaskItem[]}`                                                          | `GET` guarded then 503                                                                 | Contract only; admin `POST` also guarded then 503                                                                 |
+| Task detail            | `GET /api/tasks/:id` → `{task: TaskItem}`                                                         | `GET` guarded then 503                                                                 | Contract only; admin `PATCH` guarded then 503                                                                     |
+| Submission create/list | `POST /api/submissions` and `GET /api/submissions` → `{submissions: Submission[]}`                | Both guarded then 503                                                                  | Contract only; create body fields are defined by the frontend caller, but no server validation/persistence exists |
+| Admin review           | `GET /api/admin/submissions`, `POST /api/admin/submissions/:id/{approve,reject,request-revision}` | Admin guard then 503                                                                   | Contract/seams only; no approval or score award executes                                                          |
+| Leaderboard            | `GET /api/leaderboard?period=weekly                                                               | alltime`→`{entries,total}`                                                             | Protected; database-backed ledger aggregation                                                                     | Weekly/all-time totals derive from PointTransaction; ranking is score descending, then name/id |
+| Streaks                | `GET /api/streaks` → `{current,longest,activeDays}`                                               | Guarded then 503                                                                       | Contract only; no event source or processor                                                                       |
+| Dashboard              | `GET /api/dashboard` → `DashboardSummary`                                                         | Guarded then 503                                                                       | Contract only                                                                                                     |
+| Workspace/profile      | `GET/PATCH /api/workspace`; public profile consumer sends `memberId`                              | Both guarded then 503                                                                  | Contract only; no owner/profile storage. `memberId` is a requested public-profile lookup, not proof of ownership  |
+| Current user           | `GET /api/users/me` → `{user}`                                                                    | Session/status guard; matching local development fixture can return 200, otherwise 503 | Narrow local exception; no durable account lookup                                                                 |
+
+Current-state correction: the Task catalog, Task detail, and Submission rows above preserve an earlier phase snapshot and are superseded by the Phase 3 and Phase 4 implementation notes. Their handlers are persisted and revalidate approved accounts. The admin review and rubric rows remain 503 stubs.
+
+Typed response contracts are in `src/lib/api/contracts.ts` and workspace shapes in `src/lib/workspace/types.ts`. `src/lib/api/backend.ts` constructs the no-store 503 response for pending routes. Protected routes may return 401/403 before reaching that response. Task and submission routes, the points award service and leaderboard read are now database-backed; auth registration/current-user persistence, admin review actions, rubric and streak routes remain pending.
+
+## Verified mismatches / implementation notes
+
+- `/api/workspace?memberId=...` is shared by private workspace consumers and the public member profile consumer. A durable implementation must branch and authorize public profile reads separately; it must not return private workspace data for a foreign `memberId`.
+- Frontend `Submission` includes author/task display fields and optional review/points metadata. These are UI contract fields, not verified database columns or permission to accept client-authored reviewer/points values.
+- The Phase 5 points boundary implementation is described below. Admin approval route remains a 503 seam and must call the boundary from its review action.
+- Proxy and `authorize()` enforce signed-session claims and role/status policy. Task, submission and leaderboard routes revalidate the current persisted account; disconnected auth/admin routes still require durable account lifecycle integration.
+- Prisma schema, generated types, migrations and migration commands are documented in the Phase 1/3 implementation notes above.
+
+## Phase 5 — transactional points engine (2026-10-31)
+
+`dispatchApprovedPoints(prisma, payload)` is the Person 1 review-to-ledger boundary in `src/lib/points/service.ts`. It accepts only `submissionId`, `pointsAwarded`, `rubricVersion`, `reviewedById`, and the contracted key `pts_${submissionId}_${rubricVersion}`. The service re-reads the persisted submission, task maximum, approved author, and approved ADMIN reviewer. It does not accept a recipient ID or client-supplied maximum. A score must be an integer in the inclusive range `0..Task.pointsMax`; zero-point approvals create a ledger row.
+
+One Prisma transaction conditionally changes `SUBMITTED`/`UNDER_REVIEW` to `APPROVED` and creates the immutable `PointTransaction`. Failure in either operation rolls the other back. An exact retry returns the existing ledger ID as already processed; a conflicting score, reviewer, rubric version, or idempotency key is rejected. Existing unique constraints on `submissionId` and `idempotencyKey`, the amount/max check, and `(userId, createdAt)` index provide database enforcement. No schema change or migration is required for this phase.
+
+No balance or weekly cache is stored. `/api/leaderboard` derives sums from the ledger for all approved accounts. Weekly means Monday 00:00 Asia/Kolkata (the UI's current definition); all-time sums every ledger row. Entries are protected by existing session authorization and persisted-account revalidation. Chat and Personal Space are not read or scored.
+
+Integration boundary note: repository inspection on 2026-10-31 found the review/rubric routes are still 503 stubs; that verified state supersedes the earlier green/implemented status recorded in IC-06/IC-06B. Person 1's eventual approval handler must authorize the signed-in admin and call this service; review UI/rubric work is not implemented by Phase 5.
+
+## Phase 6 — weekly and all-time leaderboard (2026-10-31)
+
+`GET /api/leaderboard?period=weekly|alltime&limit=20&offset=0` requires an authenticated, persisted APPROVED account. `period` defaults to `weekly`; limit/offset follow the shared pagination parser (limit 1–100, offset 0–100000). Repeated, malformed or unsupported values return 400. Response:
+
+```ts
+{
+  entries: LeaderboardEntry[]; // requested page
+  total: number;               // all ranked members in this period
+  pagination: { limit: number; offset: number; total: number; hasMore: boolean };
+  currentUser: LeaderboardEntry | null; // caller's row even if outside page
+  userAhead: LeaderboardEntry | null;   // immediately higher ordinal row
+}
+```
+
+Entries are approved users with at least one points log tied to a currently APPROVED submission. An approved zero-point award is still eligible; users with no approved work in the period are omitted. Pending, rejected, withdrawn, and revision-requested submissions do not count. Weekly boundary is Monday 00:00 Asia/Kolkata. Tie order: points descending, lowercased name ascending under `C` collation, then ID ascending under `C` collation; ranks are stable ordinal positions. `currentUser` and `userAhead` are independent of page offset so the existing standing panel works on every page. The UI has Previous/Next controls and resets to the first page when the period changes.
+
+The query reads only User, Streak, Submission, and PointTransaction; it returns public leaderboard fields only. Personal Space and Chat data are not queried. The Phase 6 migration adds `Submission(userId,status)` and `PointTransaction(createdAt,userId)` indexes. Migration is additive and has not been applied by the agent; PostgreSQL integration tests remain gated by the separate test database.
+
+## Phase 7 — Streak engine
+
+### `GET /api/streaks`
+
+- Auth: approved persisted session; the member ID comes from the signed session and is revalidated against `User`.
+- Response: `{ current, longest, activeDays }`. `activeDays` contains the member's distinct active IST dates from the current date and previous 41 calendar dates, as `YYYY-MM-DD` strings.
+- Client-supplied user IDs are ignored. Missing streak state returns zero current/longest and an empty day list.
+- Qualification: a persisted submission with `status=APPROVED`, approved author, and a server-generated `reviewedAt`; zero-point approvals qualify. Login, submitted/rejected/withdrawn work, Chat, and Personal Space do not qualify.
+- Date mapping: `reviewedAt AT TIME ZONE 'Asia/Kolkata'`. The unique primary key on `StreakDay(userId,activityDate)` deduplicates multiple approved submissions on one day.
+- Approval integration: `dispatchApprovedPoints` calls `public.record_approved_submission_streak(submissionId)` inside the same transaction as the status change and PointTransaction write. The database derives owner/date and serializes per-user refresh with an advisory transaction lock.
+- Reset: current streak remains active when the most recent activity date is today or yesterday. Once there is a full missed IST day, current becomes zero; longest is retained.
+- Scheduler: Supabase Cron runs `select public.refresh_all_streaks();` daily at `35 18 * * *` UTC (00:05 IST). Setup and verification SQL are in `DB_SCHEMA.md`. The scheduler is a reconciliation/reset path; same-day approval refresh does not wait for Cron.
+- Privacy: only User, Submission, StreakDay, and Streak are read/written. Personal Space and Chat are excluded.
+- Integration boundary: the admin approval route is still a 503 stub, so Person 1 must connect it to `dispatchApprovedPoints`. The current login endpoint does not persist login events; no login streak is recorded.
+
+## Phase 8 — Isolation & security audit (2026-10-31)
+
+### Verified protections
+
+- Persisted task, submission, leaderboard, and streak routes authenticate through the existing signed-session guard and revalidate an APPROVED persisted account before data access. Role and display name must match the persisted row.
+- Member submission list/create/edit/withdraw operations derive the owner from the session. Direct submission detail reads now apply `id AND userId` in the database query for members; the contract permits an approved ADMIN to read any submission detail. Foreign-member detail lookups return 404.
+- Task members see only PUBLISHED rows; task create/edit is ADMIN-only. The points service derives recipient and maximum from persisted submission/task data, verifies an approved ADMIN reviewer, and records approval, point log, and streak in one transaction.
+- `GET /api/leaderboard` and `GET /api/streaks` use the signed-in persisted account; client-supplied user IDs do not select another member's rows.
+- No Workspace, Chat, attachment, Todo, Note, Goal, or profile-private source is queried by point or streak calculations. Those endpoint handlers currently remain guarded 503 stubs.
+
+### Audit fixes
+
+- Session authorization and the Next.js proxy now reject unknown user-status claims in addition to unknown roles; a malformed status cannot pass as active.
+- Persisted-account revalidation selects only `id`, `name`, `role`, and `status`, avoiding unnecessary retrieval of `passwordHash`.
+- The generic resource-owner guard now treats an empty owner ID as a denial instead of skipping the ownership check.
+- Submission detail lookup applies member ownership in SQL rather than fetching a foreign submission before denying it.
+- `maxPoints` remains an immutable award-time audit snapshot and is deliberately not part of retry identity because task maximums can later change. Tests preserve exact retries after a task edit.
+
+### Remaining risks and coordination
+
+- The owner/admin Submission response currently includes `authorEmail` under the existing contract. It is limited to the owner or approved ADMIN; no frontend use was found, but removing it needs the contract owners' review.
+- Person 1's admin approval/rejection and persisted auth lifecycle routes remain 503 stubs. Before they are enabled, approval must derive reviewer identity from the authenticated persisted ADMIN session and call `dispatchApprovedPoints`; never accept `reviewedById` from the body.
+- Workspace and Chat routes currently return 503, so no persisted private-data query path exists in this checkout. A Person 4 messaging channel was not available; their explicit privacy sign-off remains outstanding. The verified code boundary excludes those sources from scoring/streaks.
+- PostgreSQL integration tests are present but require a separate migrated `TEST_DATABASE_URL`; they were skipped in this audit. Live RLS and SQL-function behavior therefore remain unverified.
+
+# Phase 1 schema/API review notes (2026-10-31)
+
+Schema is a draft in `DB_SCHEMA.md`; no migration or operational API behavior is approved by these notes. Review required from Persons 1 and 2 before implementation.
+
+- Person 1's `User` and `InviteCode` declarations in `src/lib/auth/types.ts` are the existing contract to reuse; no parallel account/invite model should be added. Confirm durable IDs and invite code hashing. The current InviteCode response type contains `code`, but D-010 requires secure token handling; recommend store only a hash and expose a raw code once at creation if Person 1 approves.
+- Person 1's existing points boundary key is `pts_${submissionId}_${rubricVersion}`. Person 3 owns the one immutable `PointTransaction` ledger. The ledger idempotency key is unique; score/recipient/reviewer must be checked against persisted Task, Submission, and User rows. Approval + ledger + streak refresh are one transaction. No balance cache/second ledger.
+- Person 2 currently submits only `{taskId, proofUrl, note}` to `POST /api/submissions`; admin approval UI sends `{pointsAwarded}` to `POST /api/admin/submissions/:id/approve`. Server must derive identity, max score, reviewer, and rubric version; validate server-side.
+- Task UI currently defines `TaskItem.status` as `Open|Pending|Approved|Rejected`, which is member-specific/display state. Proposed persisted Task lifecycle is `DRAFT|PUBLISHED|ARCHIVED`; derive the UI status from published task plus that member's submission. Person 2 review required.
+- The `Submission` response type includes joined display fields (`taskTitle`, `category`, `maxPoints`, `authorName`, `authorEmail`) and optional review metadata. Treat these as projected response fields, not client-writable persistence fields. Private workspace/chat payloads stay outside the scoring and streak contracts.
+
+# Phase 2 backend conventions (2026-10-31)
+
+These conventions preserve the current Next.js App Router and centralized `src/lib` helpers. They do not imply that disconnected routes now persist data.
+
+## Route flow and ownership
+
+1. Keep route handlers thin. Apply the existing proxy/RBAC guard and route-level `authorize()` before resource access; when a database exists, re-read account status/role from the authoritative user row before protected writes.
+2. Parse bounded JSON object bodies with `readJsonObject()` from `src/lib/api/request.ts`; validate field types, lengths, enums, URLs and ownership in the route/service. Never accept client identity, role, approval state, score, or streak as authoritative.
+3. Put reusable business rules in services under `src/lib`; isolate persistence in repositories only when an approved database/ORM is introduced. Keep transactional/idempotent review and points logic in the Person 3 service boundary.
+4. Return successful JSON with existing typed contracts. Return failures through `apiError()` or `errors` from `src/lib/errors.ts`, preserving `{error:{code,message,status}}`. Never return exception text or stack traces.
+
+## Request parsing and pagination
+
+`readJsonObject(request, {maxBytes, message})` enforces JSON content type, a byte limit even without trustworthy `Content-Length`, valid JSON, and a top-level object. Field-specific constraints remain the route/service's responsibility. It returns the standard `VALIDATION_ERROR` / 400 envelope on parse/size failures. The login endpoint uses a 4096-byte cap.
+
+For collection endpoints, use `parsePagination(URL.searchParams)`: optional integer `limit` defaults to 20 and is bounded 1–100; `offset` defaults to 0 and is bounded 0–100000. Duplicate or malformed values return `VALIDATION_ERROR` / 400. Response convention: `{items, pagination:{limit,offset,total,hasMore}}`, with `paginationMeta()` computing metadata. The leaderboard now uses this shared paging convention and adds `currentUser`/`userAhead` fields so the standings panel remains available on every page.
+
+## Logging and test fixtures
+
+`logApiFailure()` accepts only fixed event codes and an optional validated opaque request ID. Do not pass errors, request bodies, credentials, email, tokens, proof URLs, or database records to logs. Catch unexpected failures at route/service boundaries, log only the safe event, and return `errors.internal()`; expected validation/authorization failures do not need error logs.
+
+Keep fixtures in test files or a clearly test-only fixture location; use synthetic identities/data, never import fixtures from runtime routes, and never turn fixture success into a simulated service response. Existing `src/lib/api/backend.test.ts` exercises handlers with synthetic signed sessions and asserts the 503 boundary plus auth behavior.
+
+## Setup and environment
+
+Use Node 24 and `npm ci`; configure ignored `.env.local` and generate a private `SESSION_SECRET` only if local signed-session login is needed. Supabase is selected and Prisma 7 is installed. The user reported applying the checked-in initial migration successfully. Use a separate disposable `TEST_DATABASE_URL` for database integration tests.
+
+# Phase 3 — task lifecycle API contract (implemented; initial migration reported applied)
+
+Status: **Implemented against Prisma/Supabase schema; live database access requires private Supabase URLs.** Task handlers return guarded 503 when `DATABASE_URL` is unset; they never return fixture-backed runtime data.
+
+## Existing frontend contracts
+
+- `GET /api/tasks` is consumed by the member task list, global search and admin task manager. Current task UI filters are `All`, `Open`, `Submitted`, `Approved`, `Rejected`; the filter utility maps Submitted to the existing `TaskItem.status === "Pending"` display value. Sort values are `newest` (`createdAt` descending) and `points` (`pointsMax` descending). The UI also has local category and text search filters.
+- `GET /api/tasks/:id` supplies the task detail used by submission UI. Existing `TaskItem.checklist` is displayed as “Acceptance checklist” and is the only existing task rules/requirements payload. There is no separate rules endpoint or `rules` property in the current contract.
+- Admin creation uses `POST /api/tasks` with `{title,description,category,pointsMax,dueAt,checklist}`. Existing admin task list reads the same collection. `PATCH /api/tasks/:id` is the only assigned task update contract.
+- Existing contracts do not assign task deletion or a separate activation endpoint. Do not add either without an agreed contract. Task create/edit authorization remains ADMIN-only; member list/detail requires APPROVED member or ADMIN.
+
+## Implemented list query/response convention
+
+`GET /api/tasks` supports `status=all|open|submitted|approved|rejected` (member) or `status=all|draft|published|archived` (admin; default `all`), `sort=newest|points` (default `newest`), optional `category`/`search`, and shared `limit`/`offset` (defaults 20/0, max limit 100, max offset 100000). Unknown, repeated, overlong, malformed or role-incompatible values return `VALIDATION_ERROR` / 400. Member status derives from that authenticated member's latest persisted submission; `userId` is never accepted from the query. `Open` means published/visible with no effective submission; `Submitted` maps pending review/revision; `Approved` and `Rejected` reflect the latest review. Category/search apply before pagination. Stable ties: `createdAt DESC`, then `id ASC` for newest; `pointsMax DESC`, then `createdAt DESC`, then `id ASC` for points.
+
+Response: `{tasks: TaskItem[], pagination:{limit,offset,total,hasMore}}`. Empty results are `200` with `tasks: []` and `total: 0`. Admins can view all lifecycle states; members only see published tasks. Admin DTOs include `lifecycle` and the admin task table displays that value separately from member-specific `TaskItem.status`.
+
+## Detail, errors, and visibility
+
+`GET /api/tasks/:id` returns `{task: TaskItem}` including `checklist` as the task requirements payload. An unknown or non-visible task returns `NOT_FOUND`; hidden task existence is not disclosed to members. All task routes use the existing signed-session/RBAC guard, then revalidate persisted user role/status before repository access. Successful reads are no-store. `POST /api/tasks` is ADMIN-only, validates the existing admin form fields, derives creator identity from the session, and creates a published task. `PATCH /api/tasks/:id` is ADMIN-only and accepts only task content fields; lifecycle cannot be client-mutated. No delete or activation endpoint is defined. If `DATABASE_URL` is missing, guarded requests return 503; database errors return the standard generic 500 envelope and a safe log event.
+
+The approved initial schema/migration lives in `prisma/schema.prisma` and `prisma/migrations/`. It includes User, Task, Submission, PointTransaction, Streak and InviteCode; task endpoints use only User/Task/Submission. The user reported that Supabase successfully applied the initial migration. Database integration tests require a separate `TEST_DATABASE_URL` and are skipped when unset.
+
+# Phase 4 — Submission lifecycle API (implemented; migration reported applied)
+
+`POST /api/submissions` uses the current task detail form body `{taskId, proofUrl, note}` and creates status `SUBMITTED` immediately. `GET /api/submissions` returns only the signed-in user's rows, optionally filtered by status and bounded `limit`/`offset`; `GET /api/submissions/:id` returns the owner’s submission or an admin-authorized detail.
+
+The owner may `PATCH /api/submissions/:id` with only `proofUrl` and/or `note`, or `DELETE` it to mark `WITHDRAWN`, while status is `DRAFT` or `SUBMITTED`. Both transitions are conditional database writes. `UNDER_REVIEW` is locked with 409 `SUBMISSION_IN_PROGRESS`; decided or withdrawn attempts return 422 `INVALID_STATE_TRANSITION`. A foreign owner receives 404. No client field can set `userId`, task, review status, reviewer, feedback, points, or rubric version.
+
+A rejected or revision-requested attempt may be followed by a new `SUBMITTED` attempt for the same task; the earlier row and feedback remain intact. Concurrent active attempts are rejected by the additive partial unique index in `prisma/migrations/20261031210000_submission_lifecycle/`. The user reported that this migration and the original schema migration were applied successfully to Supabase on 2026-10-31. Database transition tests still require a separate migrated test database.
+
+Proof must be an absolute HTTP(S) URL up to 2048 characters; note is required and bounded to 8000 characters. The current frontend sends proof links and notes only. No persistent submission-upload storage exists, so file/upload metadata is not accepted. Existing admin review endpoints remain unimplemented 503 seams; this API exposes stored review status/feedback and enforces immutability when a submission is already marked `UNDER_REVIEW` or decided, but does not perform approval/rejection or score awards.

@@ -1,55 +1,20 @@
 # TEST_LOG.md
 
-## Live Supabase Connection & Verification (2026-10-31, D-024)
+## Merge of origin/main into milan (2026-11-01)
 
-- **Date/Time:** 2026-10-31T19:47:45+05:30
-- **Environment:** Windows 10/11 x64, Node.js v24.19.0, npm 11.17.0, Supabase PostgreSQL 16 Cloud
-- **Command:** Live Supabase Query Verification (.env.local credentials)
-- **Pass/Fail:** PASS
-- **Live Query Results:**
-  - Connected successfully to live Supabase instance
-  - Table users: 2 records found (Admin User [ADMIN] admin@prax.build, Arjun Varma [MEMBER] member@prax.build)
-  - Table tasks: 4 active tasks found
-  - Table rubrics: v1 PRAX Engineering Excellence Rubric (100 pts)
-- **Test Suite:** npm test -> 232/232 tests pass (14 suites)
-- **Production Build:** npm run build -> 47/47 routes pass with .env.local loaded
-- **Unresolved Failures:** None.
+- `npm install --package-lock-only --ignore-scripts --offline`: passed; lockfile regenerated for Prisma dependencies only; audit reported 0 vulnerabilities.
+- `npm test`: passed, 329 tests; 28 PostgreSQL integration tests skipped because the isolated test database is not configured.
+- `npm run lint`: passed (ESLint exit 0).
+- `npm run typecheck`: passed (`tsc --noEmit`, exit 0; Prisma client generation completed).
+- `npm run db:validate`: passed; Prisma schema valid.
+- `npm run build`: failed in Turbopack because worker process port binding is denied by this environment (`Operation not permitted`).
+- `npx next build --webpack`: passed; compiled, type checked and generated all 47 pages/routes.
+- `npx prettier --check` on docs/code: not clean; existing files `AGENT_HANDOFF.md`, `DECISIONS.md`, and `TODO_NEXT.md` were reported unformatted. No bulk formatting was applied to avoid unrelated churn.
+- `git diff --check`: passed. No database or Supabase command was run.
 
-## Supabase Database & Integration Verification (2026-10-31, D-024)
+## Incoming main branch verification claims (historical; not revalidated here)
 
-- **Date/Time:** 2026-10-31T19:07:30+05:30
-- **Environment:** Windows 10/11 x64, Node.js v24.19.0, npm 11.17.0, Next.js 16.4.3 Turbopack, Vitest 3.2.7, ESLint 9, Prettier 3
-- **Command 1: `npm test`**
-  - **Pass/Fail:** PASS (231/231 tests pass across 14 test suites in 5.90s)
-  - **Output Excerpt:**
-    ```
-    ✓ src/lib/errors.test.ts (8 tests)
-    ✓ src/lib/supabase/supabase.test.ts (5 tests)
-    ✓ src/design-system-route.test.ts (3 tests)
-    ✓ src/lib/auth/rbac.test.ts (34 tests)
-    ✓ src/lib/api/client.test.ts (6 tests)
-    ✓ src/lib/api/backend.test.ts (80 tests)
-    ✓ src/lib/auth/development-member.test.ts (14 tests)
-    ✓ src/components/ui/components.test.tsx (14 tests)
-    ✓ src/components/profile/ProfileView.test.tsx (6 tests)
-    ✓ src/components/chat/chat-media.test.tsx (6 tests)
-    ✓ src/components/layout/NotificationBell.test.tsx (8 tests)
-    ✓ src/components/ui/foundation.test.tsx (20 tests)
-    ✓ src/lib/api/cleanup.test.tsx (13 tests)
-    ✓ src/lib/workspace/interactions.test.tsx (14 tests)
-
-    Test Files  14 passed (14)
-         Tests  231 passed (231)
-    ```
-- **Command 2: `npm run typecheck` (`tsc --noEmit`)**
-  - **Pass/Fail:** PASS (0 errors)
-- **Command 3: `npm run lint` (`eslint .`)**
-  - **Pass/Fail:** PASS (0 errors, 0 warnings)
-- **Command 4: `npm run format:check` (`prettier --check .`)**
-  - **Pass/Fail:** PASS (All matched files use Prettier code style)
-- **Command 5: `npm run build` (`next build`)**
-  - **Pass/Fail:** PASS (All 47 static/dynamic routes and proxy compiled with exit code 0)
-- **Unresolved Failures:** None.
+`origin/main` contained prior notes claiming a live Supabase SQL-schema setup and successful tests. Those claims describe that branch's Supabase JS/SQL scaffold and are not evidence for the Prisma-backed merge. Current verification for this merge will be appended below with commands actually run in this environment. No live database or Supabase project was accessed during conflict resolution.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 
@@ -965,3 +930,81 @@ Commit preflight note: first commit attempt failed because user.name/user.email 
 ### Login screenshot diagnosis (2026-10-29)
 
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.
+
+# 2026-10-31 — Phase 2 backend conventions
+
+- `npm test` — PASS: 246 tests across 16 files, 11.08 s.
+- `npm run lint` — PASS (exit 0).
+- `npm run typecheck` — PASS (exit 0) on the initial run and final sequential rerun. A parallel attempt during `next build --webpack` failed because `.next/types` was being regenerated; rerun after build passed.
+- `npm run build` — FAIL twice: Next.js 16.4.3 Turbopack worker failed while binding a local port (`Operation not permitted`); the same error occurred on an escalated retry.
+- `npm run build -- --webpack` — PASS: production compilation/type generation completed and 47/47 static pages generated. This was verification only; project config was not changed.
+- `npm run dev -- --hostname 127.0.0.1 --port 3100` — PASS, ready in 354 ms. `curl -i http://127.0.0.1:3100/api/health` returned HTTP 200 `{status:"ok", backend:"not_configured", ...}`. Temporary server stopped with Ctrl+C.
+- Formatting: scoped Prettier applied to changed TS/MD files; `git diff --check` clean. No database integration test is possible because no database/ORM is configured.
+
+### Phase 3 final verification — task APIs and schema (2026-10-31)
+
+- `npm test` — PASS: 272 passed, 5 skipped across 20 files (7.02 s). The skipped tests are PostgreSQL integration tests because `TEST_DATABASE_URL` is unset.
+- `npm run lint` — PASS (exit 0).
+- `npm run typecheck` — PASS (exit 0).
+- `npx prisma validate` — PASS; Prisma 7.10.1 schema valid. `npm run pretest`, `pretypecheck`, and `prebuild` each generated Prisma Client successfully.
+- Scoped `npx prettier --check` — PASS for changed source and project Markdown; `git diff --check` — PASS.
+- `npm run build -- --webpack` — PASS: production compilation, TypeScript, and 47/47 pages completed.
+- Migration SQL was generated offline and reviewed for constraints/RLS; it was not applied. Supabase integration and authenticated end-to-end task API behavior remain unverified because no database URLs/account provisioning were available.
+- Earlier default Turbopack build attempts failed in the sandbox while binding a worker port (`Operation not permitted`); webpack production build is the successful build evidence.
+- Dependency installation reported 22 npm audit findings (20 moderate, 2 critical). No automatic audit remediation was run.
+
+### Supabase migration applied by user (2026-10-31)
+
+The user ran `npm run db:migrate:deploy` locally and provided output showing `20261031100000_initial` applied successfully to their Supabase Postgres project. No agent-side migration write was run. A read-only agent-side `npx prisma migrate status` attempt printed the Supabase datasource host then failed with `Error: Schema engine error:` and no further details; independent status verification is pending (likely environment/network-specific, cause not established). `git check-ignore .env.local` confirmed `.env.local` is ignored. No connection string or password was read or logged. Database integration tests were not run in this follow-up; use a separate test database, never the primary project.
+
+### Phase 4 submission lifecycle verification (2026-10-31)
+
+- `npm test` — PASS: 300 passed across 21 files; 12 skipped (7 submission PostgreSQL integration tests and 5 task PostgreSQL integration tests) because `TEST_DATABASE_URL` was not available to the test process.
+- `npm run lint` — PASS (exit 0).
+- `npm run typecheck` — PASS (exit 0).
+- `npx prisma format`, `npx prisma validate`, and Prisma Client generation — PASS.
+- Scoped `npx prettier --check` — PASS; `git diff --check` — PASS.
+- `npm run build -- --webpack` — PASS: production compile, TypeScript check, and 47/47 pages generated.
+- No database writes/tests were run by the agent. The Phase 4 migration `20261031210000_submission_lifecycle` remains unapplied; the user must apply it before using WITHDRAWN or relying on the active-attempt DB constraint. The initial migration was previously reported applied by the user.
+- Auth, registration, admin review actions and persistent submission uploads remain disconnected; live authenticated submission operations are not verified.
+
+### Phase 4 migration applied by user (2026-10-31)
+
+The user ran `npm run db:migrate:deploy` and provided output showing `20261031210000_submission_lifecycle` applied successfully after the initial migration. No agent-side migration write or database integration test was run. The Phase 4 suite still requires a separate migrated test database; do not point it at the primary Supabase project.
+
+### Phase 5 transactional points engine verification (2026-10-31)
+
+- `npm test` — PASS: 312 passed across 23 files; 22 skipped across three PostgreSQL suites. Ten points integration tests, seven submission integration tests, and five task integration tests skipped because `TEST_DATABASE_URL` is not configured.
+- `npm run lint` — PASS (exit 0).
+- `npm run typecheck` — PASS (exit 0; Prisma Client generated by pretypecheck).
+- `npm run db:validate` — PASS; Prisma schema valid.
+- Scoped `npx prettier --check ...` — PASS for changed source/docs.
+- `npm run build -- --webpack` — PASS; production compile, TypeScript, and all 47 static pages completed.
+- Targeted points/leaderboard tests — PASS: 98 passed, 10 PostgreSQL integration tests skipped. An initial IST boundary assertion used the wrong UTC offset and failed; corrected the test timestamp to Monday 00:00 IST (Sunday 18:30 UTC), then reran successfully.
+- No migration was added or applied. No primary Supabase database was accessed. PostgreSQL concurrency, transaction rollback, and real leaderboard aggregate behavior remain unverified until run against an isolated migrated test database. Auth registration and admin review/rubric routes remain disconnected, so the award service is not end-to-end wired.
+
+### Phase 6 leaderboard API verification (2026-10-31)
+
+- `npm test` — PASS: 317 passed across 23 files; 24 skipped across three PostgreSQL suites. Twelve points/leaderboard integration tests, seven submission integration tests, and five task integration tests skipped because `TEST_DATABASE_URL` is not configured.
+- Targeted leaderboard/UI suite — PASS: 33 passed; 12 PostgreSQL integration tests skipped.
+- `npm run lint` — PASS (exit 0).
+- `npm run typecheck` — PASS (exit 0; Prisma client generated).
+- `npm run db:validate` — PASS; updated Prisma schema valid.
+- Scoped Prettier check — PASS; `git diff --check` — PASS.
+- `npm run build -- --webpack` — PASS; production build and 47/47 static pages completed.
+- No database migration was applied. The new index migration is pending deployment to the intended database. PostgreSQL tie order, period boundary, pagination, rejected-work privacy, and aggregate consistency tests are present but could not run without a separate migrated test database.
+
+### Phase 7 streak engine verification (2026-10-31)
+
+- **Passed:** `npx prisma format`; `npm run db:validate`; `npm run db:generate`.
+- **Passed:** `npm test` — 320 passed across 24 files; 27 skipped across four PostgreSQL integration suites because `TEST_DATABASE_URL` is unset. This includes three new streak database tests (IST boundary, unique daily marker, consecutive/missed days, invalid status and concurrent retry), which remain unexecuted until an isolated DB is provided.
+- **Passed:** `npm run lint`; `npm run typecheck`; scoped Prettier check on changed TypeScript files; `npm run build -- --webpack` (47/47 static pages); `git diff --check`.
+- **Failed check attempt:** a broad `prettier --check` that included Prisma schema and SQL reported no configured parser for those file types and Markdown style warnings. Prisma schema was formatted/validated with Prisma; changed TypeScript passed scoped Prettier. No automatic whole-document formatting was applied.
+- **Not run:** migration application, PostgreSQL SQL execution, and Supabase Cron scheduling. The new migration remains pending; no database was accessed.
+
+### Phase 8 isolation and security audit verification (2026-10-31)
+
+- **Passed:** `npm test` — 329 passed across 24 files; 28 skipped across four PostgreSQL integration suites because `TEST_DATABASE_URL` is unset.
+- **Passed:** `npm run lint`; `npm run typecheck`; `npm run db:validate`; Prisma Client generation; scoped Prettier writes/checks on changed TypeScript; `npm run build -- --webpack` (47/47 static pages); `git diff --check`.
+- **Passed audit regressions:** malformed status claims rejected by route guard and proxy; empty resource owner denied; persisted account query excludes passwordHash; member detail read predicates include owner ID; award retries remain exact after task max edits.
+- **Skipped:** PostgreSQL ownership, points/streak concurrency, and live RLS/function execution. No database was accessed.

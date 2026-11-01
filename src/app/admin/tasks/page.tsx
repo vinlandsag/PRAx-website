@@ -52,7 +52,7 @@ export default function AdminTasksPage() {
                     </td>
                     <td className="p-3">{task.category}</td>
                     <td className="p-3">
-                      <Badge>{task.status}</Badge>
+                      <Badge>{task.lifecycle ?? task.status}</Badge>
                     </td>
                     <td className="p-3">{task.pointsMax}</td>
                   </tr>

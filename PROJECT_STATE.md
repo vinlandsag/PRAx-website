@@ -1,29 +1,10 @@
 # PROJECT_STATE.md
 
-## Supabase Database Created & Initialized for Backend (2026-10-31, D-024)
+## Backend integration and merge resolution (2026-11-01)
 
-The user (Database Lead) requested creating the database via Supabase. Supabase PostgreSQL 16 persistence layer has been fully designed, created, and integrated into the repository.
+Supabase is the PostgreSQL host; Prisma 7 is the sole ORM and migration system, as recorded in D-024 and implemented on `milan`. Task, submission, points and streak services use Prisma. The Supabase JS helpers and Supabase CLI SQL migration/schema/seed from `main` were not integrated with routes and overlap Prisma-owned tables. They are excluded from this integration. Do not apply the parallel SQL schema. Its Chat/Personal Space tables and Supabase Auth `auth.uid()` policies also need ownership, session-auth compatibility, and Person 4 privacy review before any future adoption.
 
-- **Database Engine:** Supabase PostgreSQL 16 with Row Level Security (RLS) enabled on all 14 tables.
-- **DDL Migration & 1-Click Setup:**
-  - `supabase/schema.sql`: Self-contained 1-click script containing complete DDL, types, triggers, RLS policies, seed data, and verification counts query for Supabase SQL Editor.
-  - `supabase/migrations/20261031000000_prax_schema.sql`: Versioned DDL migration for Supabase CLI / CI.
-  - `supabase/seed.sql`: Pre-seeded data fixtures (Admin user, Member user Arjun Varma, active invite code `PRAX-INIT-ADMIN`, v1 100-point rubric, starter tasks, chat channels, points, and streaks).
-- **Client & Integration:**
-  - `@supabase/supabase-js` v2 installed.
-  - `src/lib/supabase/client.ts`: Typed browser client singleton (`getSupabaseBrowserClient()`, `supabase`).
-  - `src/lib/supabase/server.ts`: Server-side client (`getSupabaseAdminClient()` with service-role key for administrative route operations, `getSupabaseServerClient()`).
-  - `src/lib/supabase/types.ts`: Comprehensive PostgREST v2 compliant TypeScript schema definition.
-  - `src/lib/supabase/db.ts`: Typed query helpers for users, tasks, submissions, rubrics, channels, points, and audit logs.
-- **Environment Configuration:**
-  - `src/lib/env.ts`: Centralized access for `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `isSupabaseConfigured` boolean flag.
-  - `.env.example`: Clear placeholder template with Supabase instructions.
-- **Verification:**
-  - Vitest: **231/231 tests pass** across 14 test suites (including 5 new Supabase tests).
-  - TypeScript: `tsc --noEmit` exits 0 (0 errors).
-  - ESLint: `eslint .` exits 0 (0 errors, 0 warnings).
-  - Prettier: `prettier --check .` passes (100% formatted).
-  - Next.js Build: `next build` compiles all 47 routes and proxy middleware successfully.
+The incoming branch state was checked against current `origin/main` and `origin/milan`. The conflicts were resolved in local merge commit `9eb4d7b` on `milan`. The merge preserves main frontend/config changes and uses Prisma as the only migration path. Relevant checks are recorded in `TEST_LOG.md`; no database migration was run. The commit has not been pushed.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 
@@ -126,9 +107,9 @@ PRAX — an invite-only team platform. Members complete tasks, earn points and s
 - Styling: Tailwind CSS v4
 - Testing: Vitest 3 (unit) + Playwright (E2E planned)
 - Lint/Format: ESLint 9 + Prettier 3
-- Database: PostgreSQL 16 (hosting pending D-005)
-- ORM: Prisma (to be added in Phase 3)
-- Auth: NextAuth.js v5 (strategy pending D-004)
+- Database: PostgreSQL on Supabase (D-005/D-024; initial migration reported applied 2026-10-31)
+- ORM: Prisma 7 with PostgreSQL `pg` adapter
+- Auth: existing signed HMAC session cookie and server-side RBAC guards (D-004)
 - Real-time: PENDING D-003 (Pusher vs Socket.io)
 
 ## Repository Structure
@@ -338,3 +319,70 @@ Commit preflight note: first commit attempt failed because user.name/user.email 
 ### Login screenshot diagnosis (2026-10-29)
 
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.
+
+# Phase 0 verified backend integration map (historical snapshot, 2026-10-31; superseded by current backend state below)
+
+Inspection-only reconciliation of the live checkout. This section takes precedence over older journal sections when they describe live backend persistence or API availability.
+
+## Verified
+
+- Git worktree was clean before this documentation update. No product code changes are part of this phase.
+- Stack: Node.js 24.x, Next.js 16.4.3 App Router, React 19.3.0, TypeScript 5, Tailwind CSS 4, Vitest 3. Package scripts include dev/build/start/lint/format/typecheck/test. No ORM or database driver dependency is present.
+- Database: no Prisma/Drizzle/SQL schema, migrations, migration commands, or database client found. `DATABASE_URL` exists as an optional env accessor and blank `.env.example` placeholder only. `GET /api/health` reports `backend: "not_configured"`.
+- Auth: signed HMAC-SHA256 `prax_session` cookie with seven-day expiry in `src/lib/auth/session.ts`; requires `SESSION_SECRET` or `NEXTAUTH_SECRET`. `src/lib/auth/guard.ts`, `src/lib/auth/rbac.ts`, and `src/proxy.ts` implement guards and route policy. Session account status/role are claims; repository inspection did not find a durable user store to recheck them against.
+- User model: `src/lib/auth/types.ts` declares TypeScript `User`, `SessionUser`, and lifecycle/role unions. These are not ORM-generated or database-backed models. Invite and magic-link interfaces are also type declarations, not persistence.
+- Feature API handlers (tasks, submissions, leaderboard, streaks, dashboard, workspace, notifications, rubric, chat attachments and most auth/admin/invite routes) use `pendingEndpoint` and return 503 `BACKEND_NOT_CONFIGURED` after route-level guard evaluation. Health is public. `/api/users/me` is guarded and only returns the explicit matching local development member fixture; other sessions receive 503. Proxy applies coarse route access policy; route handlers also guard protected feature/admin APIs.
+- Frontend contract consumers: tasks list/detail and admin task editor use `/api/tasks` and `/api/tasks/:id`; submission detail creates `/api/submissions`; submissions page reads it; leaderboard sends `period=weekly|alltime`; streaks reads `/api/streaks`; dashboard reads `/api/dashboard`; workspace/profile/settings/personal space use `/api/workspace`, and public member profile passes `memberId`. Their typed response shapes live in `src/lib/api/contracts.ts` and `src/lib/workspace/types.ts`.
+- No current working score ledger or streak processor exists. `src/lib/points/types.ts` and submission types describe intended interfaces only. There is no transaction, idempotency persistence, daily job, or score aggregation implementation in this checkout.
+
+## Unknown / pending decisions
+
+- Database provider/hosting, schema, migration ownership and deployment workflow remain undecided (D-005 remains pending in `DECISIONS.md`). ORM choice is also pending; Prisma is mentioned as a future proposal, not installed.
+- Whether Person 1's session roles/status will be backed by database revalidation, and how user IDs/relations map to durable records, must be resolved during backend implementation.
+- Final durable task/submission/score/streak schema, leaderboard aggregation, streak timezone/boundary, idempotency-key uniqueness and transaction strategy are not implemented or verified.
+
+Next: resolve D-005 and agree the initial schema/ownership boundary before adding ORM, migrations, or persistence.
+
+# Phase 2 — backend conventions and foundation (2026-10-31)
+
+Preserved Next.js App Router, existing session/RBAC/error utilities, disconnected API seams and test-only fixtures. Added bounded JSON-object request parsing and applied it to local development login; added bounded `limit`/`offset` pagination parsing/metadata and safe structured failure logging utilities. Added unit tests for malformed/oversize request bodies, pagination boundaries and log redaction. README and `.env.example` now document verified local setup and the blank/unconnected database placeholder. No ORM, database or API persistence added. `DATABASE_URL` remains unused and feature APIs still return 503 after guards.
+
+Checks: 246 tests / 16 files passed; ESLint and TypeScript passed. One concurrent typecheck attempt raced webpack generation of `.next/types` and failed; rerun after build passed. Default `npm run build` failed twice in Turbopack worker creation (`Operation not permitted` binding a port), including an escalated retry. `npm run build -- --webpack` passed and generated all 47 pages. Temporary loopback `npm run dev -- --hostname 127.0.0.1 --port 3100` started; `GET /api/health` returned 200 with backend `not_configured`; server stopped cleanly. No database integration is available. Next step: implement persistence only after Phase 1 provider/schema review.
+
+# Phase 3 — task API contract reconciliation (2026-10-31)
+
+Inspected member/admin task consumers, query/status/sort utility and task routes. Documented the existing list/detail/admin create/update contract, filter mapping, newest/points sort semantics, pagination shape, and checklist as the current requirements payload. No route or product code changed: the handlers remain guarded 503 seams because Phase 1 schema is still unreviewed, provider/ORM are unresolved, and there is no task repository. Acceptance for working task APIs (including repository-backed filter/sort/empty/visibility tests) is not met. Next step: approve schema/provider and confirm lifecycle/resubmission semantics, then implement persisted endpoints.
+
+## Current backend state — Phase 3 task lifecycle APIs (2026-10-31)
+
+This is the latest backend status and supersedes earlier Phase 0–3 notes that say database/provider/schema review is pending. User approved the initial schema and selected Supabase; D-024 records Prisma ORM 7 and Supabase Postgres. Checked in Prisma schema and additive initial migration cover the reused User/InviteCode concepts plus Task, Submission, PointTransaction, and Streak. Chat and Personal Space remain outside the schema and score/streak inputs. On 2026-10-31, the user ran `npm run db:migrate:deploy` and reported that Supabase successfully applied `20261031100000_initial`. A read-only `npx prisma migrate status` from this environment returned a blank schema-engine error, so independent status verification is pending.
+
+Implemented protected task list/detail/admin create/content-update routes with persisted approved account/role revalidation, member visibility, latest-submission-derived statuses, validated filters/search/sorting/pagination, no-store reads, safe generic errors, and no lifecycle mutation/delete endpoint. API contracts and tests are updated. Auth account creation/current-user persistence is still disconnected; task APIs cannot serve the existing local dev fixture until a matching persisted user/session integration exists. `TEST_DATABASE_URL` is absent, so database integration tests skip. The current worktree shows `.env.example` deleted; this change was left untouched. `.env.local` is ignored by Git. See latest TEST_LOG and TODO_NEXT entries.
+
+## Current backend state — Phase 4 submission lifecycle APIs (2026-10-31)
+
+Added persisted own-submission list/detail/create/edit/withdraw APIs. The current task form creates a `SUBMITTED` attempt. Owner edits/withdrawals are conditional on pre-review statuses; withdrawal retains the row as `WITHDRAWN`. Rejected/revision-requested resubmissions create a new attempt so old feedback remains. Proof links are restricted to HTTP(S), text lengths are bounded, and server-side session identity determines ownership. The user reported that the partial unique index/withdrawn-state migration was successfully applied to Supabase. Seven submission PostgreSQL integration tests remain unrun without a separate `TEST_DATABASE_URL`. Existing admin review actions are still 503 stubs, and auth registration/login persistence is still disconnected. No persistent submission upload store exists. See D-025 and the Phase 4 API contract.
+
+## Current backend state — Phase 5 points engine (2026-10-31)
+
+Added `dispatchApprovedPoints` in `src/lib/points/service.ts`. It validates integer score bounds against the persisted task, validates approved author/admin reviewer records, conditionally approves a reviewable submission, and inserts one immutable `PointTransaction` inside one Prisma transaction. Exact retry behavior is idempotent; conflicting retry data is rejected. Zero-point approvals are logged. Existing unique indexes and database amount check are reused, so no migration was added. Point totals are derived from the ledger, without a stored balance; the protected leaderboard endpoint now aggregates weekly (Monday 00:00 IST) or all-time totals.
+
+Person 1's rubric and admin review endpoints remain 503 stubs, so the service has not been wired into a working review route or verified against real reviewer sessions. PostgreSQL concurrency/rollback/aggregate tests are opt-in and need a separate migrated `TEST_DATABASE_URL`; they were not run against Supabase. Chat and Personal Space are excluded from score calculations. See D-026, `DB_SCHEMA.md`, and Phase 5 in `API_CONTRACTS.md`.
+
+## Current backend state — Phase 6 leaderboard APIs (2026-10-31)
+
+Reconciled the existing leaderboard endpoint and UI for weekly/all-time paging. The route accepts bounded `limit`/`offset`, returns page entries plus a separate current-user standing and the row immediately above, and the UI provides previous/next controls. Weekly starts Monday 00:00 IST. Only approved users with at least one ledger award joined to a currently APPROVED submission are ranked; tie order is points descending, then lowercase name and ID under PostgreSQL `C` collation, with ordinal ranks. Personal Space and Chat are not queried.
+
+Added a reviewed additive migration for submission user/status and points createdAt/user indexes. It has not been deployed. PostgreSQL integration tests for page/tie/boundary/privacy behavior need the separate test DB previously deferred; no database work was run against Supabase. See D-027 and the Phase 6 API contract.
+
+## Current backend state — Phase 7 streak engine (2026-10-31)
+
+User-confirmed policy is recorded in D-028: approved submissions count by Asia/Kolkata calendar date, including zero-point approvals; one full missed date resets current, and login does not count. Added a unique `StreakDay(userId,activityDate)` record and a PostgreSQL reconciliation/approval function migration. The established `dispatchApprovedPoints` transaction calls the DB function after writing approval and points, making streak refresh atomic with approval. Added an authenticated `/api/streaks` response based only on the signed-in persisted account. Chat and Personal Space remain excluded.
+
+Migration `20261031233000_ist_streak_engine` is reviewed locally but not applied. Supabase Cron setup is documented as daily `35 18 * * *` UTC (00:05 IST); the user must apply the migration and create/verify the job. Admin review remains a 503 stub, so Person 1 still must connect it to `dispatchApprovedPoints`. `npm test` passed 320 tests; 27 database tests skipped without isolated `TEST_DATABASE_URL`. Lint, typecheck, Prisma validation/generation, scoped TypeScript formatting, and production webpack build passed. No database was accessed.
+
+## Current backend state — Phase 8 isolation and security audit (2026-10-31)
+
+Audited route guards, task/submission repositories, leaderboard/points/streak SQL, Prisma RLS migrations, auth sessions, and private workspace/Chat route seams. Fixed fail-open handling for unknown account statuses in the API guard and proxy; scoped member detail queries by owner ID in SQL; restricted persisted-account selects to `id/name/role/status` rather than reading `passwordHash`; and made an empty generic resource-owner ID deny access. Point retry identity intentionally excludes mutable task `maxPoints`, retaining the award-time snapshot. Personal Space and Chat are not queried by points or streak calculations; their API endpoints currently remain 503.
+
+The existing Submission detail contract authorizes owners and approved ADMINs and returns `authorEmail`; no frontend use was found, so this is documented for contract-owner data-minimization review. Person 4 sign-off could not be obtained because no messaging connector is available. Admin review/auth persistence remain 503, and live RLS/SQL behavior is unverified. See D-029, Phase 8 in `API_CONTRACTS.md`, and `SECURITY_NOTES.md`.

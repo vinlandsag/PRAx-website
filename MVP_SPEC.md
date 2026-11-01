@@ -120,16 +120,17 @@ Inherits all Member permissions, plus:
     +-------------------------+-----------> REVISION_REQUESTED --> SUBMITTED (re-submit)
 ```
 
-| State                | Who sets it             | Description                      |
-| -------------------- | ----------------------- | -------------------------------- |
-| `DRAFT`              | Member (auto on create) | Being edited; not yet submitted  |
-| `SUBMITTED`          | Member (submit action)  | Awaiting admin pickup            |
-| `UNDER_REVIEW`       | Admin (claim/open)      | Admin is actively reviewing      |
-| `APPROVED`           | Admin                   | Accepted; points may be assigned |
-| `REJECTED`           | Admin                   | Not accepted; feedback required  |
-| `REVISION_REQUESTED` | Admin                   | Returned to member for changes   |
+| State                | Who sets it             | Description                                      |
+| -------------------- | ----------------------- | ------------------------------------------------ |
+| `DRAFT`              | Member (auto on create) | Being edited; not yet submitted                  |
+| `SUBMITTED`          | Member (submit action)  | Awaiting admin pickup                            |
+| `UNDER_REVIEW`       | Admin (claim/open)      | Admin is actively reviewing                      |
+| `APPROVED`           | Admin                   | Accepted; points may be assigned                 |
+| `REJECTED`           | Admin                   | Not accepted; feedback required                  |
+| `REVISION_REQUESTED` | Admin                   | Returned to member for changes                   |
+| `WITHDRAWN`          | Member                  | Withdrawn before review; row retained as history |
 
-> **PROPOSED assumption (A-003):** A member may only have one submission per task in any non-terminal, non-draft state at a time. Attempting a second `SUBMITTED` record for the same task while one is already `SUBMITTED` or `UNDER_REVIEW` returns `SUBMISSION_IN_PROGRESS`.
+> **A-003 implementation:** A member may have only one active `DRAFT`, `SUBMITTED`, or `UNDER_REVIEW` attempt per task. A second active attempt returns `SUBMISSION_IN_PROGRESS`. The Phase 4 assumption in D-025 treats a rejected or revision-requested submission as a retained prior attempt; resubmission creates a new row. Withdrawal before review changes the row to `WITHDRAWN` rather than deleting it. The additive partial unique index enforces the active-attempt rule after its migration is applied.
 
 ---
 
@@ -183,7 +184,7 @@ Schema + query owner: **P5**. Callers (P1, P3, P4) invoke a shared `createAuditE
 2. Only `ADMIN` role may call the point-assignment endpoint. Others get `403 FORBIDDEN`.
 3. Each assignment is an **immutable `PointTransaction` record** (append-only ledger). Balance = `SUM(amount)`.
 4. **Streaks** are computed server-side only on `SUBMISSION_APPROVED`. Client values are never trusted.
-5. **PROPOSED assumption (A-006):** Streak increments when a member has ≥1 approved submission in the rolling 7-day window. Resets to 0 after a 7-day gap. `streakWindowDays` defaults to 7, configurable via env var.
+5. **A-006 superseded by D-028 (AGREED 2026-10-31):** Any approved submission, including a zero-point approval, counts for its Asia/Kolkata calendar day. Login is not a streak event. Multiple approvals in one IST day count once. Current streak remains active through today and resets after one full missed IST calendar day; longest streak is retained. Supabase Cron refreshes/catches up daily at 00:05 IST, while approval refresh runs transactionally.
 6. Points and streak totals are readable by any `APPROVED` member. Writes are admin-only.
 
 ---

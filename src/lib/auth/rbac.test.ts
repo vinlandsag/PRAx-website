@@ -18,6 +18,7 @@ import {
   canAccessResource,
   hasPermission,
   isValidRole,
+  isValidUserStatus,
   MEMBER_PERMISSIONS,
   ROLE_PERMISSIONS,
 } from "./rbac";
@@ -79,6 +80,15 @@ describe("Phase 5 — RBAC Permission Matrix & Deny-by-Default", () => {
       expect(hasPermission("", "view:dashboard")).toBe(false);
       expect(hasPermission(null, "view:dashboard")).toBe(false);
       expect(hasPermission(undefined, "admin:view_user_queue")).toBe(false);
+    });
+
+    it("recognizes only persisted account status values", () => {
+      for (const status of ["PENDING_APPROVAL", "APPROVED", "REJECTED", "SUSPENDED", "DISABLED"]) {
+        expect(isValidUserStatus(status)).toBe(true);
+      }
+      expect(isValidUserStatus("ROOT")).toBe(false);
+      expect(isValidUserStatus(1)).toBe(false);
+      expect(isValidUserStatus(null)).toBe(false);
     });
 
     it("enforces deny-by-default for unknown permissions", () => {
@@ -234,6 +244,29 @@ describe("Phase 5 — RBAC Permission Matrix & Deny-by-Default", () => {
       }
     });
 
+    it("denies a signed session containing an unknown account status", async () => {
+      const malformedUser: SessionUser = {
+        ...memberUser,
+        status: "ACTIVE" as unknown as SessionUser["status"],
+      };
+      const token = signSession(malformedUser);
+      const result = authorize(makeRequest(`prax_session=${token}`));
+      expect(result).toMatchObject({ authorized: false });
+      if (!result.authorized) {
+        expect(result.errorResponse.status).toBe(403);
+        expect(await result.errorResponse.json()).toMatchObject({
+          error: { code: "FORBIDDEN" },
+        });
+      }
+    });
+
+    it("fails closed when a route supplies an empty resource owner ID", async () => {
+      const token = signSession(memberUser);
+      const result = authorize(makeRequest(`prax_session=${token}`), { resourceOwnerId: "" });
+      expect(result).toMatchObject({ authorized: false });
+      if (!result.authorized) expect(result.errorResponse.status).toBe(403);
+    });
+
     it("blocks inactive account states with 403 ACCOUNT_NOT_ACTIVE", async () => {
       const statuses = ["REJECTED", "SUSPENDED", "DISABLED"] as const;
       for (const status of statuses) {
@@ -361,6 +394,17 @@ describe("Phase 5 — RBAC Permission Matrix & Deny-by-Default", () => {
         expect(location).toContain("callbackUrl=%2Fdashboard");
       });
 
+      it("redirects a malformed account status away from protected pages", () => {
+        const invalidUser = {
+          ...memberUser,
+          status: "ACTIVE" as unknown as SessionUser["status"],
+        };
+        const request = makeNextRequest("/space", `prax_session=${signSession(invalidUser)}`);
+        const response = proxy(request);
+        expect(response.status).toBe(307);
+        expect(response.headers.get("location")).toContain("error=invalid_account_state");
+      });
+
       it("redirects authenticated Member attempting direct URL access to /admin to /dashboard?error=access_denied", () => {
         const memberCookie = `prax_session=${signSession(memberUser)}`;
         const req = makeNextRequest("/admin/members", memberCookie);
@@ -421,6 +465,16 @@ describe("Phase 5 — RBAC Permission Matrix & Deny-by-Default", () => {
         expect(res.status).toBe(403);
         const json = await res.json();
         expect(json.error.code).toBe("FORBIDDEN");
+      });
+
+      it("blocks a malformed account status from protected API routes", async () => {
+        const invalidUser = {
+          ...memberUser,
+          status: "ACTIVE" as unknown as SessionUser["status"],
+        };
+        const request = makeNextRequest("/api/streaks", `prax_session=${signSession(invalidUser)}`);
+        const response = proxy(request);
+        expect(response.status).toBe(403);
       });
 
       it("blocks member direct API access to /api/invites with 403 FORBIDDEN", async () => {

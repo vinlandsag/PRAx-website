@@ -9,6 +9,7 @@ export interface TaskItem {
   createdAt?: string;
   checklist?: string[];
   status: "Open" | "Pending" | "Approved" | "Rejected";
+  lifecycle?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   statusNote?: string;
   thumbnailType: "code" | "terminal" | "bars" | "doc";
 }

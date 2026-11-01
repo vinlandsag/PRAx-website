@@ -81,18 +81,33 @@ vi.mock("@/lib/api/use-resource", () => ({
     if (path === "/api/tasks") data = { tasks: taskFixtures };
     else if (path?.startsWith("/api/tasks/"))
       data = { task: taskFixtures.find((task) => task.id === path.split("/").at(-1)) };
-    else if (path?.startsWith("/api/leaderboard"))
+    else if (path?.startsWith("/api/leaderboard")) {
+      const alltime = path.includes("period=alltime");
+      const currentUser = alltime
+        ? { id: "usr_member_01", name: "Test Builder", points: 1240, rank: 2, streak: 4 }
+        : { id: "usr_member_01", name: "Test Builder", points: 185, rank: 2, streak: 4 };
+      const offset = Number(new URLSearchParams(path.split("?")[1]).get("offset") ?? 0);
       data = {
-        entries: path.includes("alltime")
-          ? [
-              { id: "other", name: "Other Builder", points: 1610, rank: 1, streak: 8 },
-              { id: "usr_member_01", name: "Test Builder", points: 1240, rank: 2, streak: 4 },
-            ]
-          : [
-              { id: "other", name: "Other Builder", points: 301, rank: 1, streak: 8 },
-              { id: "usr_member_01", name: "Test Builder", points: 185, rank: 2, streak: 4 },
-            ],
+        entries:
+          offset >= 20
+            ? [{ id: "builder-21", name: "Builder 21", points: 20, rank: 21, streak: 1 }]
+            : alltime
+              ? [
+                  { id: "other", name: "Other Builder", points: 1610, rank: 1, streak: 8 },
+                  currentUser,
+                ]
+              : [
+                  { id: "other", name: "Other Builder", points: 301, rank: 1, streak: 8 },
+                  currentUser,
+                ],
+        total: 21,
+        pagination: { limit: 20, offset, total: 21, hasMore: offset === 0 },
+        currentUser,
+        userAhead: alltime
+          ? { id: "other", name: "Other Builder", points: 1610, rank: 1, streak: 8 }
+          : { id: "other", name: "Other Builder", points: 301, rank: 1, streak: 8 },
       };
+    }
     return { data, error: "", loading: false, refresh: mocks.refresh };
   },
 }));
@@ -332,6 +347,14 @@ describe("functional member controls", () => {
     expect(screen.getByText("1,240 points all time")).toBeDefined();
     expect(screen.getByText("#2")).toBeDefined();
     expect(screen.getByLabelText("All-time podium").textContent).toContain("Other Builder");
+  });
+  it("keeps the current user's standing available while paging leaderboard entries", () => {
+    render(<Leaderboard />);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("Builder 21")).toBeDefined();
+    expect(screen.getByText("#2")).toBeDefined();
+    expect(screen.getByText("/ 21 builders")).toBeDefined();
+    expect(screen.getByText("Showing 21–21 of 21")).toBeDefined();
   });
   it("edits own chat messages through three dots and disables foreign edits", async () => {
     render(<Chat />);

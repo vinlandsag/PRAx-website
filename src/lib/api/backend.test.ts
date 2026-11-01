@@ -23,7 +23,6 @@ import * as route18 from "@/app/api/dashboard/route";
 import * as route19 from "@/app/api/invites/[id]/route";
 import * as route20 from "@/app/api/invites/route";
 import * as route21 from "@/app/api/invites/verify/route";
-import * as route22 from "@/app/api/leaderboard/route";
 import * as route23 from "@/app/api/notifications/route";
 import * as route24 from "@/app/api/rubric/route";
 import * as route25 from "@/app/api/streaks/route";
@@ -32,6 +31,7 @@ import * as route27 from "@/app/api/tasks/[id]/route";
 import * as route28 from "@/app/api/tasks/route";
 import * as route29 from "@/app/api/users/me/route";
 import * as route30 from "@/app/api/workspace/route";
+import * as route31 from "@/app/api/submissions/[id]/route";
 const routes = [
   { path: "/api/admin/audit-log", handlers: route0 },
   { path: "/api/admin/reports", handlers: route1 },
@@ -55,7 +55,6 @@ const routes = [
   { path: "/api/invites/test-id", handlers: route19 },
   { path: "/api/invites", handlers: route20 },
   { path: "/api/invites/verify", handlers: route21 },
-  { path: "/api/leaderboard", handlers: route22 },
   { path: "/api/notifications", handlers: route23 },
   { path: "/api/rubric", handlers: route24 },
   { path: "/api/streaks", handlers: route25 },
@@ -64,6 +63,7 @@ const routes = [
   { path: "/api/tasks", handlers: route28 },
   { path: "/api/users/me", handlers: route29 },
   { path: "/api/workspace", handlers: route30 },
+  { path: "/api/submissions/test-id", handlers: route31 },
 ];
 const member: SessionUser = {
   id: "test-member",
@@ -76,23 +76,66 @@ beforeEach(() => vi.stubEnv("SESSION_SECRET", "test-only-secret-with-more-than-3
 afterEach(() => vi.unstubAllEnvs());
 for (const route of routes) {
   for (const [method, handler] of Object.entries(route.handlers)) {
-    if (!["GET", "POST", "PUT", "PATCH", "DELETE"].includes(method)) continue;
-    const invoke = (user?: SessionUser) =>
-      handler(
-        new Request("http://localhost" + route.path, {
-          method,
-          headers: user ? { cookie: "prax_session=" + signSession(user) } : {},
-        })
-      );
+    if (
+      !["GET", "POST", "PUT", "PATCH", "DELETE"].includes(method) ||
+      typeof handler !== "function"
+    )
+      continue;
+    const taskWrite =
+      (route.path === "/api/tasks" && method === "POST") ||
+      (route.path.startsWith("/api/tasks/") && method === "PATCH");
+    const submissionWrite =
+      (route.path === "/api/submissions" && method === "POST") ||
+      (route.path.startsWith("/api/submissions/") && ["PATCH", "DELETE"].includes(method));
+    const invoke = (user?: SessionUser) => {
+      const headers = new Headers(user ? { cookie: "prax_session=" + signSession(user) } : {});
+      let body: string | undefined;
+      if (taskWrite) {
+        headers.set("content-type", "application/json");
+        body =
+          method === "POST"
+            ? JSON.stringify({
+                title: "Synthetic task",
+                description: "Route boundary fixture",
+                category: "Testing",
+                pointsMax: 10,
+                dueAt: null,
+                checklist: [],
+              })
+            : JSON.stringify({ title: "Updated synthetic task" });
+      }
+      if (
+        (route.path === "/api/submissions" && method === "POST") ||
+        (route.path.startsWith("/api/submissions/") && method === "PATCH")
+      ) {
+        headers.set("content-type", "application/json");
+        body = JSON.stringify(
+          method === "POST"
+            ? {
+                taskId: "synthetic-task",
+                proofUrl: "https://example.test/proof",
+                note: "Synthetic proof note.",
+              }
+            : { note: "Updated synthetic proof note." }
+        );
+      }
+      const request = new Request("http://localhost" + route.path, { method, headers, body });
+      const routeHandler = handler as (
+        request: Request,
+        context?: { params: Promise<{ id: string }> }
+      ) => Promise<Response>;
+      return routeHandler(request, { params: Promise.resolve({ id: "test-id" }) });
+    };
     const publicApi = route.path.startsWith("/api/auth/") || route.path === "/api/invites/verify";
     const adminApi =
       route.path.startsWith("/api/admin/") ||
       (route.path.startsWith("/api/invites") && !publicApi) ||
       (route.path === "/api/rubric" && method === "PUT") ||
       ((route.path === "/api/tasks" || route.path.startsWith("/api/tasks/")) && method !== "GET");
+    const needsMember = submissionWrite;
     describe(method + " " + route.path, () => {
       it("never fabricates data, tokens or successful persistence", async () => {
-        const response = await invoke({ ...member, role: "ADMIN" });
+        const response = await invoke(needsMember ? member : { ...member, role: "ADMIN" });
         expect(response.status).toBe(503);
         expect(response.headers.get("cache-control")).toBe("no-store");
         expect(await response.json()).toEqual({
@@ -103,6 +146,7 @@ for (const route of routes) {
       it("preserves visitor and member access boundaries", async () => {
         expect((await invoke()).status).toBe(publicApi ? 503 : 401);
         expect((await invoke(member)).status).toBe(adminApi ? 403 : 503);
+        if (submissionWrite) expect((await invoke({ ...member, role: "ADMIN" })).status).toBe(403);
       });
     });
   }
