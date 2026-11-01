@@ -1,3 +1,22 @@
+## Profile connection follow-up (2026-11-01)
+
+- [x] Connect Profile reads/writes to the persisted signed-in User through a self-only API.
+- [x] Add validation, ownership/approval revalidation, field projection, duplicate-handle handling, session-name refresh, and UI loading/error/success/empty states.
+- [x] Add additive Prisma migration and unit tests without applying it to a database.
+- [ ] Review `20261101170000_user_profile_fields` and apply it to the intended Supabase project after confirming `.env.local` target; then sign in as a persisted approved account and verify profile save/reload in the browser.
+- [ ] Implement public member profile separately with an explicit public-field projection and portfolio privacy check.
+- [ ] Plan Personal Space persistence. Keep Chat and Personal Space separate from points/streak queries and obtain Person 4's privacy sign-off before defining Chat storage.
+
+## Settings connection follow-up (2026-11-01)
+
+- [x] Persist theme, review/streak/chat notification preferences, and portfolio visibility under the existing User identity.
+- [x] Reuse the own-profile endpoint for account name/handle/avatar and keep email/role read-only.
+- [x] Add self-only validated settings GET/PATCH routes and hydrate ThemeSync from persisted preference.
+- [x] Add route/service/UI regression tests; record final verification in TEST_LOG.md.
+- [ ] Review the profile and preferences additive migrations and apply them to the intended Supabase project only after verifying `.env.local`; then reload/re-login and verify saved settings.
+- [ ] Connect notification preference values to an actual delivery service when implemented.
+- [ ] Enforce `showPortfolio` in a future public member profile API; that read currently remains unavailable.
+
 ## Phase 9 — Performance tuning
 
 - [x] Inspect task browse/detail, submissions, leaderboard, profile/streak paths, Prisma query shapes and current indexes.
@@ -119,18 +138,18 @@ Prioritized task list. Each task has a status, owner, dependency, and acceptance
 | -------- | ------------------------------------------------- | ------ | ----- | ---------- | ------------------------------------------------------------------------------------------------ |
 | P0       | Implement Phase 7 Rubric Engine & Points Boundary | DONE   | P1    | Phase 6    | Editable rubric, versioning, contract with Person 3, boundary validation, 146/146 pass (P1 100%) |
 | P0       | Decide DB hosting (D-005)                         | DONE   | P3    | —          | Supabase/PostgreSQL and Prisma ORM 7 recorded in D-024                                           |
-| P1       | Sign off `MVP_SPEC.md` assumption A-003            | TODO   | All   | Phase 1    | A-006 superseded by user-confirmed D-028; confirm remaining A-003 separately                     |
+| P1       | Sign off `MVP_SPEC.md` assumption A-003           | TODO   | All   | Phase 1    | A-006 superseded by user-confirmed D-028; confirm remaining A-003 separately                     |
 | P1       | Sign off integration contracts IC-01 to IC-08     | IN_PRG | All   | —          | IC-01, IC-04, IC-06, IC-06B, IC-Admin-Review AGREED                                              |
 | P1       | Decide real-time approach (D-003)                 | TODO   | P4    | —          | D-003 row updated in `DECISIONS.md`                                                              |
 
 ### Phase 8 — Person 2 (Frontend) & Person 3 (Backend) Tasks & Submissions
 
-| Priority | Task                                                                                                          | Status | Owner | Depends On   | Acceptance Criteria                                         |
-| -------- | ------------------------------------------------------------------------------------------------------------- | ------ | ----- | ------------ | ----------------------------------------------------------- |
-| P1       | Implement Task creation, listing, and detail APIs (`GET /api/tasks`, `GET /api/tasks/:id`, `POST /api/tasks`) | DONE   | P3    | Phase 7      | Implemented; auth persistence and DB integration remain pending |
-| P1       | Implement Submission workflow (`DRAFT` -> `SUBMITTED` -> `UNDER_REVIEW` -> `APPROVED`/`REJECTED`)             | IN_PRG | P3/P2 | Tasks API    | Member/admin APIs implemented; PostgreSQL core-loop suite awaits reachable TEST_DATABASE_URL |
-| P1       | Implement Points Calculation Engine & Streaks Cron                                                            | IN_PRG | P3    | Submissions  | Engine and review integration implemented; verify DB-time fix and live Cron setup in test project |
-| P1       | Install Prisma ORM and generate schema v1                                                                     | DONE   | P3    | D-024        | Prisma 7 schema/migrations generated; latest additive migration pending deployment |
+| Priority | Task                                                                                                          | Status | Owner | Depends On  | Acceptance Criteria                                                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------- | ------ | ----- | ----------- | ------------------------------------------------------------------------------------------------- |
+| P1       | Implement Task creation, listing, and detail APIs (`GET /api/tasks`, `GET /api/tasks/:id`, `POST /api/tasks`) | DONE   | P3    | Phase 7     | Implemented; auth persistence and DB integration remain pending                                   |
+| P1       | Implement Submission workflow (`DRAFT` -> `SUBMITTED` -> `UNDER_REVIEW` -> `APPROVED`/`REJECTED`)             | IN_PRG | P3/P2 | Tasks API   | Member/admin APIs implemented; PostgreSQL core-loop suite awaits reachable TEST_DATABASE_URL      |
+| P1       | Implement Points Calculation Engine & Streaks Cron                                                            | IN_PRG | P3    | Submissions | Engine and review integration implemented; verify DB-time fix and live Cron setup in test project |
+| P1       | Install Prisma ORM and generate schema v1                                                                     | DONE   | P3    | D-024       | Prisma 7 schema/migrations generated; latest additive migration pending deployment                |
 
 ---
 
@@ -339,6 +358,7 @@ User supplied a screenshot of magic-link mode showing a development token. Read-
 - [ ] Review removal of `authorEmail` from the owner/admin submission detail DTO with API owners; current contract includes it, but no frontend usage was found.
 - [ ] Run the 28 PostgreSQL integration tests against a separate migrated `TEST_DATABASE_URL`; do not use primary Supabase for synthetic fixtures.
 - [ ] Verify RLS and StreakDay security-definer functions in a non-production migrated Supabase branch before deployment.
+
 # Phase 11 — Release readiness & handoff (2026-11-01)
 
 - [x] Document clean install and env placeholders; preserve secrets in ignored `.env.local` only.
@@ -364,3 +384,99 @@ User supplied a screenshot of magic-link mode showing a development token. Read-
 - [ ] Continue Phase 11 release tasks: coordinate with Person 5, confirm target project/migrations/backups, verify Supabase Cron, and obtain explicit deployment approval before any deploy.
 
 This entry supersedes older checklist statements that persisted registration/login/current-user and admin approval are unimplemented. Phase 8 security notes about these specific routes being 503 are historical; see the 2026-11-01 auth handoff in `AGENT_HANDOFF.md`.
+
+## Waiting-page session handoff (2026-11-01)
+
+- [x] Successful registration issues a signed pending-member cookie and opens the existing onboarding page.
+- [x] Verify server middleware keeps PENDING_APPROVAL accounts out of all workspace pages/APIs.
+- [x] Waiting page polls persisted status and routes to the member dashboard only after approval.
+- [ ] Run the PostgreSQL auth integration suite from a host that can reach the separate test database and confirm the user's browser flow with a newly issued invite.
+
+## First-admin setup follow-up (2026-11-01)
+
+- [x] Confirm schema migration status is current (user reported) and runtime `DATABASE_URL` read-only connectivity succeeds (user reported).
+- [x] Change bootstrap advisory lock result to Prisma-safe integer and add regression assertion.
+- [ ] Restart local Next dev server and retry bootstrap using a new password; earlier password was exposed in chat. Confirm whether response is `201` or report only HTTP code/message.
+- [ ] If HTTP 500 persists, capture safe server-side Prisma error code without logging credentials or raw request data, then fix the underlying database transaction issue.
+- [ ] Keep `.env.local`, Supabase URLs, bootstrap token, and passwords out of chat; don't rerun migrations for this code-only fix.
+
+The bootstrap still returned HTTP 500 after the first SQL adjustment. Safe stage/code logging is now implemented and tested. Restart the local dev server before retrying; use only the new diagnostic line to continue. No migration/deploy is needed.
+
+Latest diagnostic: `P2028` at transaction stage. Explicit 10-second max wait and 15-second timeout were implemented and locally tested. The user reports bootstrap then succeeded (HTTP 201).
+
+- [x] Bootstrap succeeded in user's local environment (reported HTTP 201, 5.1s).
+- [ ] Remove `FIRST_ADMIN_BOOTSTRAP_TOKEN` from `.env.local` and restart PRAX.
+- [ ] Sign in with the new admin account and create/copy an invite under Admin → Members.
+- [ ] Commit/push the local bootstrap transaction/logging fix if the user requests delivery; currently local `main` has these uncommitted changes.
+
+# Phase 5 remaining-tab integration (2026-11-01)
+
+- [x] Connect member Dashboard to persisted points, approved submissions, streak, and weekly leaderboard.
+- [x] Add route tests for authentication, metrics, empty result, account-state denial, and user scoping.
+- [x] Inventory other existing tabs and verify their current endpoints/failure causes in `API_CONTRACTS.md`.
+- [ ] Resolve Person 4 privacy/ownership and persistence/storage/transport contract before Personal Space, Chat, chat attachments, or moderation reports.
+- [ ] Define a durable notification event/read model and delivery policy before implementing `/api/notifications`.
+- [ ] Define rubric persistence/versioning and compatibility with review approval before implementing `/api/rubric`.
+- [ ] Define audit schema, event scope, retention and access policy before implementing `/api/admin/audit-log`.
+- [ ] Specify allowed admin member lifecycle transitions/reason semantics; then implement and test reject/suspend/disable/unsuspend routes already called by the admin UI.
+- [ ] Re-run full unit suite, lint, and production build after remaining service decisions/implementation; current Phase 5 run only covered Dashboard tests and typecheck.
+
+# Phase 6 API/database integration review (2026-11-01)
+
+- [x] Confirm Dashboard uses shared Prisma client/PostgreSQL adapter, existing session and persisted account guard, standard responses, and safe logs.
+- [x] Confirm no schema or API contract change is needed; no migration or database operation performed.
+- [x] Rerun focused Dashboard tests (4/4), typecheck, and whitespace validation.
+- [ ] Continue Phase 5 integrations only after required storage, privacy, event, and lifecycle contracts are agreed; see the Phase 5 matrix above.
+
+# Phase 7 — connected-page test verification (2026-11-01)
+
+- [x] Add Dashboard page checks for loading, empty result, populated result, API failure, and functioning retry.
+- [x] Add Settings page checks for load, preference save, server response after remount, and functioning retry.
+- [x] Re-run existing Profile API/service/component tests and verify signed-in ownership and denial cases.
+- [x] Run full unit suite (379 pass / 35 skipped), typecheck, targeted ESLint, and Webpack production build (50 pages).
+- [ ] Restore reachability of the separate test database and run `npm run test:integration`; current attempt stopped before tests.
+- [ ] Apply reviewed profile/preferences migrations to the intended database, then verify real Profile/Settings save and refresh with an approved account.
+- [ ] Resolve the 13 existing repository-wide lint errors in `praxora-admin` in its own scoped task.
+- [ ] Perform an authenticated browser smoke test when a browser automation environment is available.
+
+# Phase 8 documentation handoff / remaining integrations (2026-11-01)
+
+## Connected in the current worktree
+
+- [x] Dashboard: Prisma-backed self summary from approved point ledger/submissions, existing IST leaderboard and Streak.
+- [x] Profile: own profile `GET/PATCH /api/users/me/profile`; server validation and caller ownership.
+- [x] Settings: own preferences `GET/PATCH /api/users/me/settings`; account edits reuse Profile API.
+- [x] Tasks, submissions, leaderboard, streaks, admin review, invites/member approval, and auth endpoints exist; separate live verification limitations are documented in `TEST_LOG.md`.
+- [x] Add Dashboard/Settings page tests and document root causes, endpoints, exact connected files, test results, and next-agent steps.
+
+## Remaining or not live-verified
+
+- [ ] Review migrations `20261101170000_user_profile_fields` and `20261101173000_user_preferences`, confirm intended Supabase target, obtain DB-owner approval, apply, and verify status. Do not expose `.env.local` contents.
+- [ ] Restore separate test DB reachability and rerun `npm run test:integration`; last attempt stopped at preflight and ran no tests.
+- [ ] Run authenticated browser/real DB Profile and Settings save-reload/second-user denial checks after migrations. Current UI tests mock HTTP.
+- [ ] Workspace/Personal Space/Chat/attachments: currently explicit 503; define persistence, ownership, privacy and storage/transport with Person 4 before schema work.
+- [ ] Notifications: define persisted events/read state and delivery policy; current endpoint returns explicit 503.
+- [ ] Rubric: define persistence/versioning and review compatibility; current endpoint returns explicit 503 and approval uses server-owned `mvp-default-v1`.
+- [ ] Moderation reports and durable audit: define source tables, event/retention and access policies; endpoints return explicit 503.
+- [ ] Admin reject/suspend/disable/unsuspend: define allowed transitions and reason semantics, then implement/tests; current actions return explicit 503.
+- [ ] Resolve existing repository-wide lint failures in `praxora-admin` in a separate scoped task. Use `npx next build --webpack` here because sandbox restrictions block Turbopack's child process/port operation.
+- [ ] Keep worktree changes uncommitted/unpushed unless separately requested; no deployment authorization was given.
+
+# Admin sign-in follow-up (2026-11-01)
+
+- [x] Confirm screenshot reports the existing login 429 limiter, not a password rejection.
+- [ ] Stop the local PRAX dev server with Ctrl+C and restart it (or wait 15 minutes from the last failed attempt).
+- [ ] Sign in with the exact email/password used for successful first-admin bootstrap; verify locally that the current app uses the same database project.
+- [ ] If the correct password is unavailable, obtain an approved admin password-recovery procedure. Do not bootstrap a second admin or edit Supabase rows manually; no password-reset endpoint exists.
+
+# Sign-out follow-up (2026-11-01)
+
+- [x] Make global logout reachable without loading Settings or Profile data.
+- [ ] User should refresh localhost:3000 and click **Sign out** in the header; verify redirect to `/login`.
+- [ ] Separately investigate why the intended admin account is marked inactive before granting access; do not bypass approval/status checks.
+
+# Registration 500 follow-up (2026-11-01)
+
+- [x] Add safe stage/Prisma-code diagnostics and regression coverage for unexpected registration failures.
+- [x] Match registration transaction limits to bootstrap after observing P2028.
+- [ ] Restart/reload local server and retry once with a fresh invite; confirm 201 or capture only safe stage/code if it still fails.

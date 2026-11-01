@@ -68,9 +68,7 @@ database("auth and invite PostgreSQL integration", () => {
   });
 
   it("registers as pending, approves through an admin route, then logs in and reads current identity/tasks", async () => {
-    const inviteResponse = await createInvite(
-      jsonRequest("/api/invites", { maxUses: 1 }, admin)
-    );
+    const inviteResponse = await createInvite(jsonRequest("/api/invites", { maxUses: 1 }, admin));
     expect(inviteResponse.status).toBe(201);
     const code = (await inviteResponse.json()).invite.code as string;
 
@@ -88,8 +86,12 @@ database("auth and invite PostgreSQL integration", () => {
     );
     expect(registration.status).toBe(201);
     const pending = (await registration.json()).user;
-    expect(pending).toMatchObject({ email: memberEmail, role: "MEMBER", status: "PENDING_APPROVAL" });
-    expect(registration.headers.get("set-cookie")).toBeNull();
+    expect(pending).toMatchObject({
+      email: memberEmail,
+      role: "MEMBER",
+      status: "PENDING_APPROVAL",
+    });
+    expect(cookieFrom(registration)).not.toBe("");
 
     const exhausted = await verifyInvite(jsonRequest("/api/invites/verify", { code }));
     expect(exhausted.status).toBe(400);
@@ -115,14 +117,14 @@ database("auth and invite PostgreSQL integration", () => {
     );
     expect(me.status).toBe(200);
     expect((await me.json()).user).toMatchObject({ id: pending.id, status: "APPROVED" });
-    const tasks = await listTasks(new Request("http://localhost/api/tasks", { headers: { cookie } }));
+    const tasks = await listTasks(
+      new Request("http://localhost/api/tasks", { headers: { cookie } })
+    );
     expect(tasks.status).toBe(200);
   });
 
   it("atomically allows only one registration to consume a single-use invite under concurrency", async () => {
-    const inviteResponse = await createInvite(
-      jsonRequest("/api/invites", { maxUses: 1 }, admin)
-    );
+    const inviteResponse = await createInvite(jsonRequest("/api/invites", { maxUses: 1 }, admin));
     expect(inviteResponse.status).toBe(201);
     const code = (await inviteResponse.json()).invite.code as string;
     const registrations = await Promise.all(
@@ -148,9 +150,11 @@ database("auth and invite PostgreSQL integration", () => {
 
   it("rolls back invite use when normalized email uniqueness rejects the registration", async () => {
     const duplicateEmail = `${runId}-rollback@example.test`;
-    const firstInvite = (await createInvite(
-      jsonRequest("/api/invites", { maxUses: 1 }, admin)
-    ).then((response) => response.json())).invite;
+    const firstInvite = (
+      await createInvite(jsonRequest("/api/invites", { maxUses: 1 }, admin)).then((response) =>
+        response.json()
+      )
+    ).invite;
     const first = await register(
       jsonRequest("/api/auth/register", {
         name: "Duplicate Test User",
@@ -161,9 +165,11 @@ database("auth and invite PostgreSQL integration", () => {
     );
     expect(first.status).toBe(201);
 
-    const secondInvite = (await createInvite(
-      jsonRequest("/api/invites", { maxUses: 1 }, admin)
-    ).then((response) => response.json())).invite;
+    const secondInvite = (
+      await createInvite(jsonRequest("/api/invites", { maxUses: 1 }, admin)).then((response) =>
+        response.json()
+      )
+    ).invite;
     const duplicate = await register(
       jsonRequest("/api/auth/register", {
         name: "Duplicate Test User",

@@ -47,12 +47,14 @@ Open `http://127.0.0.1:3000/login`; check `http://127.0.0.1:3000/api/health`. St
 
 ## Database and migration procedure
 
-There are four checked-in migrations, in order:
+There are six checked-in migrations, in order:
 
 1. `20261031100000_initial` — reused `User`/`InviteCode` models and task, submission, points, streak tables, constraints, indexes, and RLS enabled without browser policies.
 2. `20261031210000_submission_lifecycle` — `WITHDRAWN` status and one-active-attempt partial unique index.
 3. `20261031230000_leaderboard_indexes` — submission status and points time indexes.
 4. `20261031233000_ist_streak_engine` — `StreakDay` and secured database streak functions.
+5. `20261101170000_user_profile_fields` — editable profile fields on the existing `User` table.
+6. `20261101173000_user_preferences` — one-to-one account preference record for theme, notification preferences, and portfolio visibility.
 
 Do not use the historical Supabase CLI schema/seed scaffold; Prisma is the sole migration owner. Before applying a migration, independently confirm the intended Supabase project and connection target, inspect the migration diff, ensure a recoverable backup/PITR point exists, and apply to staging first. With the correct local `.env.local` set:
 
@@ -115,7 +117,7 @@ Logs are allowlisted to fixed error event names and a validated opaque request I
 
 ## Performance evidence
 
-`TEST_LOG.md` records the Phase 9 synthetic test-project dataset and before/after p50/p95/max timings: 501 users, 2,500 tasks, 10,000 approved submissions, 10,000 ledger rows, 42 streak days; five warmups and 30 route-handler samples. All seven measured endpoint p95s were below two seconds for that environment. Timings exclude network/TLS/client latency. `GET /api/workspace` remains a 503 seam, so profile reads were not measured. These numbers are not a general production guarantee.
+`TEST_LOG.md` records the Phase 9 synthetic test-project dataset and before/after p50/p95/max timings: 501 users, 2,500 tasks, 10,000 approved submissions, 10,000 ledger rows, 42 streak days; five warmups and 30 route-handler samples. All seven measured endpoint p95s were below two seconds for that environment. Timings exclude network/TLS/client latency. At the time of that benchmark, `GET /api/workspace` was a 503 seam, so own-profile and settings reads were not measured. These numbers are not a general production guarantee.
 
 ## Rollback and incident notes
 

@@ -1,3 +1,8 @@
+## 2026-11-01 — Phase 3 authenticated profile
+
+- Added tests for self-owned GET selection, anonymous denial, persisted account mismatch, valid profile update, session name refresh, forged user-ID rejection, invalid links/handle/skills, cross-origin rejection, suspended-account denial, duplicate-handle conflict, field normalization, stable fallback handle, and UI loading/optional empty/success/error/retry states.
+- Commands/results are recorded after the run below; no database migration was applied and no live Supabase integration is claimed for the mocked Prisma route tests.
+
 ## Phase 9 performance reconnaissance (2026-11-01)
 
 - Branch check: fetched origin; GitHub PR #4 is merged at `origin/main` `217b340`; working branch `milan` matches `origin/milan` `19ff1ea`.
@@ -1064,3 +1069,125 @@ The user ran `npm run db:migrate:deploy` and provided output showing `2026103121
 - **Failed, environment restricted:** default `npm run build` Turbopack panic while creating a process/binding to a port (`Operation not permitted`); webpack build passed as an alternative.
 - **Not run (guard stopped before tests):** `npm run test:integration` — reported separate test database unreachable. This attempt executed no integration tests and made no database writes. The three new auth/invite PostgreSQL integration tests remain unverified here; prior 31-test user-reported integration result did not include these new tests.
 - **Not run:** migration, seed, Supabase SQL, Cron update, deployment, commit or push.
+
+## First-admin bootstrap 500 follow-up (2026-11-01)
+
+- **User-reported:** `npx prisma migrate status` reports all four migrations applied; a `pg` client using runtime `DATABASE_URL` successfully executes read-only `SELECT 1`.
+- **Passed:** `npm test -- src/app/api/auth/auth-routes.test.ts` — 11/11.
+- **Passed:** `npm run typecheck`.
+- **Passed:** `npx eslint src/app/api/auth/bootstrap-admin/route.ts src/app/api/auth/auth-routes.test.ts` and `git diff --check`.
+- **Failed:** full `npm run lint` — 13 errors and warnings in the merged `praxora-admin` subtree (including React set-state-in-effect and undefined `CheckSquare`); the changed bootstrap files pass targeted lint.
+- **Not run:** bootstrap retry or database integration test. A Prisma-safe scalar return was added to the advisory-lock query, but live behavior is unconfirmed. No DB write/migration by the agent.
+
+### Sanitized bootstrap diagnostics follow-up (2026-11-01)
+
+- **Passed:** `npm test -- src/lib/api/logger.test.ts src/app/api/auth/auth-routes.test.ts` — 15/15 tests.
+- **Passed:** `npm run typecheck`; targeted ESLint for bootstrap/logger files; `git diff --check`.
+- **Not run:** bootstrap retry. It returned HTTP 500 again before sanitized stage/code logging was added. Restart local server before next retry; the JSON diagnostic should now include only a stage and safe code.
+- **Not run:** full lint after this small follow-up. Its prior run failed on unrelated merged `praxora-admin` files.
+
+### Prisma P2028 follow-up (2026-11-01)
+
+- **User-reported:** sanitized bootstrap log showed `stage=database_transaction`, `code=P2028`.
+- **Passed:** `npm test -- src/app/api/auth/auth-routes.test.ts src/lib/api/logger.test.ts` — 15/15; asserts the longer interactive transaction wait/timeout.
+- **Passed:** `npm run typecheck`, targeted ESLint for changed auth/logger files, and `git diff --check`.
+- **Not run:** user bootstrap retry or database integration tests. No DB write/migration by the agent.
+
+- **User-reported follow-up:** `POST /api/auth/bootstrap-admin` returned HTTP 201 in 5.1s after the explicit transaction wait/timeout change. This confirms success in the user's local environment; no bootstrap request was sent by the agent.
+
+## Phase 3 — Connect authenticated Profile (2026-11-01)
+
+- **Passed:** `npm test` — 361 passed, 35 skipped, 38 test files. Skipped suites are PostgreSQL integration/performance tests requiring the separately configured integration DB.
+- **Passed:** `npm run typecheck` (`tsc --noEmit`; Prisma Client generation passed).
+- **Passed:** `npx next build --webpack` — optimized production build, TypeScript, and static generation completed (49/49 pages).
+- **Passed:** targeted ESLint for changed profile route/service/component and related interaction tests; `git diff --check`.
+- **Failed:** `npm run lint` — 13 errors and 73 warnings across existing `praxora-admin` files; observed errors include React set-state-in-effect and undefined `CheckSquare`. Profile files had no lint errors in the targeted run.
+- **Passed:** `npm run db:validate` was run before final verification; Prisma Client generation also passed. The additive profile migration was **not applied** and no DB write/browser verification was performed.
+- **Not run:** separate-DB integration suite, because this environment did not have the user-confirmed test DB available. Supabase live profile read/write remains for the user to verify after applying the migration locally.
+
+## Phase 4 — Connect Settings (2026-11-01)
+
+- **Passed:** `npm run db:generate`, `npm run db:validate`, and `npx prisma format`.
+- **Passed:** `npx vitest run` — 371 passed, 35 skipped, 40 files. Skipped suites require the separate PostgreSQL integration/performance database.
+- **Passed:** `npx tsc --noEmit` and targeted ESLint for all changed Settings, settings API/service/tests, and theme synchronization files.
+- **Passed:** `npx next build --webpack` — optimized production build, TypeScript and static generation completed for 50/50 pages.
+- **Failed:** `npm run lint` — 13 errors and 73 warnings in the existing merged `praxora-admin` subtree. The changed Settings files pass targeted ESLint.
+- **Not run:** database integration tests or a live browser/database save-and-reload. `UserPreferences` migration `20261101173000_user_preferences` and preceding profile migration `20261101170000_user_profile_fields` were not applied to any database. Two initial attempts to run test/typecheck/build concurrently collided in Prisma Client generation (`EEXIST`); sequential regeneration and the checks listed above passed.
+# Phase 5 Dashboard verification (2026-11-01)
+
+**Passed**
+
+- `npm test -- --run src/app/api/dashboard/dashboard-route.test.ts` — 1 file, 4 tests passed. This command ran the existing `pretest` Prisma client generation first.
+- `npm run typecheck` — exit 0 (`tsc --noEmit`); pretypecheck generated Prisma Client.
+
+The route tests cover unauthenticated access, normal caller-scoped metrics/activity, zero/empty data, and denial when the persisted account is no longer approved. They use mocked Prisma/service boundaries; no database or browser request was made.
+
+Additional Phase 5 checks: full `npm test` passed (34 files / 375 tests passed; 7 database/performance integration files / 35 tests skipped because opt-in DB variables were not configured). Targeted ESLint and targeted TS-source Prettier checks passed. `git diff --check` passed. `npm run build` (default Turbopack) failed because the sandbox denied a child process port bind during CSS parsing; `npx next build --webpack` then passed, including TypeScript and 50/50 generated pages. A Prettier check over the whole set of journal documents reported formatting differences; these files contain prior uncommitted work, so they were not reformatted wholesale. Full-repository lint was not run.
+# Phase 6 API/database integration recheck (2026-11-01)
+
+- `npm test -- --run src/app/api/dashboard/dashboard-route.test.ts` — passed, 1 file / 4 tests. Prisma client generation ran through the existing `pretest` hook.
+- `npm run typecheck` — passed (`tsc --noEmit`); Prisma client generation ran through `pretypecheck`.
+- `git diff --check` — passed.
+- No integration database was contacted; no migration was applied. No product code or endpoint response changed during this audit.
+# Phase 7 affected-page tests and project checks (2026-11-01)
+
+**Passed**
+
+- Focused API/service/component suite for Dashboard, Profile, and Settings: 34 tests across 7 files passed before adding page-level cases.
+- `npm test -- --run src/app/dashboard/page.test.tsx src/app/settings/page.test.tsx`: 2 files / 4 tests passed. It covers initial loading, Dashboard empty state, populated data, both pages' error/retry behavior, Settings preference update, and re-reading the saved response after remount using mocked HTTP.
+- Final `npm test`: 36 test files passed, 7 integration/performance files skipped; 379 tests passed, 35 skipped (414 total).
+- `npm run typecheck`: passed (`tsc --noEmit`; Prisma Client generation passed).
+- Targeted `npx eslint` on affected handlers/pages/tests: passed.
+- `npx next build --webpack`: passed; production compile and TypeScript passed, all 50 static pages generated.
+- `git diff --check`: passed.
+
+**Failed / blocked**
+
+- `npm run lint`: failed with 13 errors and 73 warnings in the existing `praxora-admin` subtree; the affected PRAX files passed targeted ESLint.
+- `npm run build` (default Turbopack): failed because sandbox permissions denied a child process port bind during CSS compilation. The Webpack build above passed.
+- `npm run test:integration`: safety preflight reported the separate test database unreachable; no tests ran and no fixtures were written.
+
+**Not verified**
+
+- Database-backed Profile/Settings persistence through a real refresh/re-login; page tests mock HTTP, and the integration DB is unreachable. The migrations remain unapplied per prior project notes.
+- An authenticated browser/network smoke test; no browser automation tool is available in this session.
+- Cross-user database isolation against a live DB. Route tests verify session-derived IDs, forged-ID rejection, and inactive-account denial with mocked Prisma.
+
+A newly added Dashboard retry test initially asserted the wrong DOM selector for the existing StatCard implementation; corrected to query rendered text. The focused rerun and final full suite passed. This initial test-authoring failure did not indicate a product defect.
+# Phase 8 documentation handoff verification (2026-11-01)
+
+Phase 8 made documentation-only edits; no product behavior changed, so checks were not rerun. The latest executed Phase 7 results remain:
+
+- `npm test`: passed, 36 files / 379 tests; 7 database/performance files / 35 tests skipped.
+- Focused Dashboard/Profile/Settings API/service/component suite: 34 tests across 7 files passed; additional Dashboard/Settings page suite: 4 tests passed.
+- `npm run typecheck`: passed.
+- Targeted ESLint and formatting check for new page tests: passed.
+- `npm run lint`: failed with 13 errors and 73 warnings in existing `praxora-admin` files; affected PRAX files passed targeted ESLint.
+- `npm run build`: failed in Turbopack because sandbox permissions denied a child-process port bind. `npx next build --webpack` passed and generated 50/50 pages.
+- `npm run test:integration`: stopped at the safe preflight because the separate test database was unreachable; no tests/fixtures ran.
+- No browser automation or live Profile/Settings save-and-refresh flow was performed. Their page tests mock HTTP; the pending migrations are not evidence of deployment.
+
+No product tests were rerun solely to validate these documentation changes. `git diff --check` passed after the documentation edits.
+# Admin sign-in screenshot diagnosis (2026-11-01)
+
+- User-provided browser screenshot shows the `RATE_LIMITED` message. Source inspection confirmed `RATE_LIMIT_POLICIES.login` is five attempts per 15 minutes and `rateLimitStore` is process-local memory.
+- No HTTP login attempt, browser automation, account mutation, or database request was performed. This confirms only that the request was rate-limited before password/account validation; it does not verify the credentials or account's database project.
+- Recovery: wait 15 minutes after the last attempt or restart the local dev-server process. Then use the exact bootstrap email/password. The visible email differs from the prior bootstrap terminal exchange; no values are repeated here.
+# 2026-11-01 — Global sign-out control
+
+- `npm test -- --run src/components/layout/TopNav.test.tsx` — passed, 1 file / 2 tests. Covers endpoint call and `/login` redirect on success, and visible accessible error feedback without redirect on HTTP failure.
+- The first test run failed because this repository does not install jest-dom matchers (`toHaveTextContent`); the assertion was changed to inspect `textContent`, then the rerun passed.
+- Typecheck/format/status checks are recorded at session close below.
+
+Session close results: `npm run typecheck` passed; targeted `npx eslint src/components/layout/TopNav.tsx src/components/layout/TopNav.test.tsx` passed; `npx prettier --check src/components/layout/TopNav.tsx src/components/layout/TopNav.test.tsx` passed; `git diff --check` passed; `npx next build --webpack` passed and generated 50/50 pages. No database or browser operation was performed.
+# 2026-11-01 — Registration failure diagnostics
+
+- Added an auth route unit test that simulates a Prisma P2028 transaction failure and verifies the HTTP 500 log includes only `stage=database_transaction` and `code=P2028`, excluding the injected private error text.
+- `npm test -- --run src/app/api/auth/auth-routes.test.ts` — passed, 12/12 tests.
+- `npm run typecheck`, targeted ESLint, targeted Prettier check, and `git diff --check` passed. Build was not rerun for this logging-only route change; the previous sign-out follow-up build passed.
+- After adding explicit registration transaction limits (`maxWait: 10_000`, `timeout: 15_000`) in response to the reported P2028, the auth route suite passed again (12/12), typecheck passed, targeted ESLint/Prettier and `git diff --check` passed, and `npx next build --webpack` passed (50/50 pages). Live registration retry remains pending.
+# 2026-11-01 — Registration waiting flow
+
+- `npm test -- --run src/app/api/auth/auth-routes.test.ts src/app/onboarding/page.test.tsx src/lib/auth/rbac.test.ts` — passed, 3 files / 52 tests. Covers signed pending registration cookie, onboarding access, dashboard redirect and protected API denial, waiting-page polling and approval redirect, plus existing RBAC cases.
+- `npm run typecheck`, targeted ESLint and Prettier checks, and `git diff --check` passed. `npx next build --webpack` passed and generated 50/50 pages.
+- PostgreSQL auth integration remains opt-in and was not run against the separate test DB in this environment; real browser approval polling was not exercised.

@@ -1,3 +1,7 @@
+## 2026-11-01 — Authenticated own-profile boundary
+
+`/api/users/me/profile` accepts no user identifier and always queries/updates by the persisted account ID matched to the signed session. It revalidates approved account status and role/name using `requirePersistedAccount`; a missing or mismatched account is denied. The profile query selects only profile columns and ID needed for fallback handle generation, never email or passwordHash. PATCH uses same-origin validation, bounded JSON, an allowlist of editable fields, length/shape limits, credential-free HTTP(S)-only URLs, and a unique database handle constraint. The response is private/no-store. The updated name claim is re-signed so subsequent persisted-account checks continue to pass. Display metrics are read-only projections from the existing points ledger, leaderboard, streak, and approved-submission records; profile input cannot modify them. This API does not access Chat or Personal Space data or affect their privacy boundaries.
+
 ## Performance benchmark data boundary (2026-11-01)
 
 Phase 9 used only the separate migrated test Supabase project and synthetic records. The opt-in harness checks that its project differs from `DATABASE_URL` and `DIRECT_URL`, scopes rows with a random `perf-` prefix, and deletes only those rows during cleanup. It does not print connection strings or write user content; no primary-project fixture or load test was run. Keep `TEST_DATABASE_URL` local and never commit or share it.
@@ -369,3 +373,37 @@ The user reports the database-backed integration suite passed after fixes: 31/31
 - First-admin bootstrap requires a temporary secret header and same-origin request; endpoint is hidden unless configured. PostgreSQL transaction advisory lock serializes calls, and persisted ADMIN count prevents any second bootstrap admin. Bootstrap returns no session. Operator must remove the token and restart after success.
 - Registration/login/invite/bootstrap rate limits are in process memory. A multi-instance deployment needs a shared edge/provider rate limit before production exposure. The current schema has no durable admin audit model; invite creation/revocation and approval are not recorded as durable audit events.
 - Auth route unit tests passed. The auth PostgreSQL integration suite could not run because the test DB preflight failed on unreachable host; no database writes occurred in this verification. No migration or deploy was performed. Verify the full flow using a separate isolated test database before release.
+
+### Bootstrap transaction follow-up
+
+The initial-admin route's advisory lock now returns an integer through a materialized CTE instead of exposing PostgreSQL `void` to Prisma raw-result decoding. Lock scope and transaction are unchanged. This is a suspected fix for the user's HTTP 500 after read-only DB connectivity succeeded; live retry is pending. The password the user entered into chat must be considered compromised and should not be reused.
+
+After another HTTP 500, bootstrap now logs only its fixed processing stage and a validated Prisma error code. Raw database error text and request values remain suppressed. Use the diagnostic line from the local server terminal for troubleshooting; never share the token/password/URL.
+
+The reported sanitized code was `P2028` during the transaction. The bootstrap transaction now waits up to 10 seconds for a connection and has a 15-second execution timeout; atomicity and transaction-scoped locking are unchanged. Retry remains unverified.
+
+The user subsequently reported HTTP 201 for bootstrap. The one-time admin was created. Remove the bootstrap token from `.env.local` and restart the server so the endpoint is disabled; do not reuse the password previously shared in chat.
+
+### Settings preferences boundary (2026-11-01)
+
+`GET/PATCH /api/users/me/settings` takes identity only from the signed session and revalidates the matching persisted approved account. Reads select only the one-to-one preference row and return account email/role from authenticated account context; writes enforce same-origin, bounded JSON, strict allowlisting, enum/boolean validation, and upsert using the server-derived user ID. User IDs, roles, account state, email, and password are not editable through this endpoint. The new preferences table has RLS enabled with no browser-facing policy; the app accesses it through the existing server-side Prisma connection. Preferences grant no authorization and are not read by points/streak or private Chat/Personal Space services. Theme is a display preference; notification toggles do not imply delivery. Portfolio visibility is saved but not yet enforced by a public profile API, which remains a documented 503 seam.
+# Phase 5 Dashboard boundary (2026-11-01)
+
+`GET /api/dashboard` authenticates the existing signed session, then revalidates the corresponding persisted approved account. All per-user database filters use that persisted account ID, never a request parameter. Only approved submissions contribute to visible task count/activity, and only ledger entries linked to approved submissions contribute points. The response contains no email, proof, chat, Personal Space, or other user's private data. Dashboard is `no-store`. Other tabs that currently return the deliberate 503 remain unavailable; do not enable them with client-only authorization or process-local substitute data.
+# Phase 6 Dashboard data access review (2026-11-01)
+
+The Dashboard integration uses the existing signed cookie guard, then rechecks the persisted account before reads. Prisma receives only that server-derived account ID in per-member predicates. Failures return the shared generic 500 envelope; logs contain a fixed stage and validated request ID, never secrets, raw SQL errors, or user data. No direct Supabase service-role access or RLS identity assumption was introduced. The response remains private/no-store.
+# Sign-in rate limit troubleshooting (2026-11-01)
+
+Password login is limited to five attempts per client IP per 15 minutes. The current limiter is in-process memory, so restarting the local app clears the counter; waiting for the full window also restores attempts. This is a local troubleshooting fact, not a production distributed-rate-limit guarantee. Do not log credentials, email addresses, request bodies, or environment values when diagnosing login. The first-admin bootstrap endpoint cannot be reused after an ADMIN already exists; do not manually alter account rows as a workaround.
+# 2026-11-01 — Sign-out availability
+
+Global header sign-out reuses the existing same-origin POST logout route, which expires the HttpOnly session cookie. It does not accept an identity or alter account status. This makes cookie clearing available even when an inactive account cannot read Settings.
+# 2026-11-01 — Safe registration failure diagnostics
+
+Unexpected registration errors now log only a fixed stage and validated Prisma error code, matching the bootstrap route's safe diagnostics. Password, invite code, email, request body, and raw exception text are not logged.
+
+The registration interactive transaction has a bounded 10-second acquisition wait and 15-second execution timeout. It remains atomic across invite-use and account creation.
+# 2026-11-01 — Pending registration sessions
+
+Registration issues a signed HttpOnly session only after transactionally creating the account as MEMBER/PENDING_APPROVAL. The proxy allows this status only at `/onboarding` and `GET /api/users/me`; it redirects all workspace pages and denies protected APIs until approval. The polling current-user API reloads role/status from the database and refreshes the signed cookie before navigation. No client-supplied role/status is used.

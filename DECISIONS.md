@@ -1,5 +1,11 @@
 # DECISIONS.md
 
+## D-032 — Persist the authenticated member profile on the existing User row (2026-11-01)
+
+Reuse Prisma's existing `User` model and the existing signed-session identity. Add profile fields to that row through an additive migration, and expose only a self-scoped `/api/users/me/profile` API. Do not use the broad Workspace/Chat contract for profile reads or writes, accept a target user ID, or create another user/auth/database client. Keep other members' profiles out of this self API; public member profile access remains a separate unresolved Workspace contract. The migration must be applied only after confirming the intended Supabase target.
+
+Reason: Profile is an account-owned resource; the existing Workspace endpoint is a 503 seam and its payload includes unrelated private domains. A narrow endpoint makes ownership and data selection explicit and avoids coupling profile operations to Personal Space or Chat.
+
 ## Phase 11 release gate note (2026-11-01)
 
 The user requested release readiness and explicitly said not to deploy without approval. This session performed documentation and local checks only. No deployment approval was given, so none was performed. This is a record of scope, not a new deployment/provider or schema decision.
@@ -223,3 +229,33 @@ The user reports that `npm run test:integration` passed after the timestamp prec
 Reuse the existing `User`, `InviteCode`, scrypt password helper, signed session, and Prisma route conventions. Public registration always creates a `MEMBER/PENDING_APPROVAL` record; only a persisted ADMIN may approve it. Invite capacity is claimed and user creation commits in one transaction, while raw invite codes are returned only in the admin create response and never stored or listed. Because no admin provisioning policy or audit model existed, the minimum bootstrap is disabled unless a temporary 32+ character `FIRST_ADMIN_BOOTSTRAP_TOKEN` is configured; a transaction advisory lock and database count permit only the first ADMIN. The operator removes the token after bootstrap. No new schema or migration is needed.
 
 Limits recorded with this decision: rate limiting remains process-local, no durable admin audit record exists in the current schema, and magic-link plus reject/suspend/disable/unsuspend actions remain unimplemented. The database flow must be verified on the isolated `TEST_DATABASE_URL`; production deployment is outside this decision.
+
+## D-031 — Prisma-safe first-admin advisory lock result (2026-11-01)
+
+The first-admin transaction must retain the PostgreSQL transaction-scoped advisory lock, but its raw query should return a Prisma-decodable scalar. Materialize the lock call in a CTE and select an integer from it so the driver does not need to decode PostgreSQL's `void` result. This changes no API or schema. The local regression test passes; the user's live bootstrap retry is still needed to confirm the diagnosis.
+
+## D-032 — Safe auth transaction diagnostics (2026-11-01)
+
+For the bootstrap endpoint, log only a fixed operation stage and a validated database error code when an unexpected failure occurs. Never log exception messages/stacks, request data, email, password, token, or database URL. This lets the operator identify the failing transaction step while preserving the existing generic HTTP 500 response.
+
+The bootstrap's Prisma interactive transaction uses an explicit 10-second connection-acquisition wait and 15-second execution timeout, based on the observed `P2028` at transaction start. The lock/check/create operation remains atomic. Revisit only if the retried bootstrap still fails.
+
+## D-033 — Persist account preferences in a one-to-one UserPreferences row (2026-11-01)
+
+The existing Settings UI has account profile fields, a light/dark theme, three notification preference switches, a portfolio visibility switch, read-only account email/role, and sign-out. Reuse the existing User and self-profile API for account profile edits. Store the five preferences in a one-to-one `UserPreferences` row keyed by the existing User ID; GET returns established UI defaults without creating a row, and PATCH upserts only allowlisted values for the authenticated account. No email/password/role/approval changes are included. Notification flags are preferences only; no delivery integration is claimed. Portfolio visibility cannot affect public reads until a public member profile endpoint exists. Chat and Personal Space remain isolated and are excluded from these APIs.
+# D-034 — Dashboard metrics and activity source (2026-11-01)
+
+Dashboard metrics are derived from the existing persisted sources: all-time points from the immutable ledger joined to currently approved submissions; weekly rank from the existing Monday 00:00 IST leaderboard service; current streak from `Streak`; and approved-task count/recent activity from the caller's approved submissions. The activity feed shows at most five latest approvals, keyed and dated by submission review. This prevents pending/rejected work and Personal Space/Chat activity from entering progress metrics. No cached aggregate or dashboard table is introduced. Reversible: yes; the response can later include additional server-derived fields without changing ledger authority.
+# D-033 — Keep logout available independent of account status (2026-11-01)
+
+Expose the existing cookie-clearing logout action in the shared app header, in addition to Settings. Settings data is available only to approved accounts, so keeping logout exclusively there traps inactive users in an authenticated-looking shell. Logout changes no persisted user status and uses the existing endpoint/session cookie behavior.
+# D-034 — Safe registration failure context (2026-11-01)
+
+Unexpected registration failures may log only a fixed failure stage and validated Prisma code, consistent with first-admin bootstrap diagnostics. Do not log raw exceptions, request fields, emails, passwords, invite codes, or database URL details. This preserves a useful troubleshooting signal without exposing private data.
+
+## D-035 — Registration transaction budget (2026-11-01)
+
+After the user observed `P2028` during registration's interactive transaction, use the same explicit 10-second acquisition wait and 15-second execution timeout as first-admin bootstrap. Keep invite-use increment and account creation in one transaction. This addresses likely transaction expiry; confirm against the user's local Supabase connection before treating the incident as resolved.
+# D-036 — Keep invite registrations in approval waiting state
+
+After successful invite registration, issue the existing signed HttpOnly session for the server-created MEMBER/PENDING_APPROVAL account so it can see `/onboarding`. Keep the proxy's existing pending restrictions: only onboarding and persisted current-user status are allowed; workspace pages redirect and APIs return ACCOUNT_PENDING. Poll current persisted status and navigate only after server approval refreshes the session. Do not grant workspace access from client state.

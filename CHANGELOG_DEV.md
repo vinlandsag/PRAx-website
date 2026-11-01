@@ -16,6 +16,21 @@
 
 # CHANGELOG_DEV.md
 
+## 2026-11-01 — Connect Settings preferences
+
+- Added a one-to-one `UserPreferences` model related to the existing `User`, with defaults for theme, review/streak/chat notifications, and portfolio visibility. Added additive Prisma migration `20261101173000_user_preferences`; neither this nor the preceding profile migration was applied by this agent.
+- Added self-only `GET/PATCH /api/users/me/settings` with existing session authorization, persisted-approved-account checks, bounded JSON, strict allowlisting/type validation, no-store responses, and server-derived ownership.
+- Rewired Settings to load the persisted profile and preferences from their APIs, reuse the own-profile API for account edits, and save the active section. ThemeSync now reads the saved server theme.
+- Email and role remain read-only; sign-out uses the existing logout endpoint. Preferences persist but notification delivery is not implemented. Portfolio visibility is stored, but public member profile reads remain unavailable.
+- Added service and route tests and updated Settings/theme interaction coverage. Verification is recorded in TEST_LOG.md.
+
+## 2026-11-01 — Connect own Profile to Prisma
+
+- Added profile columns and a nullable unique handle to the existing `User` model with additive Prisma migration `20261101170000_user_profile_fields`; no database migration was executed.
+- Added `GET/PATCH /api/users/me/profile`, using the signed session and persisted approved account, field validation, own-row selection/update, no-store responses, duplicate-handle conflict handling, and signed-session name refresh.
+- Switched the existing Profile editor from the disconnected Workspace endpoint to the self-profile API, with loading/retry, optional-field empty, save-error, and success states.
+- Added service, route, and component tests; updated schema/API/release handoff notes. Chat, Personal Space, Settings, public profiles, points, and streaks remain outside this phase.
+
 ## 2026-10-31 — Phase 2 backend conventions and foundation
 
 - Added bounded JSON request parsing, shared pagination, and safe allowlisted API logging while retaining existing route guards and error envelopes.
@@ -659,3 +674,66 @@ Paginated leaderboard API now uses shared query validation, deterministic tie or
 - Added unit and isolated PostgreSQL integration coverage; test runner includes auth flow suite. Auth unit tests pass; DB flow was not run here because isolated test host was unreachable.
 - Updated README/operator instructions, contracts, schema state, security notes, decision log, test log and handoff. Magic link and remaining admin member actions remain unfinished; process-local rate limiting and absent durable audit model are documented.
 - Verification: 344 unit tests passed / 35 skipped, lint/typecheck passed, webpack production build passed (48 pages); default Turbopack build hit sandbox process/port restriction. No DB, migration or deployment was performed.
+
+## 2026-11-01 — First-admin bootstrap troubleshooting
+
+- Changed the advisory lock query to materialize the lock in a CTE while returning an integer scalar to Prisma, avoiding raw result decoding of PostgreSQL `void`.
+- Added a focused regression assertion. The user reports migrations are current and a read-only `SELECT 1` via the runtime URL succeeds; their bootstrap request had returned HTTP 500.
+- Verification: auth route tests 11/11, typecheck and targeted ESLint passed, `git diff --check` passed. Full `npm run lint` fails on 13 existing errors in Juel's `praxora-admin` subtree, unrelated to the changed files. No DB retry, migration, or deployment performed.
+
+- Follow-up: user retried and still received HTTP 500. Added sanitized bootstrap log context (`stage` plus validated Prisma code only), with tests proving diagnostic text is filtered. Auth/logger focused tests now pass 15/15; typecheck, targeted lint and diff check pass. Restart server and retry once to identify the transaction failure.
+
+- User-provided diagnostic identified Prisma `P2028` during `database_transaction`. Set explicit first-admin transaction `maxWait` to 10 seconds and `timeout` to 15 seconds; added a test for these bounds. No database mutation. Live retry pending.
+
+- User reports bootstrap then returned HTTP 201 (5.1 seconds). The first admin was created. Remove the temporary bootstrap token and restart the app before normal sign-in; then create an invite from Admin → Members.
+# 2026-11-01 — Phase 5 remaining tabs: Dashboard connected
+
+- Replaced `GET /api/dashboard` 503 placeholder with a Prisma-backed, signed-session-only read.
+- Dashboard now derives points from approved ledger entries, weekly rank from the existing IST leaderboard service, current streak from `Streak`, and task count/recent activity from the member's approved submissions.
+- Added route tests for anonymous denial, returned metrics, empty state, persisted-account denial, and caller-scoped query predicates.
+- Audited remaining visible tabs and documented the verified 503 causes/dependencies. No Personal Space/Chat storage, notification delivery, rubric, moderation, audit, or admin status behavior was invented.
+- No schema or migration/database changes.
+# 2026-11-01 — Phase 6 API/database integration audit
+
+- Audited the Dashboard API against established Prisma/PostgreSQL, session, persisted-account, error-envelope, no-store, and safe-logging patterns.
+- Confirmed all data access uses the shared Prisma client; no direct Supabase client/query path or schema change is needed.
+- Confirmed only the leaderboard read needs its existing repeatable-read transaction; dashboard reads do not form a multi-write operation.
+- No product code or endpoint response changed in this audit.
+# 2026-11-01 — Phase 7 affected-page verification
+
+- Added Dashboard page tests for loading, no-activity state, API error/retry, and populated metrics/activity.
+- Added Settings page tests for loading, preference save, reloading the saved response after remount, and API error/retry.
+- Existing Profile page/API/service tests were included in focused and full runs; no profile code changes were needed.
+- Recorded full-suite, lint, typecheck, integration-preflight, and production-build outcomes in `TEST_LOG.md`.
+# 2026-11-01 — Phase 8 documentation and handoff
+
+Documentation-only consolidation; no product code or schema changed in Phase 8.
+
+Connected page/API implementation files already present in this worktree:
+
+- Dashboard: `src/app/api/dashboard/route.ts`, `src/app/api/dashboard/dashboard-route.test.ts`, `src/app/dashboard/page.test.tsx`.
+- Profile: `src/app/api/users/me/profile/route.ts`, `src/app/api/users/me/profile/profile-route.test.ts`, `src/lib/profile/service.ts`, `src/lib/profile/service.test.ts`, `src/components/profile/EditableProfile.tsx`, `src/components/profile/EditableProfile.test.tsx`; additive migration `prisma/migrations/20261101170000_user_profile_fields/migration.sql` and existing `User` model edits in `prisma/schema.prisma`.
+- Settings: `src/app/api/users/me/settings/route.ts`, `src/app/api/users/me/settings/settings-route.test.ts`, `src/lib/settings/service.ts`, `src/lib/settings/service.test.ts`, `src/app/settings/page.tsx`, `src/app/settings/page.test.tsx`, `src/components/layout/ThemeSync.tsx`; additive migration `prisma/migrations/20261101173000_user_preferences/migration.sql` and existing `UserPreferences` model edits in `prisma/schema.prisma`.
+
+Dashboard reads server-derived score, weekly rank, streak, approved-task count, and up to five latest approved submissions. Profile reads/updates the caller's own persisted User profile. Settings reads/updates the caller's profile preferences. Automated coverage, actual commands/results, migration limits, and outstanding services are recorded in `TEST_LOG.md`, `DB_SCHEMA.md`, and `TODO_NEXT.md`.
+
+Documentation updated for this handoff: `PROJECT_STATE.md`, `CHANGELOG_DEV.md`, `API_CONTRACTS.md`, `DB_SCHEMA.md`, `TEST_LOG.md`, `AGENT_HANDOFF.md`, and `TODO_NEXT.md`.
+# 2026-11-01 — Admin sign-in rate-limit diagnosis
+
+- Diagnosed the user's screenshot as the existing `429 RATE_LIMITED` response: login allows five attempts per client IP per 15-minute window, with an in-process counter.
+- No application behavior, account, database, or API contract changed. Recovery steps and the account-email mismatch caution are in `AGENT_HANDOFF.md` and `TODO_NEXT.md`.
+## 2026-11-01 — Global sign-out access
+
+- Added a persistent Sign out control to `src/components/layout/TopNav.tsx`, using the existing `POST /api/auth/logout` endpoint and redirecting to `/login` on success.
+- Root cause: header avatar only linked to Profile; Settings' sign-out control was only rendered after its approved-account settings request succeeded. Inactive accounts therefore had no visible sign-out action.
+- Added `src/components/layout/TopNav.test.tsx` for successful logout and failed logout feedback. No new endpoint or schema change.
+## 2026-11-01 — Safe registration failure diagnostics
+
+- Registration 500s now log the allowlisted failure stage and Prisma code, matching bootstrap admin diagnostics. Request fields and exception text remain excluded.
+- Added a route regression test that injects a simulated P2028 transaction error and checks only safe fields are logged. The actual cause of the user's earlier 500 is still unknown pending another attempt with this diagnostic change.
+- After the user reported `database_transaction` / `P2028`, aligned registration's Prisma transaction `maxWait` (10 s) and `timeout` (15 s) with bootstrap and asserted them in auth route tests. Live confirmation remains pending.
+## 2026-11-01 — Registration to approval waiting flow
+
+- Successful registration now sets the existing signed HttpOnly session for its server-created `MEMBER/PENDING_APPROVAL` account. The existing login page routes it to `/onboarding`.
+- Onboarding checks `/api/users/me` every five seconds and routes to `/dashboard` only after the database reports APPROVED; existing proxy rules block pending sessions from workspace pages and APIs.
+- Added coverage for pending-session cookie scope, workspace denial, waiting-state polling, and approval redirect. No database schema or migration change.

@@ -2,6 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { GlobalSearch } from "./GlobalSearch";
 import { useWorkspace } from "@/lib/workspace/use-workspace";
 import { NotificationBell } from "./NotificationBell";
@@ -19,6 +21,24 @@ export const TopNav: React.FC<TopNavProps> = ({
   onOpenMobileMenu,
 }) => {
   const { data } = useWorkspace();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
+
+  const signOut = async () => {
+    setSigningOut(true);
+    setSignOutError("");
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Could not sign out. Please try again.");
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setSignOutError("Could not sign out. Please try again.");
+      setSigningOut(false);
+    }
+  };
+
   return (
     <header className="h-16 border-b border-border bg-surface px-4 sm:px-8 flex items-center justify-between shrink-0 select-none sticky top-0 z-20">
       {/* Left: Mobile hamburger & Breadcrumbs */}
@@ -76,7 +96,24 @@ export const TopNav: React.FC<TopNavProps> = ({
             className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all"
           />
         </Link>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          disabled={signingOut}
+          aria-label="Sign out"
+          className="rounded-lg px-2.5 py-2 text-xs font-semibold text-text-muted hover:bg-border-subtle hover:text-text disabled:opacity-60 sm:px-3"
+        >
+          {signingOut ? "Signing out…" : "Sign out"}
+        </button>
       </div>
+      {signOutError && (
+        <span
+          role="alert"
+          className="absolute right-3 top-full rounded bg-danger-bg px-3 py-2 text-xs text-danger-text shadow sm:right-8"
+        >
+          {signOutError}
+        </span>
+      )}
     </header>
   );
 };

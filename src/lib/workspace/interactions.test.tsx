@@ -78,7 +78,28 @@ const taskFixtures: TaskItem[] = [
 vi.mock("@/lib/api/use-resource", () => ({
   useResource: (path: string | null) => {
     let data: unknown = null;
-    if (path === "/api/tasks") data = { tasks: taskFixtures };
+    if (path === "/api/users/me/profile")
+      data = {
+        profile: {
+          name: "Test Builder",
+          handle: "@testbuilder",
+          bio: "",
+          skills: [],
+          currentProject: "",
+          portfolioUrl: "",
+          githubUrl: "",
+          linkedinUrl: "",
+          avatarUrl: "",
+        },
+        stats: { totalPoints: 0, weeklyRank: null, dayStreak: 0, tasksApproved: 0 },
+      };
+    else if (path === "/api/users/me/settings")
+      data = {
+        user: { email: "builder@example.test", role: "MEMBER" },
+        profile: fixture().profile,
+        settings: fixture().settings,
+      };
+    else if (path === "/api/tasks") data = { tasks: taskFixtures };
     else if (path?.startsWith("/api/tasks/"))
       data = { task: taskFixtures.find((task) => task.id === path.split("/").at(-1)) };
     else if (path?.startsWith("/api/leaderboard")) {
@@ -264,10 +285,7 @@ describe("functional member controls", () => {
     vi.stubGlobal("fetch", fetcher);
     const view = render(<ThemeSync />);
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dark"));
-    fireEvent(
-      window,
-      new CustomEvent("prax:workspace", { detail: { settings: { theme: "light" } } })
-    );
+    fireEvent(window, new CustomEvent("prax:settings", { detail: { theme: "light" } }));
     expect(document.documentElement.dataset.theme).toBe("light");
     fetcher.mockResolvedValue({ ok: true, json: async () => ({ settings: { theme: "light" } }) });
     mocks.pathname = "/dashboard";
@@ -378,6 +396,32 @@ describe("functional member controls", () => {
     expect((screen.getByRole("button", { name: "Pin" }) as HTMLButtonElement).disabled).toBe(true);
   });
   it("connects profile and skill editors and offers missing portfolio setup", async () => {
+    const savedProfile = {
+      name: "Test Builder",
+      handle: "@testbuilder",
+      bio: "",
+      skills: ["React", "CSS"],
+      currentProject: "My toolkit",
+      portfolioUrl: "https://example.test",
+      githubUrl: "",
+      linkedinUrl: "",
+      avatarUrl: "",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          profile: { ...savedProfile, skills: [] },
+          stats: { totalPoints: 0, weeklyRank: null, dayStreak: 0, tasksApproved: 0 },
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          profile: savedProfile,
+          stats: { totalPoints: 0, weeklyRank: null, dayStreak: 0, tasksApproved: 0 },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
     render(<EditableProfile />);
     fireEvent.click(screen.getAllByRole("button", { name: /Add portfolio/ })[0]);
     fireEvent.change(screen.getByRole("textbox", { name: "Project title" }), {
@@ -387,11 +431,16 @@ describe("functional member controls", () => {
       target: { value: "https://example.test" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-    await waitFor(() =>
-      expect(mocks.mutate).toHaveBeenCalledWith({
-        resource: "profile",
-        operation: "update",
-        data: { currentProject: "My toolkit", portfolioUrl: "https://example.test" },
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "/api/users/me/profile",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          currentProject: "My toolkit",
+          portfolioUrl: "https://example.test",
+        }),
       })
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -400,26 +449,37 @@ describe("functional member controls", () => {
       target: { value: "React, CSS" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-    await waitFor(() =>
-      expect(mocks.mutate).toHaveBeenLastCalledWith({
-        resource: "profile",
-        operation: "update",
-        data: { skills: ["React", "CSS"] },
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/users/me/profile",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ skills: ["React", "CSS"] }),
       })
     );
   });
   it("previews dark mode and saves settings without losing the active section", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        user: { email: "builder@example.test", role: "MEMBER" },
+        settings: { ...fixture().settings, theme: "dark" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
     render(<Settings />);
     fireEvent.click(screen.getByRole("button", { name: "appearance" }));
     fireEvent.click(screen.getByRole("radio", { name: "Dark" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     await waitFor(() =>
-      expect(mocks.mutate).toHaveBeenCalledWith({
-        resource: "settings",
-        operation: "update",
-        data: expect.objectContaining({ theme: "dark" }),
-      })
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/users/me/settings",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ ...fixture().settings, theme: "dark" }),
+        })
+      )
     );
     expect(await screen.findByText("Your settings are saved.")).toBeDefined();
     expect((screen.getByRole("radio", { name: "Dark" }) as HTMLInputElement).checked).toBe(true);
@@ -427,6 +487,30 @@ describe("functional member controls", () => {
     expect(screen.getByRole("switch", { name: "Streak reminder" })).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "security" }));
     expect(screen.getByRole("button", { name: "Sign out of this session" })).toBeDefined();
+  });
+  it("saves account profile fields through the self-profile API", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({ profile: { ...fixture().profile, name: "Updated Builder" }, stats: {} })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Settings />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Display name" }), {
+      target: { value: "Updated Builder" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      "/api/users/me/profile",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Updated Builder",
+          handle: fixture().profile.handle,
+          avatarUrl: fixture().profile.avatarUrl,
+        }),
+      })
+    ));
+    expect(await screen.findByText("Your settings are saved.")).toBeDefined();
+    expect(screen.getByText("Updated Builder")).toBeDefined();
   });
   it("search supports keyboard navigation, escape and opening the selected result", () => {
     render(<GlobalSearch />);

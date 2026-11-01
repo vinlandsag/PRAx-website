@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { signSession } from "@/lib/auth/session";
+import { getSessionFromCookieHeader, signSession } from "@/lib/auth/session";
 import { hashPassword } from "@/lib/auth/password";
 import { hashInviteCode } from "@/lib/auth/persistence";
 import type { SessionUser } from "@/lib/auth/types";
@@ -10,6 +10,8 @@ import { GET as currentUser } from "../users/me/route";
 import { POST as bootstrapAdmin } from "./bootstrap-admin/route";
 import { POST as createInvite } from "../invites/route";
 import { GET as listInvites } from "../invites/route";
+import { proxy } from "@/proxy";
+import { NextRequest } from "next/server";
 
 const mock = vi.hoisted(() => ({ getPrismaClient: vi.fn() }));
 vi.mock("@/lib/db/prisma", () => mock);
@@ -81,11 +83,37 @@ describe("database-backed auth route contracts", () => {
     );
 
     expect(response.status).toBe(201);
-    expect(response.headers.get("set-cookie")).toBeNull();
+    const registrationCookie = response.headers.get("set-cookie");
+    expect(registrationCookie).toContain("HttpOnly");
+    const pendingSession = getSessionFromCookieHeader(registrationCookie);
+    expect(pendingSession?.user).toMatchObject({
+      id: "member-1",
+      role: "MEMBER",
+      status: "PENDING_APPROVAL",
+    });
+    expect(
+      proxy(
+        new NextRequest("http://localhost/onboarding", { headers: { cookie: registrationCookie! } })
+      ).status
+    ).toBe(200);
+    const protectedPage = proxy(
+      new NextRequest("http://localhost/dashboard", { headers: { cookie: registrationCookie! } })
+    );
+    expect(protectedPage.status).toBe(307);
+    expect(protectedPage.headers.get("location")).toContain("/onboarding");
+    expect(
+      proxy(
+        new NextRequest("http://localhost/api/tasks", { headers: { cookie: registrationCookie! } })
+      ).status
+    ).toBe(403);
     expect(tx.inviteCode.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { codeHash: hashInviteCode(inviteCode) } })
     );
     expect(tx.inviteCode.updateMany).toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      maxWait: 10_000,
+      timeout: 15_000,
+    });
     expect(tx.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -111,6 +139,37 @@ describe("database-backed auth route contracts", () => {
     expect(mock.getPrismaClient).not.toHaveBeenCalled();
   });
 
+  it("logs safe stage and Prisma code for unexpected registration failures", async () => {
+    const safeLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = Object.assign(new Error("private database details"), { code: "P2028" });
+    mock.getPrismaClient.mockReturnValue({ $transaction: vi.fn().mockRejectedValue(failure) });
+
+    const response = await register(
+      jsonRequest("http://localhost/api/auth/register", {
+        name: "Example Person",
+        email: "person@example.test",
+        password: "a-long-test-password",
+        inviteCode,
+      })
+    );
+
+    expect(response.status).toBe(500);
+    expect(mock.getPrismaClient.mock.results[0]?.value.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { maxWait: 10_000, timeout: 15_000 }
+    );
+    expect(safeLog).toHaveBeenCalledWith(
+      JSON.stringify({
+        level: "error",
+        event: "unexpected_error",
+        stage: "database_transaction",
+        code: "P2028",
+      })
+    );
+    expect(safeLog.mock.calls.flat().join(" ")).not.toContain("private database details");
+    safeLog.mockRestore();
+  });
+
   it("uses persisted credentials, issues a session, and never logs a pending account in as admin", async () => {
     const passwordHash = await hashPassword("a-long-test-password");
     mock.getPrismaClient.mockReturnValue({
@@ -132,7 +191,10 @@ describe("database-backed auth route contracts", () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get("set-cookie")).toContain("HttpOnly");
-    expect((await response.json()).user).toMatchObject({ role: "MEMBER", status: "PENDING_APPROVAL" });
+    expect((await response.json()).user).toMatchObject({
+      role: "MEMBER",
+      status: "PENDING_APPROVAL",
+    });
   });
 
   it("returns identical invalid-credential errors for missing users and wrong passwords", async () => {
@@ -203,7 +265,10 @@ describe("database-backed auth route contracts", () => {
   });
 
   it("bootstraps one approved administrator under a database lock when given the configured token", async () => {
-    vi.stubEnv("FIRST_ADMIN_BOOTSTRAP_TOKEN", "one-time-test-token-with-at-least-thirty-two-characters");
+    vi.stubEnv(
+      "FIRST_ADMIN_BOOTSTRAP_TOKEN",
+      "one-time-test-token-with-at-least-thirty-two-characters"
+    );
     const createdAt = new Date("2026-10-31T10:00:00Z");
     const tx = {
       $queryRaw: vi.fn().mockResolvedValue([]),
@@ -232,6 +297,13 @@ describe("database-backed auth route contracts", () => {
     );
     expect(response.status).toBe(201);
     expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.$queryRaw.mock.calls[0][0].join(" ")).toContain(
+      "SELECT 1::int AS locked FROM bootstrap_lock"
+    );
+    expect(mock.getPrismaClient.mock.results[0].value.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { maxWait: 10_000, timeout: 15_000 }
+    );
     expect(tx.user.count).toHaveBeenCalledWith({ where: { role: "ADMIN" } });
     expect(tx.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -241,7 +313,10 @@ describe("database-backed auth route contracts", () => {
   });
 
   it("refuses to bootstrap a second administrator once any ADMIN row exists", async () => {
-    vi.stubEnv("FIRST_ADMIN_BOOTSTRAP_TOKEN", "one-time-test-token-with-at-least-thirty-two-characters");
+    vi.stubEnv(
+      "FIRST_ADMIN_BOOTSTRAP_TOKEN",
+      "one-time-test-token-with-at-least-thirty-two-characters"
+    );
     const tx = {
       $queryRaw: vi.fn().mockResolvedValue([]),
       user: {
@@ -285,7 +360,9 @@ describe("database-backed auth route contracts", () => {
     };
     const prisma = {
       user: {
-        findUnique: vi.fn().mockResolvedValue({ id: admin.id, name: admin.name, role: "ADMIN", status: "APPROVED" }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ id: admin.id, name: admin.name, role: "ADMIN", status: "APPROVED" }),
       },
       inviteCode: {
         create: vi.fn().mockResolvedValue(inviteMetadata),
@@ -294,7 +371,9 @@ describe("database-backed auth route contracts", () => {
       },
     };
     mock.getPrismaClient.mockReturnValue(prisma);
-    const create = await createInvite(jsonRequest("http://localhost/api/invites", { maxUses: 1 }, admin));
+    const create = await createInvite(
+      jsonRequest("http://localhost/api/invites", { maxUses: 1 }, admin)
+    );
     expect(create.status).toBe(201);
     const createdInvite = (await create.json()).invite;
     expect(createdInvite.code).toMatch(/^PRAX-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/);
@@ -306,15 +385,19 @@ describe("database-backed auth route contracts", () => {
         }),
       })
     );
-    const list = await listInvites(new Request("http://localhost/api/invites", {
-      headers: { cookie: `prax_session=${signSession(admin)}` },
-    }));
+    const list = await listInvites(
+      new Request("http://localhost/api/invites", {
+        headers: { cookie: `prax_session=${signSession(admin)}` },
+      })
+    );
     expect(list.status).toBe(200);
     expect((await list.json()).invites[0].code).toBeNull();
   });
 
   it("requires an approved admin session before invitation management reaches storage", async () => {
-    const response = await createInvite(jsonRequest("http://localhost/api/invites", { maxUses: 1 }));
+    const response = await createInvite(
+      jsonRequest("http://localhost/api/invites", { maxUses: 1 })
+    );
     expect(response.status).toBe(401);
     expect(mock.getPrismaClient).not.toHaveBeenCalled();
   });
