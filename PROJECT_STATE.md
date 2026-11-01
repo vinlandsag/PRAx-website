@@ -478,3 +478,7 @@ Client side of D-037/D-038 is done on branch `aleena`: new `useChat`/`useSpace` 
 ## Stage 4 status — schema for Personal Space and chat (2026-11-01, Person 4)
 
 The Prisma models and migration SQL for Personal Space and chat are written on branch `aleena` and awaiting the owner's review. The migration `20261101190000_personal_space_and_chat` has not been applied to any database, and there are no API routes for these models yet (Stage 5), so the chat and space pages still show load errors. Stage 3 UI is committed as `272fc8e`. `/api/workspace` and `/api/chat/attachments` remain 503 stubs; D-003 is still pending; attachments are deferred. Checks: `prisma validate` and `prisma generate` passed; tests 440 passed / 35 skipped; `eslint src` clean; typecheck passed. See TEST_LOG.md and DB_SCHEMA.md.
+
+## Stage 5 status — Personal Space and chat API (2026-11-01, Person 4)
+
+The server side of Personal Space and chat is written on branch `aleena`: services, routes, mocked unit tests (passing) and PostgreSQL integration tests (written, not run). The chat and space pages can work end to end only after the Stage 4 migration is applied to a database and `DATABASE_URL` points at it; neither has been done. Real-time (D-003) is still pending and nothing was installed. Attachments are still deferred (the routes reject attachment ids). Checks: tests 609 passed / 56 skipped, `eslint src` clean, typecheck passed; whole-repo lint still has 13 errors in `praxora-admin/`. See TEST_LOG.md.

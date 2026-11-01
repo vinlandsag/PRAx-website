@@ -751,3 +751,9 @@ Documentation updated for this handoff: `PROJECT_STATE.md`, `CHANGELOG_DEV.md`, 
 
 - Added `Todo`, `Note`, `Goal`, `ChatMessage`, `MessageReaction`, the `TodoDifficulty` and `TodoPriority` enums, and `UserPreferences.chatRulesAcceptedAt` to `prisma/schema.prisma` (100 lines added, none changed or removed; relation fields added to `User` and `Task`).
 - Added migration `20261101190000_personal_space_and_chat` (generated with `prisma migrate diff`, then arranged to match the existing migration style, with a goal progress CHECK and RLS on every new table). It was not applied to any database. No API route, package or `package-lock.json` change.
+
+## 2026-11-01 — Stage 5: Personal Space and chat API (Person 4)
+
+- Added `GET/PATCH /api/space` and the chat routes (`/api/chat/messages` GET/POST, `/api/chat/messages/[id]` PATCH/DELETE, `…/pin`, `…/reactions`, `/api/chat/rules/accept`) with services in `src/lib/space/service.ts` and `src/lib/chat/service.ts`. Owner-scoped queries, approved-account checks, persisted-account revalidation, same-origin writes, bounded JSON, strict validation, soft delete, cursor paging and change polling.
+- Added error code `CHAT_RULES_NOT_ACCEPTED` and registered the two new integration test files in `scripts/run-integration-tests.mjs`.
+- Added 169 mocked unit tests (all pass) and 21 PostgreSQL integration tests that are written but NOT run (no database yet). No migration was applied, no package changed, nothing committed.

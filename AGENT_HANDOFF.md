@@ -459,3 +459,11 @@ Environment note: `npm run typecheck` needs the generated Next types (`.next/typ
 Done: `prisma/schema.prisma` (additive) and `prisma/migrations/20261101190000_personal_space_and_chat/migration.sql`. Review the SQL before anything touches a database. Apply only to the owner's development database after an explicit "go": `npx prisma migrate status`, then `npm run db:migrate:deploy`. A fresh development database applies all earlier migrations first, and the streak migration grants to the Supabase roles `service_role` and `postgres`, so the database must be a Supabase project (or define those roles). Schema review by Mariya happens on the PR.
 
 Next (needs the owner's "go"): Stage 5 builds the routes and services described under "PLANNED chat and Personal Space contract" in API_CONTRACTS.md, with owner-scoped queries (D-039) and the isolation tests; integration tests need `TEST_DATABASE_URL`. API code must bump `ChatMessage.updatedAt` on edits, pins, deletes and reaction changes, and must enforce the emoji palette and the 100-item caps (the database does not). Stage 6 (D-003) stays PROPOSED. Attachments remain deferred and the Attach button is untouched.
+
+## Stage 5 handoff — Personal Space and chat API (2026-11-01, Person 4)
+
+Done: `src/lib/space/service.ts`, `src/lib/chat/service.ts`, the routes under `src/app/api/space` and `src/app/api/chat/{messages,rules}`, tests, and the runner list. Contract and behavior: "Chat and Personal Space API — IMPLEMENTED in Stage 5" in API_CONTRACTS.md and D-041.
+
+To verify on a database (needs the owner's explicit go for each step): put a development database in `.env.local`, review and then apply migration `20261101190000_personal_space_and_chat` to that development database only, set a separate migrated `TEST_DATABASE_URL`, and run `npm run test:integration`. The two new integration suites throw a clear error if the migration is missing. The older integration suites already in the runner also need that database to be fully migrated. Then sign in as a real approved member (the local fixture user is not in the database) and exercise /space and /chat.
+
+Next: Stage 6 (D-003) stays PROPOSED until the team confirms; attachments last. Known gaps: no chat rate limit, no Report button, no audit events, `use-workspace.ts` still clears its data on a failed fetch (layout placeholders only).

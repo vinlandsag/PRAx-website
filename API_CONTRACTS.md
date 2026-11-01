@@ -838,3 +838,21 @@ Chat (shared `#general`):
 - New error code `CHAT_RULES_NOT_ACCEPTED` (403). Contract addition.
 
 Type changes: `ChatMessage` gains `authorAvatarUrl` and `reactions`; `WorkspaceData` loses `todos`, `notes`, `goals` and `messages`; `WorkspaceResource` is `"profile"|"settings"`. Chat attachment routes (`/api/chat/attachments`) are unchanged 503 stubs.
+
+## Chat and Personal Space API — IMPLEMENTED in Stage 5 (2026-11-01, D-037/D-038/D-041)
+
+Supersedes the "PLANNED chat and Personal Space contract" section above; request and response shapes are unchanged from it. The routes need the Stage 4 migration applied to the target database; until it is, they fail with the generic 500 (missing tables). Every route requires a signed APPROVED session, rechecks the persisted account (stale or forged cookies are refused), sets `Cache-Control: no-store`, and writes require a same-origin request and JSON.
+
+Personal Space (`src/app/api/space/route.ts`, `src/lib/space/service.ts`): permissions `view:space` (GET) and `edit:own_space` (PATCH). The owner is always the persisted session account; `userId` in a body, nested `data`, or query string is not accepted or read. A foreign or unknown item id returns 404 (also for admins). Validation (400 `VALIDATION_ERROR`): unknown fields; title required, trimmed, ≤200; description/content ≤5000 (may be empty); difficulty Easy/Medium/Hard; priority Low/Medium/High; `dueDate` empty, null or a real `YYYY-MM-DD`; `completed` boolean; goal progress an integer 0..100; `taskId` null or the id of a PUBLISHED task; NUL characters; `id` on create; missing `id` on update/delete; empty update; body over 32 KB. At most 100 items per collection (the 101st create returns 400). Responses return the full refreshed `{todos, notes, goals}`. A to-do whose linked task is no longer published is returned with `taskId` and `taskTitle` null (the link is kept in the database).
+
+Chat (`src/app/api/chat/…`, `src/lib/chat/service.ts`): permission `chat:read_write`.
+- `GET /api/chat/messages`: `limit` 1..50 (default 50); `before` or `after` (not both); `updatedSince` (ISO `…Z`) only with `after`. An unknown cursor id returns 400. Deleted messages are never listed; with `after`+`updatedSince`, `updates` carries changed messages already delivered and `{id, deleted: true}` tombstones; more than 100 changes returns `resync: true`. `pinned` lists up to 10 pinned messages (newest first). Reactions are returned as counts per palette emoji with the viewer's own flagged; reactor identities are never returned.
+- `POST /api/chat/messages`: body only `content` (trimmed, 1..500) and optionally an empty `attachmentIds`; a non-empty list returns 400 "Attachments are not available yet." 403 `CHAT_RULES_NOT_ACCEPTED` until the member has accepted the rules; 201 `{message}`.
+- `PATCH /api/chat/messages/[id]`: author only (403 for anyone else, admins included); 404 if missing or deleted.
+- `DELETE /api/chat/messages/[id]`: soft delete by the author or a persisted ADMIN (403 otherwise); 204; 404 if missing or already deleted.
+- `POST /api/chat/messages/[id]/pin`: needs `admin:moderate_chat` in the session and a persisted ADMIN; body `{pinned: boolean}`.
+- `POST /api/chat/messages/[id]/reactions`: body `{emoji}` from the six-emoji palette; toggles the caller's reaction; returns `{messageId, reactions}`; 404 for a missing or deleted message.
+- `POST /api/chat/rules/accept`: takes no fields; records the first acceptance time and never overwrites it.
+Edits, deletes, pins and reactions set the message `updatedAt` explicitly so polling clients see them.
+
+Chat attachments (`/api/chat/attachments`) and `/api/workspace` are unchanged 503 stubs. Not implemented: chat rate limiting, message reporting, audit events.

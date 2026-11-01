@@ -1220,3 +1220,17 @@ Passed:
 - `npx eslint src`: exit 0. `npm run typecheck`: exit 0.
 
 Not run: the migration against any PostgreSQL (so SQL syntax and constraint behavior are unexecuted), `prisma migrate dev`/`deploy`/`status` (no database), integration tests, `npm run lint` for the whole repo (unchanged since Stage 3: 13 errors and 73 warnings, all in `praxora-admin/`), production build.
+
+## Stage 5 verification — Personal Space and chat API (2026-11-01, Person 4)
+
+Passed:
+
+- `npm test`: exit 0; 47 test files passed, 9 skipped; 609 tests passed, 56 skipped. (Before Stage 5: 440 passed, 35 skipped.) The 169 new passing tests are `space-route.test.ts` (63), `chat-routes.test.ts` (77), `lib/space/service.test.ts` (6) and `lib/chat/service.test.ts` (23). They use mocked Prisma and check authorization (anonymous, pending, suspended, disabled, rejected, stale and forged-role cookies), cross-origin writes, validation limits, owner scoping of every query, 404/403 behavior, cursor queries, tombstones, rules gating, pin/delete permissions and reaction toggling.
+- `npx eslint src`: exit 0. `npm run typecheck`: exit 0 (uses the generated Prisma client and Next types). `npx prettier --check` on all files created or changed in Stage 5: clean.
+- Mutation check: seven deliberate breakages (owner scoping removed from update, delete and list; non-author delete allowed; admin check removed from pin; rules check removed from post; authorship check removed from edit) were each detected by the unit tests (the pin case after adding a direct service test). Originals restored and verified identical.
+
+Failed (pre-existing, unchanged): `npm run lint` over the whole repo still reports 13 errors and 73 warnings, all in `praxora-admin/`; none elsewhere.
+
+WRITTEN BUT NOT RUN: `src/lib/space/space.integration.test.ts` (11 tests) and `src/lib/chat/chat.integration.test.ts` (10 tests). They need a separate, migrated `TEST_DATABASE_URL` that includes migration `20261101190000_personal_space_and_chat`, and both were added to `scripts/run-integration-tests.mjs`. No database exists yet, so `npm run test:integration` was not run, no migration was applied, and these 21 tests are reported as skipped. They compile (typecheck passes) but their behavior is unverified.
+
+Also not run: browser/manual check of the pages against the new routes, production build.

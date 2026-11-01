@@ -91,6 +91,8 @@ const testFiles = [
   "src/lib/points/service.integration.test.ts",
   "src/lib/streaks/service.integration.test.ts",
   "src/app/api/review-flow.integration.test.ts",
+  "src/lib/space/space.integration.test.ts",
+  "src/lib/chat/chat.integration.test.ts",
 ];
 const result = spawnSync(
   process.execPath,

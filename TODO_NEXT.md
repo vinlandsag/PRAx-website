@@ -496,3 +496,13 @@ Latest diagnostic: `P2028` at transaction stage. Explicit 10-second max wait and
 - [ ] Owner review of the migration SQL; then, on a "go", apply it to the owner's development database only (`npx prisma migrate status`, `npm run db:migrate:deploy`).
 - [ ] Mariya reviews the schema on the PR.
 - [ ] Stage 5: routes, services and tests (owner-scoped queries; integration tests need `TEST_DATABASE_URL`).
+
+## Person 4 — Stage 5 (2026-11-01)
+
+- [x] Stage 5: Personal Space and chat routes, services, mocked unit tests (169 passing), integration tests written.
+- [ ] Owner: put a development database and a separate migrated `TEST_DATABASE_URL` in `.env.local`; on a "go", review and apply migration `20261101190000_personal_space_and_chat` to the development database only.
+- [ ] Run `npm run test:integration` (21 new tests are written but not run) and fix anything it finds.
+- [ ] Manual check of /space and /chat against the real routes with a real approved account.
+- [ ] Mariya reviews the schema and API on the PR.
+- [ ] Decide on a chat posting rate limit (not built).
+- [ ] Stage 6 (D-003) stays PROPOSED; attachments last.
