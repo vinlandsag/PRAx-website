@@ -1,5 +1,12 @@
 # DECISIONS.md
 
+## D-024 — Supabase Postgres with Prisma 7 (2026-10-31; clarified 2026-11-01)
+
+The user selected Supabase as the PostgreSQL host. The `milan` backend implementation records Prisma 7 with the PostgreSQL adapter as the application's ORM and sole migration system. Runtime connections use pooled `DATABASE_URL`; migrations use direct/session `DIRECT_URL`.
+
+The separate Supabase JS helpers and SQL schema/seed scaffold from `main` were not connected to application routes and duplicated Prisma-owned entities. They are excluded from this merge. That SQL also defines Chat and Personal Space tables and RLS policies tied to Supabase Auth `auth.uid()`, while the app currently uses signed HMAC sessions. Do not reintroduce or apply those definitions until schema ownership, auth compatibility, and Person 4's privacy boundaries are reviewed.
+The user reported applying `20261031100000_initial` and `20261031210000_submission_lifecycle` to Supabase. The leaderboard-index and streak-engine migrations are later additions and were not applied by this merge. No database connection or migration command was run during merge resolution.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
@@ -173,14 +180,6 @@ Commit preflight note: first commit attempt failed because user.name/user.email 
 ### Login screenshot diagnosis (2026-10-29)
 
 User supplied a screenshot of magic-link mode showing a development token. Read-only inspection confirmed the request API generates a token but has no email delivery integration; the login page displays the token without completing verification, while a separate POST verification API exists. Password sign-in is implemented, with the documented local seeded member fixture. No live token from the screenshot was copied into code, logs or documentation. No application behavior changed or tests rerun. Clarify the requested screenshot change before altering authentication; local testing can use the password sign-in toggle. Main app delivery remains commit 409d475 on origin/donel, previously verified; this diagnosis only updates the required memory notes and is not committed/pushed.
-
-# D-024 — Supabase Postgres and Prisma ORM (2026-10-31)
-
-The user approved the Phase 1 logical schema and selected Supabase as the database provider. Use the repository's previously documented PostgreSQL 16 + Prisma direction; pin Prisma ORM 7 and its `pg` driver adapter. Runtime connections use Supabase's pooled `DATABASE_URL`; Prisma migration/introspection commands use a direct (or session-mode) `DIRECT_URL`. Do not store credentials in source or docs. Schema/migration files may be created and reviewed locally; do not apply them without a configured Supabase project and explicit environment-specific verification. The approved first schema contains the existing User and InviteCode concepts plus Task, Submission, PointTransaction, and Streak. Keep Chat and Personal Space outside these tables and scoring inputs.
-
-Reversible: provider can be changed, but a live database migration needs a reviewed migration/backup plan. The user approval authorizes this schema implementation; no Supabase connection string or project access was provided in this turn.
-
-Update (2026-10-31): the user ran `npm run db:migrate:deploy` and reported that Supabase applied `20261031100000_initial` successfully. A read-only status check from this environment returned a blank Prisma schema-engine error, so independent status confirmation is still pending. Connection strings remain private and are not recorded here.
 
 ## D-025 — Submission attempt and withdrawal semantics (2026-10-31)
 

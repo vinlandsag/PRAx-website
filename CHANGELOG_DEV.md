@@ -2,12 +2,16 @@
 
 ## 2026-10-31 — Phase 2 backend conventions and foundation
 
-- Added `readJsonObject()` for bounded JSON request parsing and applied it to the development-only login endpoint; preserved existing API error envelope and guards.
-- Added shared offset pagination parser/metadata (`limit` default 20, max 100; offset capped 100000) for future list routes.
-- Added structured API failure logger that emits only fixed event values and validated opaque request IDs; no exception or request data is logged.
-- Added request, pagination and logger unit tests; documented route, validation, pagination, logging and fixture conventions plus local setup and `.env.example` semantics.
-- Verified 246 tests, lint and typecheck pass. A typecheck launched concurrently with webpack build briefly failed because `.next/types` was being regenerated; rerun after build passed. Turbopack production build failed at worker port binding twice; webpack build fallback passed (47 pages). Local loopback dev server health smoke test returned 200/backend not_configured.
-- No ORM, database, persistence route or dependency was added.
+- Added bounded JSON request parsing, shared pagination, and safe allowlisted API logging while retaining existing route guards and error envelopes.
+- Added unit tests and documented local setup and backend conventions.
+- Recorded test outcomes in TEST_LOG.md; this historical entry is retained as a report of that phase.
+
+## 2026-11-01 — Merge reconciliation
+
+- Kept Supabase as the PostgreSQL host and Prisma 7 as the sole ORM/migration path, following the backend branch decision.
+- Excluded main's unused Supabase JS helper layer and parallel SQL schema/seed files from this merge. Those definitions duplicate Prisma-owned tables, include Chat/Personal Space without privacy sign-off, and assume Supabase Auth RLS while the app uses signed HMAC sessions.
+- Kept `.env.example` with placeholders for pooled `DATABASE_URL` and migration `DIRECT_URL`; no credentials were added. Updated README setup/backend claims to match actual Prisma features and migration status.
+- Main's Supabase scaffolding remains in Git history if later reviewed and intentionally reintroduced.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 

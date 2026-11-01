@@ -1,5 +1,15 @@
 # TODO_NEXT.md
 
+## Backend integration follow-up (2026-11-01)
+
+- [x] Select Supabase Postgres hosting and Prisma 7 as sole ORM/migration path (D-024).
+- [x] Exclude unused duplicate Supabase JS/SQL schema scaffold from branch integration; retain main's frontend changes.
+- [x] Resolve local merge conflicts and run unit tests, lint, typecheck, Prisma validation, and production webpack build.
+- [ ] Review and commit the local merge on `milan`, then push it to origin so the GitHub PR can update.
+- [ ] Have Person 4 review the Chat/Personal Space privacy boundary before any schema adoption for those domains.
+- [ ] Person 1 to connect persisted auth and admin review to points approval service.
+- [ ] Run PostgreSQL integration tests only against isolated migrated `TEST_DATABASE_URL`.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.

@@ -1,5 +1,11 @@
 # PROJECT_STATE.md
 
+## Backend integration and merge resolution (2026-11-01)
+
+Supabase is the PostgreSQL host; Prisma 7 is the sole ORM and migration system, as recorded in D-024 and implemented on `milan`. Task, submission, points and streak services use Prisma. The Supabase JS helpers and Supabase CLI SQL migration/schema/seed from `main` were not integrated with routes and overlap Prisma-owned tables. They are excluded from this integration. Do not apply the parallel SQL schema. Its Chat/Personal Space tables and Supabase Auth `auth.uid()` policies also need ownership, session-auth compatibility, and Person 4 privacy review before any future adoption.
+
+The incoming branch state was checked against current `origin/main` and `origin/milan`. The conflicts are resolved locally on `milan`; no merge commit or push has been made yet. The merge preserves main frontend/config changes and uses Prisma as the only migration path. Relevant checks are recorded in `TEST_LOG.md`; no database migration was run.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.

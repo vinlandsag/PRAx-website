@@ -1,5 +1,11 @@
 # AGENT_HANDOFF.md
 
+## Database integration handoff (2026-11-01)
+
+Use Supabase as the PostgreSQL host and Prisma 7 as the only ORM/migration system. Prisma schema and migrations live under `prisma/`; runtime uses pooled `DATABASE_URL`, migrations use `DIRECT_URL`. Do not use the removed Supabase JS helper layer or apply a parallel Supabase CLI schema migration. The SQL scaffold that arrived from `main` duplicated tables, included Chat/Personal Space without privacy sign-off, and assumed Supabase Auth RLS despite the application's signed HMAC sessions. Reconsider only after explicit schema/auth/privacy review.
+
+The conflicts from `origin/main` into `milan` are resolved locally, including docs, env template, dependency lockfile and README. The incoming unused Supabase JS/schema scaffold is excluded. Checks are recorded in `TEST_LOG.md`. The merge is still uncommitted and has not been pushed; no database command was run.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.

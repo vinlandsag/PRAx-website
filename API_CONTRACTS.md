@@ -1,5 +1,9 @@
 # API_CONTRACTS.md
 
+## Persistence configuration — D-024
+
+Supabase hosts PostgreSQL. Prisma 7 is the application's sole ORM and migration system. Runtime access uses `DATABASE_URL`; Prisma migration commands use `DIRECT_URL`. The app's task, submission, points and streak services use Prisma. Do not apply a parallel Supabase CLI schema migration.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.

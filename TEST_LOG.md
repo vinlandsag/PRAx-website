@@ -1,5 +1,21 @@
 # TEST_LOG.md
 
+## Merge of origin/main into milan (2026-11-01)
+
+- `npm install --package-lock-only --ignore-scripts --offline`: passed; lockfile regenerated for Prisma dependencies only; audit reported 0 vulnerabilities.
+- `npm test`: passed, 329 tests; 28 PostgreSQL integration tests skipped because the isolated test database is not configured.
+- `npm run lint`: passed (ESLint exit 0).
+- `npm run typecheck`: passed (`tsc --noEmit`, exit 0; Prisma client generation completed).
+- `npm run db:validate`: passed; Prisma schema valid.
+- `npm run build`: failed in Turbopack because worker process port binding is denied by this environment (`Operation not permitted`).
+- `npx next build --webpack`: passed; compiled, type checked and generated all 47 pages/routes.
+- `npx prettier --check` on docs/code: not clean; existing files `AGENT_HANDOFF.md`, `DECISIONS.md`, and `TODO_NEXT.md` were reported unformatted. No bulk formatting was applied to avoid unrelated churn.
+- `git diff --check`: passed. No database or Supabase command was run.
+
+## Incoming main branch verification claims (historical; not revalidated here)
+
+`origin/main` contained prior notes claiming a live Supabase SQL-schema setup and successful tests. Those claims describe that branch's Supabase JS/SQL scaffold and are not evidence for the Prisma-backed merge. Current verification for this merge will be appended below with commands actually run in this environment. No live database or Supabase project was accessed during conflict resolution.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.

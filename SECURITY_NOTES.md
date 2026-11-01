@@ -1,5 +1,9 @@
 # SECURITY_NOTES.md
 
+## Database and session security boundary (2026-11-01)
+
+The application uses Prisma against Supabase PostgreSQL and authorizes API requests with its existing signed HMAC session and server-side account/role checks. No Supabase service-role client is used in application routes. The Supabase SQL scaffold from `main` is not part of this integration: its `auth.uid()` RLS policies rely on Supabase Auth identity, which is not the application's current session mechanism. Do not apply those policies/schema as a substitute for route authorization. Chat and Personal Space remain outside scoring/streak queries and need Person 4's review before database ownership is changed.
+
 ## Authorized GitHub delivery of current work (2026-10-31)
 
 User explicitly requested pushing the current changes to GitHub; continue using the previously selected donel branch at origin https://github.com/vinlandsag/PRAx-website.git. Fetched origin/donel and verified it matches local base 409d475 (0 ahead, 0 behind) before this delivery commit. Scope includes the backend cleanup, notification UI, retained development-only member account, Node 24/upload configuration and current handoff docs. Local-only hosting clarification remains in effect; this Git push does not deploy a website.
