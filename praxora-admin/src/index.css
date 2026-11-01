@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  --color-veylith-bg: #08090D;
+  --color-veylith-bg-secondary: #0D1017;
+  --color-veylith-surface: #131722;
+  --color-veylith-surface-secondary: #191F2B;
+  --color-veylith-text: #F3F5FA;
+  --color-veylith-text-secondary: #A0A8B8;
+  --color-veylith-text-muted: #737E91;
+  --color-veylith-accent: #8B7CFF;
+  --color-veylith-accent-secondary: #55D6BE;
+  --color-veylith-border: #252C3A;
+  --color-veylith-success: #48D6A0;
+  --color-veylith-warning: #F2BD69;
+  --color-veylith-error: #FF6B78;
+}
+
+@layer base {
+  :root {
+    --bg-primary: #08090D;
+    --bg-secondary: #0D1017;
+    --surface-elevated: #131722;
+    --surface-secondary: #191F2B;
+    --text-primary: #F3F5FA;
+    --text-secondary: #A0A8B8;
+    --text-muted: #737E91;
+    --accent-primary: #8B7CFF;
+    --accent-secondary: #55D6BE;
+    --border-color: #252C3A;
+    --success: #48D6A0;
+    --warning: #F2BD69;
+    --error: #FF6B78;
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom accessible scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #08090D;
+}
+::-webkit-scrollbar-thumb {
+  background: #252C3A;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* Accessible focus ring style */
+.a11y-focus:focus-visible {
+  outline: 2px solid #8B7CFF;
+  outline-offset: 2px;
+}
+
+/* Reduced motion compliance */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
