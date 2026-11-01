@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 export type ApiErrorCode =
   | "INVALID_INVITE"
   | "INVITE_EXHAUSTED"
+  | "EMAIL_ALREADY_REGISTERED"
   | "ACCOUNT_NOT_ACTIVE"
   | "ACCOUNT_PENDING"
   | "FORBIDDEN"

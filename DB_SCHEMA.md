@@ -1,69 +1,59 @@
-# Phase 1 approved schema and Phase 3 migration
+# Database and operations handoff
 
-Status: **Approved and implemented.** Supabase selected; Prisma ORM 7 selected per the previously recorded stack direction. The user reported that the initial migration was applied successfully on 2026-10-31. A local read-only migration status check returned a schema-engine error, so the CLI could not independently confirm the resulting status.
+## Current state (2026-11-01)
 
-This approved schema reuses Person 1's existing account and invite concepts, gives Person 3 ownership of task/submission persistence and the one points ledger/streak state, and excludes Person 4's Chat and Personal Space. It targets PostgreSQL through Supabase and Prisma ORM 7.
+Supabase hosts PostgreSQL. Prisma 7 is the sole ORM and migration system. The application reuses the existing `User` concept and Person 1's `InviteCode` concept; it does not define a second account/auth system. Four migration folders are checked in. The user reports that initial and submission lifecycle migrations were applied to a Supabase project. The user also reports that all 31 database integration tests passed against a separate migrated test project. Neither report confirms the migration ledger or operational state of the intended production project.
 
-## Phase 5 points ledger implementation (2026-10-31)
+No migration, seed, Cron setup, or production database operation was performed for Phase 11. Before deployment, confirm the correct project/ref and run read-only `npx prisma migrate status` using the intended `DIRECT_URL`. Check the target's backups/PITR with its owner. Apply only reviewed migrations after explicit approval. Do not use the historical Supabase CLI schema/seed scaffold; it duplicates Prisma-owned tables and included Person 4 domains without privacy review.
 
-The existing `PointTransaction` model is the sole points source of truth. It contains one immutable award per submission, with unique `submissionId` and `idempotencyKey`, an amount/max check, and a `(userId, createdAt)` index. The model is already present in the initial migration; Phase 5 needs no schema migration. No persisted all-time balance or weekly cache is introduced.
+## Models and ownership
 
-The award service derives the recipient from `Submission.userId` and the maximum from `Task.pointsMax`; it confirms that the author is APPROVED and that the reviewer is an APPROVED ADMIN. It accepts only integer scores in the inclusive range `0..pointsMax`. In one Prisma transaction it conditionally moves a `SUBMITTED` or `UNDER_REVIEW` attempt to `APPROVED` and creates its points row. A zero-point approval is represented by a row with amount 0. Exact retries are accepted idempotently; all conflicting retries fail. Weekly totals are derived using the frontend's Monday 00:00 Asia/Kolkata boundary; all-time totals sum the complete ledger.
+| Model | Purpose and key controls |
+| --- | --- |
+| `User` | Existing identity row, unique email and normalized-email index; persisted role/status are rechecked on protected service routes. `UserRole` is MEMBER/ADMIN; `UserStatus` includes pending, approved, rejected, suspended, disabled. Registration/login/current-user, pending approval and guarded first-admin bootstrap now use this model. |
+| `InviteCode` | Reused invite concept; persist `codeHash`, never a recoverable plaintext code. Unique hash, status/expiry and creator indexes; usage bounds are checked in SQL. Invite APIs/auth registration remain disconnected. |
+| `Task` | Admin-created task with title/description/category, `pointsMax >= 0`, due date, checklist, lifecycle (DRAFT/PUBLISHED/ARCHIVED), thumbnail type, creator and timestamps. Member visibility is server-filtered to published tasks. |
+| `Submission` | Task/member proof URL and note, submitted code/checklist, workflow status, reviewer, feedback, score/rubric snapshot and timestamps. Owner comes from the authenticated persisted user. Partial unique index permits only one DRAFT/SUBMITTED/UNDER_REVIEW attempt per user/task; prior rejected/revision/approved/withdrawn attempts remain history. No upload storage is integrated. |
+| `PointTransaction` | Immutable award ledger and source for weekly/all-time totals. Unique submission and idempotency key, task max/rubric/reviewer snapshots, amount bounds, recipient/time indexes. No materialized balance. |
+| `Streak`, `StreakDay` | Derived only from approved submissions and server-authored `reviewedAt`; daily marker primary key `(userId,activityDate)` uses IST calendar date. Advisory transaction lock and unique key make refresh idempotent. |
 
-The review/rubric API remains unimplemented in this checkout. Its future approval route must authorize the signed-in administrator and invoke this transaction service. No Chat or Personal Space table is read by award or aggregate calculations.
+Relations use restrictive foreign keys for history-bearing rows. SQL migrations enable RLS without browser-facing policies; the app accesses data server-side via Prisma. Chat, Chat attachments, Personal Space (`Todo`, `Note`, `Goal`, private profile/settings) are not queried as input to scoring, leaderboard or streak calculations. Person 4 privacy sign-off is still outstanding for any future integration.
 
-## Phase 6 leaderboard indexes and eligibility
+### Migrations (apply in this order)
 
-Added `Submission(userId,status)` to support the approved-work join and `PointTransaction(createdAt,userId)` to support the weekly time-window aggregate. The migration is additive at `prisma/migrations/20261031230000_leaderboard_indexes/`; it has not been applied to Supabase. The endpoint aggregates only rows whose Submission is currently APPROVED and whose User is APPROVED, then paginates by a deterministic points/name/id order. This protects against stale or invalid ledger rows being counted after a submission is no longer approved. The caller's standing and the row above it are returned independently from the page.
+| Migration | Contents |
+| --- | --- |
+| `20261031100000_initial` | Enums and User, Task, Submission, PointTransaction, Streak, InviteCode tables; initial constraints/indexes and RLS. |
+| `20261031210000_submission_lifecycle` | `WITHDRAWN` status and partial unique index for one active attempt per user/task. |
+| `20261031230000_leaderboard_indexes` | Submission user/status and points createdAt/user indexes. |
+| `20261031233000_ist_streak_engine` | `StreakDay` plus secured SQL functions for transactional and scheduled refresh. |
 
-## Verified facts
+Review SQL under `prisma/migrations/` and schema under `prisma/schema.prisma`. No seed script exists. Do not manually seed production users/awards. Synthetic fixtures exist only in tests and are scoped/cleaned by those tests.
 
-- No database schema or migration artifacts are present in the repository. Searches found no `schema.prisma`, Drizzle config/schema, SQL migrations, migration directory, or migration scripts.
-- `package.json` and `package-lock.json` contain no Prisma, Drizzle, PostgreSQL client, or other ORM/driver dependency.
-- `src/lib/env.ts` exposes optional `DATABASE_URL`; `.env.example` leaves it blank and explicitly says configure only after database selection. No application code reads it to establish a connection.
-- `GET /api/health` returns `backend: "not_configured"`. Feature endpoints return guarded 503 responses through `src/lib/api/backend.ts`.
-- `src/lib/auth/types.ts` defines TypeScript `User` and `SessionUser` shapes. `User` fields are `id`, `email`, `passwordHash`, `name`, `role`, `status`, `createdAt`, and `updatedAt`; roles are `MEMBER|ADMIN`; lifecycle statuses are `PENDING_APPROVAL|APPROVED|REJECTED|SUSPENDED|DISABLED`. This is not a database model.
-- Additional auth type declarations cover `InviteCode` and `MagicLinkToken`; submission/workspace/points declarations exist under `src/lib/db/submissions.ts`, `src/lib/workspace/types.ts`, and `src/lib/points/types.ts`. The `lib/db` directory name does not indicate an active database implementation.
+### Safe migration workflow
 
-## Approved logical model
+After verifying the project and local `.env.local` values (never print/share them):
 
-Use UUID primary keys unless Person 1's established ID format requires preserving existing IDs. Store instants in UTC (`timestamptz` on PostgreSQL); represent business-day interpretation explicitly. All server-controlled timestamps are generated by the database/application server, never accepted from browser writes.
+```sh
+npx prisma migrate status
+npm run db:validate
+npm run db:migrate:deploy
+npx prisma migrate status
+```
 
-| Entity                                     | Candidate fields and constraints                                                                                                                                                                                                                                                                                                                          | Ownership / relation                                                                                                                                                                                                                                                                                   |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `User`                                     | Reuse Person 1's model; do not create `Member`/`Account` duplicate. Existing fields: `id`, `email`, `passwordHash`, `name`, `role`, `status`, `createdAt`, `updatedAt`. Require unique normalized email; password hash nullable only if Person 1 confirms passwordless-only accounts. Role enum `MEMBER                                                   | ADMIN`; lifecycle enum matches existing `UserStatus`.                                                                                                                                                                                                                                                  | Person 1 owns account lifecycle and authorization semantics. Referenced by invite creator, submission author/reviewer, and points recipient. Session claims must be revalidated from this row for protected writes. Do not hard-delete users with ledger/review history; use lifecycle status and confirm any anonymization policy. |
-| `Task`                                     | `id`, `title`, `description`, `category`, `pointsMax` (integer >= 0), `deadline` (nullable timestamp pending product semantics), `checklist` (nullable JSON/string array), lifecycle `DRAFT                                                                                                                                                               | PUBLISHED                                                                                                                                                                                                                                                                                              | ARCHIVED`, `createdById`, `createdAt`, `updatedAt`, optional `publishedAt`.                                                                                                                                                                                                                                                         | Person 3 persists; admin-only create/edit/publish. `createdById → User.id` with restrict. Do not store member-specific UI `Open                                                                                                                                     | Pending                                                                                                                                                                                                                                                                                                                               | Approved                                                                                                                                                                                                                                                       | Rejected` as task lifecycle; derive that display status from the requesting member's submissions. |
-| `Submission`                               | `id`, `taskId`, `userId`, `proofUrl`, `note`, optional `codeSnippet`, optional checklist snapshot, status `SUBMITTED                                                                                                                                                                                                                                      | UNDER_REVIEW                                                                                                                                                                                                                                                                                           | APPROVED                                                                                                                                                                                                                                                                                                                            | REJECTED                                                                                                                                                                                                                                                            | REVISION_REQUESTED`, `submittedAt`, `createdAt`, `updatedAt`, `reviewedById`nullable,`reviewedAt`nullable,`feedback`nullable,`rubricVersion`nullable,`pointsAwarded`nullable. Require non-empty validated proof/note according to agreed request rules;`pointsAwarded`integer`0..task.pointsMax` when approved, null before decision. | Author is session user, never request body. `taskId → Task.id`; `userId → User.id`; reviewer → User.id. Restrict deletion when referenced; preserve review history. Decide whether re-submission updates a row or creates a new attempt before implementation. |
-| `PointTransaction` (the single points log) | `id`, `userId`, `submissionId`, `reviewedById`, `amount` integer >= 0, `maxPoints` integer >= 0, `rubricVersion`, `idempotencyKey` unique, `createdAt`. Unique `submissionId` for one award per approved submission (confirm if resubmission model changes). Append-only: no update/delete API. No cached balance column in v1; balance is `SUM(amount)`. | Person 3 owns transaction and ledger. Recipient/reviewer derived and checked against persisted submission/reviewer; never trust client `userId`, role, score bounds, or rubric version. FK to User, Submission, reviewer User. Must be inserted atomically with approval transition and streak update. |
-| `Streak`                                   | `userId` primary key/FK, `current` integer >= 0, `longest` integer >= `current`, `lastApprovedAt` nullable, `updatedAt`.                                                                                                                                         | Person 3 owns materialized state. Recompute/update only from persisted approved submissions in the same DB transaction as approval; never accept client streak values. No chat, personal todos, notes, goals, activity, or private-space rows participate.                                             |
-| `StreakDay`                                | Composite primary key `(userId, activityDate)`, `activityDate` PostgreSQL `DATE` in Asia/Kolkata, `lastApprovedAt` timestamp, `createdAt`; index `(activityDate,userId)`.                                                                                                                                         | One idempotent activity marker for any number of approved submissions on the same IST day. Derived only from persisted APPROVED submissions with a review timestamp. Foreign key to the existing User with RESTRICT delete. |
-| `InviteCode`                               | Reuse Person 1's model and lifecycle semantics (`ACTIVE                                                                                                                                                                                                                                                                                                   | USED                                                                                                                                                                                                                                                                                                   | EXPIRED                                                                                                                                                                                                                                                                                                                             | REVOKED`, `maxUses`, `usedCount`, `expiresAt`, creator, timestamps); do not create another invite table/system. Proposed persisted secret is unique `codeHash`, not plaintext `code`, due D-010 token-storage security. `maxUses > 0`; `0 <= usedCount <= maxUses`. | Person 1 owns generation, validation, state transitions and API contract. `createdById → User.id`. Redemption must atomically increment usage and create/link the user to avoid oversubscription. Raw code may be returned only at create time if Person 1 confirms; it cannot be listed/recovered from a hash.                       |
+`DIRECT_URL` is used by Prisma migration commands. `db:migrate:deploy` changes the selected database. Run this workflow first on staging and only with database-owner/release approval on production. No reviewed automatic down migrations exist; prefer a forward-fix. For destructive recovery, stop writes and follow the verified provider backup/PITR restore process with the database owner. Never reset migration history or drop tables as rollback.
 
-### Indexes and referential behavior
+## Points and review transaction
 
-- `User`: unique index on normalized email; index `(status, role)` only if admin member queues need it.
-- `Task`: `(lifecycle, deadline, createdAt)` for published task feeds; optional category index if confirmed by query patterns.
-- `Submission`: `(userId, createdAt DESC)`, `(status, submittedAt)`, `(taskId, status)` for member history/review queues. Add uniqueness for an active attempt only after resubmission semantics are settled.
-- `PointTransaction`: unique `idempotencyKey`, unique `submissionId`, `(userId, createdAt DESC)`; recipient totals use indexed ledger scan/aggregate.
-- `Streak`: `userId` PK already indexes lookup.
-- `InviteCode`: unique `codeHash`, `(status, expiresAt)`, `(createdById, createdAt DESC)`.
-- Use `RESTRICT` for history-bearing FKs by default. User/task archival is status based; no cascading deletion through submissions or ledger.
+The Phase 10 admin review routes call `dispatchApprovedPoints`. They revalidate the signed-in persisted approved ADMIN; reviewer identity, recipient, task maximum and `mvp-default-v1` rubric marker are server-owned. Only integer `pointsAwarded` from 0 through the persisted task maximum is accepted. Approval changes submission state, writes one immutable ledger record, and refreshes the streak in one transaction. Exact retries return the existing award; conflicting retries fail. Any transaction failure rolls back all writes. Rejection/revision award no points; a later attempt is a new submission row.
 
-### Required approval and points transaction
+Configurable rubric storage remains unimplemented. Do not accept reviewer/user/role/status/points/streak values as trusted client fields. See `API_CONTRACTS.md` for HTTP payloads and `SECURITY_NOTES.md` for authorization and privacy details.
 
-Within one database transaction: lock/re-read the submission and task; verify current admin role/status from persisted `User`; verify submission is eligible for transition; validate score as integer `0 <= pointsAwarded <= Task.pointsMax`; take rubric version from the approved review context; transition submission once and write `PointTransaction` using Person 1's idempotency key `pts_${submissionId}_${rubricVersion}`; update streak from approved-submission timestamps. A unique-key conflict returns the prior result only when payload identity/amount matches; conflicting reuse is an error. Any other failure rolls back all writes. This is a design requirement, not implemented behavior.
+## Streak policy and Supabase Cron
 
-### Streak policy (confirmed 2026-10-31)
+Only approved submissions count (including a zero-point approval), using `reviewedAt` interpreted as an Asia/Kolkata date. Multiple approvals on one day produce one day marker. Current streak includes activity today or yesterday; after one full missed IST day it resets to zero while longest is retained. Login is not an activity event. Approval refresh is immediate in the award transaction.
 
-- An approved submission qualifies, including a zero-point approval; login attempts do not count. This follows the user's Phase 7 decision and the existing approval contract, which separates streak refresh from positive point awards. Actual Person 1/2 route integration remains pending.
-- An activity date is the approval's `reviewedAt` interpreted in `Asia/Kolkata`. Any number of approvals on a date produce one `StreakDay`.
-- A current streak continues when its latest active date is today or yesterday. After a full missed IST calendar day, `current` becomes zero; `longest` remains historical.
-- Approval calls `record_approved_submission_streak` inside the same transaction as the approval and points log. A transaction-scoped advisory lock and the `(userId, activityDate)` primary key make same-day and concurrent processing idempotent.
-- Supabase Cron calls `public.refresh_all_streaks()` daily at 00:05 IST (18:35 UTC). This catches up missing markers and expires stale current streaks. The function does not read Chat or Personal Space data.
-
-### Supabase Cron setup
-
-After applying the reviewed migration, open Supabase Dashboard → SQL Editor. If `pg_cron` is not available, enable the Cron extension under Database → Extensions. Paste this script to replace any existing job with the same name and create exactly one schedule:
+Supabase Cron is a daily reconciliation/reset path at `18:35 UTC` (`00:05 IST`). The job has **not** been verified as configured. After confirming the target database has the streak migration applied, an authorized project operator can use Supabase Dashboard → SQL Editor. Enable `pg_cron` first if necessary. This SQL replaces an existing job with the same name and creates one schedule:
 
 ```sql
 select cron.unschedule(jobid)
@@ -77,37 +67,30 @@ select cron.schedule(
 );
 ```
 
-Supabase Cron uses PostgreSQL `pg_cron`; this schedule is UTC and maps to 00:05 IST. Verify it under Database → Cron Jobs, or run `select jobid, jobname, schedule from cron.job where jobname = 'prax-refresh-streaks';`. Supabase Cron job setup is a one-time manual dashboard step; the application approval flow does not depend on it for same-day updates.
+Verify in Database → Cron Jobs or with:
 
-### Ownership exclusions
+```sql
+select jobid, jobname, schedule
+from cron.job
+where jobname = 'prax-refresh-streaks';
+```
 
-Do not include `WorkspaceData`, `ChatMessage`, `ChatAttachment`, `Todo`, `Note`, `Goal`, profile preferences, or private-space state in this schema proposal. Person 4 owns those privacy-separated domains. They must not be inputs to point totals, task awards, leaderboard totals, or streaks.
+Do not run this against an unconfirmed project. Same-day approval updates do not depend on Cron. The SQL functions derive user/date only from persisted approved submissions and do not query Chat or Personal Space.
 
-## Migration record and remaining steps
+## Integration database safety
 
-1. User ran `npm run db:migrate:deploy` against Supabase and reported successful application of `20261031100000_initial`.
-2. Keep `.env.local` private and ignored. Configure `TEST_DATABASE_URL` only for an isolated disposable PostgreSQL database, never for the main project.
-3. Run the opt-in integration suite against that separate test database after applying the schema there; verify constraints and RLS behavior.
-4. For future schema changes, review the additive migration and apply with `npm run db:migrate:deploy` only after selecting and verifying the intended Supabase project. Use reviewed forward-fixes for applied schema changes; no destructive down migration without explicit approval.
+Keep three connection URLs in ignored `.env.local`: application `DATABASE_URL`, migration `DIRECT_URL`, and a **different disposable project** for `TEST_DATABASE_URL`. The test runner checks identities and performs read-only connectivity/schema preflight before Vitest. It refuses matching database identities and does not print URLs. Never point it at production: integration tests insert/update/delete synthetic records. Latest user-run result was 31/31 across five suites; see `TEST_LOG.md`. The Phase 11 agent environment could not reach that project and its retry ran no tests.
 
-## Review and coordination status
+## Release blockers and unknowns
 
-The user approved implementation of this schema and selected Supabase. Prisma ORM 7 was selected following the existing PostgreSQL/Prisma direction recorded in project documentation. Direct messaging integration with Persons 1/2/4 is not available; the schema reuses the declared User/InviteCode concepts and preserves the privacy boundary. Prisma schema, generated SQL migration, and database constraint integration tests now exist. The user reported successful migration application; contributor sign-off was not supplied.
+- Intended production/staging Supabase project ID and full migration status are unverified here.
+- Backup/PITR and restore procedure must be confirmed with the database owner.
+- Cron activation must be checked after target migration review.
+- Registration/login/current-user, hashed invite onboarding, admin invitation management/member approval, and guarded first-admin provisioning are implemented against the existing schema with no new migration. Their complete database integration flow still needs to pass from an environment that can reach the isolated test project. Configurable rubric and remaining admin member lifecycle actions are not implemented.
+- Coordinate deploy/build/rollback/smoke responsibilities with Person 5 and obtain explicit deployment approval. No deployment was performed.
 
-## Remaining unknowns
+## Persisted auth and first-admin setup (2026-11-01)
 
-- The project-specific Supabase deployment target and backup/restore workflow are not visible in this workspace; verify the intended project before running migrations.
-- The additive migrations for leaderboard indexes and the streak engine are not applied or independently verified against live PostgreSQL here. Run integration tests against an isolated database.
-- Persistent User, Task, Submission, PointTransaction, and Streak schema/contracts now exist. Auth registration/current-user persistence and admin review routes remain disconnected, so persisted approval flows are not end-to-end operational.
-- Person 1 still needs to connect approved admin reviews to `dispatchApprovedPoints`; the user-provided streak policy is D-028, but direct Person 1/2 sign-off was unavailable.
-- Keep Chat and Personal Space data outside points/streak inputs; profile fields remain explicitly allowlisted by their owning API.
+Authentication reuses the existing `User` and `InviteCode` tables. No schema change or migration was required. Password hashes use the existing scrypt helper; invite codes use SHA-256 hashes. New registrations are always `MEMBER/PENDING_APPROVAL`; the client cannot supply IDs, roles, or account status. Invite count increment and user insert share a transaction. First-admin setup is protected by a temporary `FIRST_ADMIN_BOOTSTRAP_TOKEN`, a PostgreSQL transaction advisory lock, and a check that no ADMIN already exists. Exact API shapes and errors are in the Phase 12 section of `API_CONTRACTS.md`.
 
-## Next schema actions
-
-Review `20261031233000_ist_streak_engine`, verify the intended `.env.local`/`DIRECT_URL`, and run `npm run db:migrate:deploy`. Then create and verify the `prax-refresh-streaks` Supabase Cron job using the SQL above. Use a separate `TEST_DATABASE_URL` for PostgreSQL tests; do not use the primary Supabase database for test fixtures.
-
-## Phase 4 submission lifecycle addition
-
-`SubmissionStatus` now includes `WITHDRAWN`. Additive migration `20261031210000_submission_lifecycle` adds that enum value and the partial unique index `Submission_one_active_attempt_per_user_task_idx`, which allows at most one `DRAFT`, `SUBMITTED`, or `UNDER_REVIEW` attempt per `(userId, taskId)`. Rejected, revision-requested, approved, and withdrawn rows remain as history and do not block a later attempt. The user reported both initial and Phase 4 migrations applied successfully to Supabase on 2026-10-31. Database integration tests still require a separate migrated test database.
-
-A submission attempt is created directly as `SUBMITTED` to match the current frontend. Owner edits and withdrawal are permitted only before review begins. Withdrawal is soft (`WITHDRAWN`), not a row deletion. Rejected/revision-requested resubmission creates a new row, preserving reviewer feedback on the prior attempt. This is recorded as D-025 pending Person 1/2 confirmation. No persistent upload store exists; only validated proof links and explanatory text are accepted.
+Never insert account or invite rows by hand. Keep the temporary bootstrap token and password local; after the first-admin endpoint returns 201, remove the token from `.env.local` and restart the local app. The bootstrap endpoint then returns 404, and it independently refuses a second admin even if accidentally re-enabled. No database was accessed for this implementation. A temporary admin HTTP request is still required after the project owner confirms the correct `DATABASE_URL`; see README for operator steps.

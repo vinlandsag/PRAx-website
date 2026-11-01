@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { SessionUser } from "@/lib/auth/types";
-import { getSubmission, parseSubmissionInput, parseSubmissionQuery } from "./service";
+import {
+  getSubmission,
+  listOwnSubmissions,
+  parseSubmissionInput,
+  parseSubmissionQuery,
+} from "./service";
 
 const valid = {
   taskId: "task-123",
@@ -83,4 +88,61 @@ describe("own submission query validation", () => {
       expect(parseSubmissionQuery(new URLSearchParams(query)).ok).toBe(false);
     }
   );
+});
+
+describe("own submission query shaping", () => {
+  it("does not load the unused reviewer relation for the member history list", async () => {
+    const submittedAt = new Date("2026-10-31T10:00:00Z");
+    const record = {
+      id: "submission-1",
+      taskId: "task-1",
+      userId: "member-1",
+      proofUrl: "https://example.test/proof",
+      note: "Completed the task.",
+      codeSnippet: null,
+      checklist: [],
+      status: "APPROVED",
+      pointsAwarded: 10,
+      rubricVersion: "v1",
+      feedback: null,
+      reviewedById: "admin-1",
+      reviewedAt: submittedAt,
+      submittedAt,
+      createdAt: submittedAt,
+      updatedAt: submittedAt,
+      task: { id: "task-1", title: "Task", category: "Build", pointsMax: 20 },
+      author: { id: "member-1", name: "Synthetic Member", email: "member@example.test" },
+    };
+    const count = vi.fn().mockResolvedValue(1);
+    const findMany = vi.fn().mockResolvedValue([record]);
+    const prisma = {
+      submission: { count, findMany },
+      $transaction: vi.fn((queries: Promise<unknown>[]) => Promise.all(queries)),
+    } as unknown as PrismaClient;
+    const session: SessionUser = {
+      id: "member-1",
+      email: "member@example.test",
+      name: "Synthetic Member",
+      role: "MEMBER",
+      status: "APPROVED",
+    };
+
+    const result = await listOwnSubmissions(prisma, session, {
+      status: "ALL",
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(result.submissions[0]).toMatchObject({
+      id: record.id,
+      authorEmail: session.email,
+      reviewedById: "admin-1",
+    });
+    const query = findMany.mock.calls[0][0];
+    expect(query.include).toEqual({
+      task: { select: { id: true, title: true, category: true, pointsMax: true } },
+      author: { select: { id: true, name: true, email: true } },
+    });
+    expect(query.include).not.toHaveProperty("reviewer");
+  });
 });

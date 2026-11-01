@@ -21,6 +21,9 @@ export const env = {
   get sessionSecret() {
     return optional("SESSION_SECRET", optional("NEXTAUTH_SECRET"));
   },
+  get firstAdminBootstrapToken() {
+    return optional("FIRST_ADMIN_BOOTSTRAP_TOKEN");
+  },
 
   // Supabase Postgres: pooled runtime URL and direct migration URL.
   get databaseUrl() {

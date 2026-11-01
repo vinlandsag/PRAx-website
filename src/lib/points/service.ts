@@ -121,17 +121,21 @@ export async function dispatchApprovedPoints(
       if (!REVIEWABLE_STATUSES.includes(submission.status as (typeof REVIEWABLE_STATUSES)[number]))
         return invalid(idempotencyKey, "INVALID_STATE_TRANSITION");
 
-      const transitioned = await tx.submission.updateMany({
-        where: { id: submissionId, status: { in: [...REVIEWABLE_STATUSES] } },
-        data: {
-          status: "APPROVED",
-          pointsAwarded,
-          rubricVersion,
-          reviewedById,
-          reviewedAt: new Date(),
-        },
-      });
-      if (transitioned.count !== 1) {
+      // Use a millisecond-truncated PostgreSQL transaction timestamp. Submission.reviewedAt
+      // is TIMESTAMPTZ(3); assigning the microsecond transaction timestamp directly can round
+      // it forward by <1ms and make the streak function's <= CURRENT_TIMESTAMP check fail.
+      const transitioned = await tx.$executeRaw`
+        UPDATE "Submission"
+        SET "status" = 'APPROVED'::"SubmissionStatus",
+            "pointsAwarded" = ${pointsAwarded},
+            "rubricVersion" = ${rubricVersion},
+            "reviewedById" = ${reviewedById},
+            "reviewedAt" = date_trunc('milliseconds', CURRENT_TIMESTAMP),
+            "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "id" = ${submissionId}
+          AND "status" IN ('SUBMITTED'::"SubmissionStatus", 'UNDER_REVIEW'::"SubmissionStatus")
+      `;
+      if (transitioned !== 1) {
         const concurrentAward = await tx.pointTransaction.findFirst({
           where: { OR: [{ submissionId }, { idempotencyKey }] },
         });

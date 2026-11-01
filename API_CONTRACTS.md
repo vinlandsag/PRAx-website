@@ -1,8 +1,27 @@
 # API_CONTRACTS.md
 
+## Phase 11 release handoff status (2026-11-01)
+
+Review, points, task, submission, leaderboard, and streak endpoints are database-backed as described below. Auth registration/login/current-user persistence, configurable rubric, Workspace/Chat, and notifications remain unimplemented seams (503 outside the development-only loopback member login). `npm run test:integration` was user-reported passing with 31/31 tests in a separate test project; a subsequent agent attempt could not reach that host and did not execute Vitest. No API contract changed in Phase 11. Release setup, safe smoke-check limits, and deployment gates are documented in README.
+
 ## Persistence configuration — D-024
 
 Supabase hosts PostgreSQL. Prisma 7 is the application's sole ORM and migration system. Runtime access uses `DATABASE_URL`; Prisma migration commands use `DIRECT_URL`. The app's task, submission, points and streak services use Prisma. Do not apply a parallel Supabase CLI schema migration.
+
+## Phase 10 — task review integration (2026-11-01)
+
+Verification update: after the initially reported database integration failures were fixed, the user reports `npm run test:integration` passed: 31/31 tests across 5 files. See TEST_LOG.md for the initial failure and successful retest details.
+
+- `GET /api/admin/submissions?status=SUBMITTED&limit=20&offset=0` is admin-only and returns `{submissions, pagination}`. `status` defaults to `SUBMITTED` and accepts `SUBMITTED`, `UNDER_REVIEW`, or `ALL`; pagination uses the shared bounded parser.
+- `POST /api/admin/submissions/:id/approve` retains the frontend body `{pointsAwarded}`. The route rejects all additional fields, derives `reviewedById` from the signed-in session and current persisted ADMIN row, and supplies server-owned rubric version `mvp-default-v1`. The points service checks `0..Task.pointsMax`, atomically approves, inserts the unique ledger record and refreshes the IST streak. Exact retries return the existing award.
+- `POST /api/admin/submissions/:id/reject` and `/request-revision` accept `{feedback}` only, require 3–8000 trimmed characters, and conditionally transition reviewable attempts while recording reviewer and review time. They do not award points. Rejected/revision-requested attempts can be followed by a new submission.
+- The existing rubric configuration endpoint is still a 503 seam. Until a versioned persisted rubric is implemented, review awards use the fixed default UI rubric version above; the client cannot select or forge that version.
+- `npm run test:integration` loads local test DB settings without printing them, verifies TEST_DATABASE_URL targets a different project/database than DATABASE_URL and DIRECT_URL, performs a read-only connectivity/schema preflight, then runs the task, submission, points, streak and route-handler core-loop PostgreSQL suites. The core-loop test signs synthetic member/admin sessions but verifies both persisted users are APPROVED. It does not test login/registration, which remain pending seams.
+- Chat and Personal Space are not read by review, award, leaderboard or streak operations.
+
+## Phase 9 performance note (2026-11-01)
+
+Measured existing GET task list/search/detail, own submissions, weekly/all-time leaderboard and streak route handlers against an isolated synthetic test database; timings and limitations are in TEST_LOG.md. `GET/PATCH /api/workspace` remains a 503 endpoint and profile read performance could not be measured. No API contract changed. Submission history no longer fetches the unused reviewer relation; its response fields remain unchanged.
 
 ## Authorized GitHub delivery of current work (2026-10-31)
 
@@ -560,25 +579,25 @@ This verified snapshot distinguishes frontend expectations from live endpoint be
 
 | Feature                | Frontend request / expected response                                                              | Live handler                                                                           | Integration status                                                                                                |
 | ---------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Task catalog           | `GET /api/tasks` → `{tasks: TaskItem[]}`                                                          | `GET` guarded then 503                                                                 | Contract only; admin `POST` also guarded then 503                                                                 |
-| Task detail            | `GET /api/tasks/:id` → `{task: TaskItem}`                                                         | `GET` guarded then 503                                                                 | Contract only; admin `PATCH` guarded then 503                                                                     |
-| Submission create/list | `POST /api/submissions` and `GET /api/submissions` → `{submissions: Submission[]}`                | Both guarded then 503                                                                  | Contract only; create body fields are defined by the frontend caller, but no server validation/persistence exists |
-| Admin review           | `GET /api/admin/submissions`, `POST /api/admin/submissions/:id/{approve,reject,request-revision}` | Admin guard then 503                                                                   | Contract/seams only; no approval or score award executes                                                          |
+| Task catalog           | `GET /api/tasks` → `{tasks: TaskItem[]}`                                                          | Guarded, persisted and approved-account checked                                        | Database-backed; admin `POST` also persists tasks                                                                |
+| Task detail            | `GET /api/tasks/:id` → `{task: TaskItem}`                                                         | Guarded and persisted                                                                  | Database-backed; admin `PATCH` persists changes                                                                  |
+| Submission create/list | `POST /api/submissions` and `GET /api/submissions` → `{submissions: Submission[]}`                | Guarded and persisted                                                                  | Owner derives from signed session; server validates proof and state                                              |
+| Admin review           | `GET /api/admin/submissions`, `POST /api/admin/submissions/:id/{approve,reject,request-revision}` | Admin-only, persisted account revalidated                                              | Queue and transitions are database-backed; approve calls atomic points/streak boundary                           |
 | Leaderboard            | `GET /api/leaderboard?period=weekly                                                               | alltime`→`{entries,total}`                                                             | Protected; database-backed ledger aggregation                                                                     | Weekly/all-time totals derive from PointTransaction; ranking is score descending, then name/id |
-| Streaks                | `GET /api/streaks` → `{current,longest,activeDays}`                                               | Guarded then 503                                                                       | Contract only; no event source or processor                                                                       |
+| Streaks                | `GET /api/streaks` → `{current,longest,activeDays}`                                               | Guarded, persisted and approved-account checked                                        | Database-backed reads; approval updates streak transactionally                                                    |
 | Dashboard              | `GET /api/dashboard` → `DashboardSummary`                                                         | Guarded then 503                                                                       | Contract only                                                                                                     |
 | Workspace/profile      | `GET/PATCH /api/workspace`; public profile consumer sends `memberId`                              | Both guarded then 503                                                                  | Contract only; no owner/profile storage. `memberId` is a requested public-profile lookup, not proof of ownership  |
 | Current user           | `GET /api/users/me` → `{user}`                                                                    | Session/status guard; matching local development fixture can return 200, otherwise 503 | Narrow local exception; no durable account lookup                                                                 |
 
-Current-state correction: the Task catalog, Task detail, and Submission rows above preserve an earlier phase snapshot and are superseded by the Phase 3 and Phase 4 implementation notes. Their handlers are persisted and revalidate approved accounts. The admin review and rubric rows remain 503 stubs.
+Current-state correction: the admin review row reflects the Phase 10 implementation. The configurable rubric routes, auth registration/persisted login and current-user persistence remain 503 seams.
 
-Typed response contracts are in `src/lib/api/contracts.ts` and workspace shapes in `src/lib/workspace/types.ts`. `src/lib/api/backend.ts` constructs the no-store 503 response for pending routes. Protected routes may return 401/403 before reaching that response. Task and submission routes, the points award service and leaderboard read are now database-backed; auth registration/current-user persistence, admin review actions, rubric and streak routes remain pending.
+Typed response contracts are in `src/lib/api/contracts.ts` and workspace shapes in `src/lib/workspace/types.ts`. `src/lib/api/backend.ts` constructs the no-store 503 response for pending routes. Protected routes may return 401/403 before reaching that response. Task, submission, admin review, points, leaderboard and streak routes are database-backed; persisted login/registration/current-user and configurable rubric remain pending.
 
 ## Verified mismatches / implementation notes
 
 - `/api/workspace?memberId=...` is shared by private workspace consumers and the public member profile consumer. A durable implementation must branch and authorize public profile reads separately; it must not return private workspace data for a foreign `memberId`.
 - Frontend `Submission` includes author/task display fields and optional review/points metadata. These are UI contract fields, not verified database columns or permission to accept client-authored reviewer/points values.
-- The Phase 5 points boundary implementation is described below. Admin approval route remains a 503 seam and must call the boundary from its review action.
+- The Phase 5 points boundary implementation is described below and is now called by the Phase 10 admin approval route.
 - Proxy and `authorize()` enforce signed-session claims and role/status policy. Task, submission and leaderboard routes revalidate the current persisted account; disconnected auth/admin routes still require durable account lifecycle integration.
 - Prisma schema, generated types, migrations and migration commands are documented in the Phase 1/3 implementation notes above.
 
@@ -590,7 +609,7 @@ One Prisma transaction conditionally changes `SUBMITTED`/`UNDER_REVIEW` to `APPR
 
 No balance or weekly cache is stored. `/api/leaderboard` derives sums from the ledger for all approved accounts. Weekly means Monday 00:00 Asia/Kolkata (the UI's current definition); all-time sums every ledger row. Entries are protected by existing session authorization and persisted-account revalidation. Chat and Personal Space are not read or scored.
 
-Integration boundary note: repository inspection on 2026-10-31 found the review/rubric routes are still 503 stubs; that verified state supersedes the earlier green/implemented status recorded in IC-06/IC-06B. Person 1's eventual approval handler must authorize the signed-in admin and call this service; review UI/rubric work is not implemented by Phase 5.
+Integration note (Phase 10): the admin approval route now authorizes and revalidates the persisted ADMIN, then supplies reviewer identity and the fixed MVP rubric version to this service. Configurable rubric persistence remains a separate seam.
 
 ## Phase 6 — weekly and all-time leaderboard (2026-10-31)
 
@@ -623,7 +642,7 @@ The query reads only User, Streak, Submission, and PointTransaction; it returns 
 - Reset: current streak remains active when the most recent activity date is today or yesterday. Once there is a full missed IST day, current becomes zero; longest is retained.
 - Scheduler: Supabase Cron runs `select public.refresh_all_streaks();` daily at `35 18 * * *` UTC (00:05 IST). Setup and verification SQL are in `DB_SCHEMA.md`. The scheduler is a reconciliation/reset path; same-day approval refresh does not wait for Cron.
 - Privacy: only User, Submission, StreakDay, and Streak are read/written. Personal Space and Chat are excluded.
-- Integration boundary: the admin approval route is still a 503 stub, so Person 1 must connect it to `dispatchApprovedPoints`. The current login endpoint does not persist login events; no login streak is recorded.
+- Integration note (Phase 10): the admin approval route calls `dispatchApprovedPoints`; a route-handler PostgreSQL core-loop test covers immediate streak visibility. The current login endpoint does not persist login events; no login streak is recorded.
 
 ## Phase 8 — Isolation & security audit (2026-10-31)
 
@@ -646,7 +665,7 @@ The query reads only User, Streak, Submission, and PointTransaction; it returns 
 ### Remaining risks and coordination
 
 - The owner/admin Submission response currently includes `authorEmail` under the existing contract. It is limited to the owner or approved ADMIN; no frontend use was found, but removing it needs the contract owners' review.
-- Person 1's admin approval/rejection and persisted auth lifecycle routes remain 503 stubs. Before they are enabled, approval must derive reviewer identity from the authenticated persisted ADMIN session and call `dispatchApprovedPoints`; never accept `reviewedById` from the body.
+- Admin approval/rejection are implemented in Phase 10 and derive reviewer identity from the authenticated persisted ADMIN session; never accept `reviewedById` from the body. Persisted auth lifecycle and configurable rubric routes remain 503 stubs.
 - Workspace and Chat routes currently return 503, so no persisted private-data query path exists in this checkout. A Person 4 messaging channel was not available; their explicit privacy sign-off remains outstanding. The verified code boundary excludes those sources from scoring/streaks.
 - PostgreSQL integration tests are present but require a separate migrated `TEST_DATABASE_URL`; they were skipped in this audit. Live RLS and SQL-function behavior therefore remain unverified.
 
@@ -718,4 +737,18 @@ The owner may `PATCH /api/submissions/:id` with only `proofUrl` and/or `note`, o
 
 A rejected or revision-requested attempt may be followed by a new `SUBMITTED` attempt for the same task; the earlier row and feedback remain intact. Concurrent active attempts are rejected by the additive partial unique index in `prisma/migrations/20261031210000_submission_lifecycle/`. The user reported that this migration and the original schema migration were applied successfully to Supabase on 2026-10-31. Database transition tests still require a separate migrated test database.
 
-Proof must be an absolute HTTP(S) URL up to 2048 characters; note is required and bounded to 8000 characters. The current frontend sends proof links and notes only. No persistent submission-upload storage exists, so file/upload metadata is not accepted. Existing admin review endpoints remain unimplemented 503 seams; this API exposes stored review status/feedback and enforces immutability when a submission is already marked `UNDER_REVIEW` or decided, but does not perform approval/rejection or score awards.
+Proof must be an absolute HTTP(S) URL up to 2048 characters; note is required and bounded to 8000 characters. The current frontend sends proof links and notes only. No persistent submission-upload storage exists, so file/upload metadata is not accepted. Admin approval/rejection/revision is implemented as described in Phase 10; edits remain locked once the submission is under review or decided.
+
+# Phase 12 — Persisted authentication and invite onboarding (implemented; integration DB run pending)
+
+These endpoints use the existing Prisma `User` and `InviteCode` models; no parallel auth store or migration was added. Passwords are stored with the existing scrypt helper. Invite codes are stored only as SHA-256 hashes, and email comparisons/unique ownership use normalized lowercase email.
+
+- `POST /api/auth/register` accepts exactly `{name,email,password,inviteCode}`. Names are trimmed and limited to 120 characters; passwords are 8–256 UTF-8 bytes; invite format is validated. Invite capacity is claimed conditionally inside the same transaction as `User` creation. The server assigns `role: MEMBER` and `status: PENDING_APPROVAL`; request role/status/user IDs are rejected. Returns `201 {user:{id,email,name,role,status,createdAt}}` without a session cookie. Invalid/exhausted invitation is `400`; normalized duplicate email is `409 EMAIL_ALREADY_REGISTERED`.
+- `POST /api/invites/verify` accepts `{code}` and returns `{valid:true,remainingUses}` only for a current active invitation. Invalid, expired, revoked, or exhausted codes return a generic invalid/exhausted error; it does not reveal invite metadata.
+- `POST /api/auth/login` accepts exactly `{email,password}`, looks up the persisted account case-insensitively, verifies the existing scrypt hash, and signs the existing HttpOnly session cookie. Wrong email/password share the same `401` response. Rejected/suspended/disabled users are denied. Pending accounts can sign in, but member APIs remain blocked by the existing RBAC status guard.
+- `GET /api/users/me` validates the signed session against the persisted row, returns `{user:{id,email,name,role,status,createdAt}}`, and refreshes the signed cookie from current database role/status. Missing or inactive accounts are denied. The local loopback fixture remains development-only.
+- `POST /api/auth/bootstrap-admin` is disabled (404) unless `FIRST_ADMIN_BOOTSTRAP_TOKEN` is configured with 32+ characters. It requires same-origin and `x-first-admin-token`, accepts exactly `{name,email,password}`, requires a 12-character minimum password, serializes first-admin creation with a PostgreSQL transaction advisory lock, and refuses creation if any ADMIN exists. It returns no login cookie; sign in normally afterward. Remove the bootstrap environment variable and restart the app immediately after success.
+- `GET /api/invites` is persisted-ADMIN-only and paginated; raw codes and hashes are never returned. `POST /api/invites` is persisted-ADMIN-only and accepts `{maxUses?,expiresAt?}`. It returns a generated raw code once in the create response; admins must copy/share it then because the database stores only its hash. `DELETE /api/invites/:id` revokes an eligible invite.
+- `GET /api/admin/users?status=PENDING_APPROVAL&limit=20&offset=0` is persisted-ADMIN-only and returns an allowlisted user projection and pagination. `POST /api/admin/users/:id/approve` only transitions a different `MEMBER` from `PENDING_APPROVAL` to `APPROVED`; repeated/invalid transitions return 409.
+
+Registration, login, invite verification and bootstrap use bounded bodies and process-local IP rate limits. These rate limits are not distributed across instances. Registration/login/invite and admin flows use generic error responses and allowlisted error-event logging. Durable audit records are unavailable because this schema has no audit-log model. Reject/suspend/disable/unsuspend admin user actions and magic-link authentication remain unimplemented. Automated route unit tests pass; the checked-in DB integration flow tests invite creation/verification, registration, approval, login, current-user lookup and task browse, but the agent environment could not connect to the separate test database. No database mutation or deployment was performed by this implementation.

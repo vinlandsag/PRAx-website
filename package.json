@@ -19,6 +19,7 @@
     "db:validate": "prisma validate",
     "pretest": "prisma generate",
     "test": "vitest run",
+    "test:integration": "node scripts/run-integration-tests.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },

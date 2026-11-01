@@ -1,5 +1,17 @@
 # DECISIONS.md
 
+## Phase 11 release gate note (2026-11-01)
+
+The user requested release readiness and explicitly said not to deploy without approval. This session performed documentation and local checks only. No deployment approval was given, so none was performed. This is a record of scope, not a new deployment/provider or schema decision.
+
+## D-030 — Phase 9 benchmark isolation (2026-11-01)
+
+The user selected a separate test database for performance benchmarking. Use only a disposable, migrated database with synthetic fixtures; the measured project is in `eu-north-1` (501 users, 2,500 tasks, 10,000 approved submissions, 10,000 point transactions, 42 streak days). Do not run synthetic fixtures or benchmark load against the primary Supabase database. Benchmark currently implemented endpoints; `/api/workspace` profile reads remain unavailable (503) and cannot be tuned until implementation. The 2.0-second target applies only to the measured route-handler/database setup and dataset; timings exclude HTTP/TLS. No cache was justified by measured evidence.
+
+## D-031 — Keep review request shape and assign rubric version server-side (2026-11-01)
+
+Preserve Person 2's existing approve payload `{pointsAwarded}`. Never accept reviewer ID, rubric version, recipient ID, or task maximum from the browser. The approved admin session and server-owned default rubric version `mvp-default-v1` are added at the backend boundary. This version is a fixed MVP marker because configurable rubric persistence is still a 503 seam; do not advertise the rubric editor as functional until that API is implemented.
+
 ## D-024 — Supabase Postgres with Prisma 7 (2026-10-31; clarified 2026-11-01)
 
 The user selected Supabase as the PostgreSQL host. The `milan` backend implementation records Prisma 7 with the PostgreSQL adapter as the application's ORM and sole migration system. Runtime connections use pooled `DATABASE_URL`; migrations use direct/session `DIRECT_URL`.
@@ -202,3 +214,12 @@ Use `limit`/`offset` from the shared parser (default 20/0; max 100/100000). Orde
 The Phase 8 audit keeps the existing signed-session/RBAC and Prisma architecture. Unknown role or status claims must fail closed in both the proxy and route guard. Database-backed API handlers must revalidate the persisted account and select only fields needed for authorization. Member object reads must put ownership in the database predicate; ADMIN overrides remain only where the API contract explicitly grants them. Point/streak queries remain isolated from Person 4's Workspace and Chat domains. `maxPoints` is an immutable award-time snapshot and is not part of request retry identity, since task maximums can be changed later.
 
 The current Submission detail contract includes author email for its owner or an approved ADMIN; this remains authorized but is flagged for data-minimization review because no frontend usage was found. No Person 4 messaging channel was available, so their explicit privacy sign-off remains pending. Reversible: yes.
+## Phase 10 verification note (2026-11-01)
+
+The user reports that `npm run test:integration` passed after the timestamp precision and fixture-isolation fixes: 31/31 tests across 5 files. Record this as user-reported verification rather than an independently observed result. No new technical decision was made.
+
+## D-030 — Persisted invite onboarding and one-time admin bootstrap (2026-11-01)
+
+Reuse the existing `User`, `InviteCode`, scrypt password helper, signed session, and Prisma route conventions. Public registration always creates a `MEMBER/PENDING_APPROVAL` record; only a persisted ADMIN may approve it. Invite capacity is claimed and user creation commits in one transaction, while raw invite codes are returned only in the admin create response and never stored or listed. Because no admin provisioning policy or audit model existed, the minimum bootstrap is disabled unless a temporary 32+ character `FIRST_ADMIN_BOOTSTRAP_TOKEN` is configured; a transaction advisory lock and database count permit only the first ADMIN. The operator removes the token after bootstrap. No new schema or migration is needed.
+
+Limits recorded with this decision: rate limiting remains process-local, no durable admin audit record exists in the current schema, and magic-link plus reject/suspend/disable/unsuspend actions remain unimplemented. The database flow must be verified on the isolated `TEST_DATABASE_URL`; production deployment is outside this decision.

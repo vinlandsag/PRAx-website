@@ -1,3 +1,19 @@
+## 2026-11-01 — Phase 9 performance reconnaissance
+
+- Benchmarked seven route-handler reads against the separate migrated Supabase test project in `eu-north-1` using a synthetic dataset (501 users, 2,500 tasks, 10,000 approved submissions, 10,000 point transactions, 42 streak days; 5 warmups and 30 measurements).
+- All route p95s were below 2 seconds. Removed the unused reviewer relation from member submission history; its p95 moved from 1,730.6 ms to 1,314.4 ms. No index, leaderboard, task, or caching change was justified by the measurements.
+- Added an opt-in, tagged-fixture benchmark harness with isolated-project guard and cleanup. Profile remains unmeasured because `/api/workspace` returns 503. Timings exclude HTTP/TLS; query plans were not captured.
+- No migration or production database operation was run. Full database test failures and check results are recorded in TEST_LOG.md.
+
+## 2026-11-01 — Phase 10 team integration
+
+- Implemented admin review queue, approval, rejection and revision-request endpoints, retaining the current frontend payloads and response projections.
+- Approval validates score bounds in the points service, takes reviewer identity and the fixed `mvp-default-v1` rubric version from server state, then atomically updates approval, points ledger and streak.
+- Approval writes PostgreSQL `CURRENT_TIMESTAMP` truncated to the `TIMESTAMPTZ(3)` column precision so the streak function does not reject a rounded-forward timestamp.
+- Added denied/forged-input/transition unit coverage, an isolated DB route-handler end-to-end fixture, and `npm run test:integration` with database identity and read-only connectivity/schema guards.
+- Database integration could not run here because the separate Supabase test host is unreachable. No schema migration or primary-database operation was run. Results are in TEST_LOG.md.
+- The user's later reachable DB run exposed timestamp precision, stale Streak fixture cleanup and non-isolated task fixture failures. Fixed these after the run. The user reports a subsequent `npm run test:integration` passed: 31/31 tests across 5 files. This environment could not independently reach the test host.
+
 # CHANGELOG_DEV.md
 
 ## 2026-10-31 — Phase 2 backend conventions and foundation
@@ -629,3 +645,17 @@ Paginated leaderboard API now uses shared query validation, deterministic tie or
 - Preserved award-time `maxPoints` snapshot semantics for retries after task edits; added a regression test.
 - Audited all active routes, object queries, RLS migrations, and points/streak data dependencies. Chat/Workspace remain 503 and are not queried for scoring/streaks.
 - Documented authorized admin submission detail/email exposure, pending Person 4 sign-off, disconnected admin review/auth flows, and unrun PostgreSQL integration coverage.
+## 2026-11-01 — Phase 11 release readiness and handoff
+
+- Rewrote README with clean install and secret-safe environment setup, Prisma migration procedure, no-seed policy, verification commands, auth/RBAC limits, scheduler setup, idempotency/logging, Phase 9 performance evidence, rollback notes, release blockers, and Person 5 deployment coordination.
+- Reconciled current release facts in project state, API contracts, schema/security/handoff notes, decisions, test log, and TODO; historical test failures remain recorded with the later passing rerun.
+- Ran Node/npm version checks, unit suite, lint, typecheck, Prisma validation, and webpack production build. Unit suite: 338 passed, 32 DB/opt-in skipped; build generated 47/47 static pages.
+- User-reported database integration run: 31/31 passed. This environment retried it but the separate DB host was unreachable, so its runner stopped before Vitest. No migration, seed, Cron change, deployment, commit, or push was made.
+
+## 2026-11-01 — Persisted auth and invite onboarding
+
+- Connected registration, invite validation, password login, current-user lookup, admin invite management, pending-member list/approval, and guarded first-admin bootstrap to existing Prisma User/InviteCode tables. No migration/schema change.
+- Registration transactionally consumes invitation capacity and creates only `MEMBER/PENDING_APPROVAL`; sessions and admin checks retain existing HMAC/RBAC conventions. The admin UI shows a generated invite code once.
+- Added unit and isolated PostgreSQL integration coverage; test runner includes auth flow suite. Auth unit tests pass; DB flow was not run here because isolated test host was unreachable.
+- Updated README/operator instructions, contracts, schema state, security notes, decision log, test log and handoff. Magic link and remaining admin member actions remain unfinished; process-local rate limiting and absent durable audit model are documented.
+- Verification: 344 unit tests passed / 35 skipped, lint/typecheck passed, webpack production build passed (48 pages); default Turbopack build hit sandbox process/port restriction. No DB, migration or deployment was performed.

@@ -1,3 +1,24 @@
+## Phase 9 — Performance tuning
+
+- [x] Inspect task browse/detail, submissions, leaderboard, profile/streak paths, Prisma query shapes and current indexes.
+- [x] Select isolated test DB as the benchmark environment; recorded D-030.
+- [x] Configure local `TEST_DATABASE_URL`; verify the Supabase project differs from application and migration projects.
+- [x] Record a synthetic dataset and before/after endpoint p50/p95 in TEST_LOG.md.
+- [x] Make the measured submission-history query projection smaller and add a regression test; repeat measurements. All seven measured route p95s are under 2 seconds in this environment.
+- [ ] Capture query plans if another tuning change is proposed; current route measurements did not justify further query/index/cache changes.
+- [ ] Implement `/api/workspace` before measuring profile reads.
+- [x] Re-run the PostgreSQL suite after timestamp precision, points fixture cleanup, and task category isolation fixes (user reports 31/31 tests passed across 5 files).
+
+## Phase 10 — Team integration
+
+- [x] Implement persisted admin review queue, approve, reject, and revision-request routes using the current UI contracts.
+- [x] Derive reviewer identity and rubric version server-side; connect approval to one atomic points ledger/streak transaction.
+- [x] Add signed-session route-handler core-loop fixtures and denial, forged-field, invalid-score, rejection, revision, and resubmission tests.
+- [x] Add `npm run test:integration` with separate-database identity check and read-only reachability/schema preflight.
+- [x] Run `npm run test:integration` against the separate migrated database after latest fixes (user reports 31/31 tests passed across 5 files; this environment could not connect independently).
+- [ ] Coordinate with Person 1 on persisted login/registration and Person 1/2 on when configurable rubric storage should be implemented. Those endpoints remain 503.
+- [ ] Keep Person 4's Chat/Personal Space privacy boundary separate; no related query or score dependency was introduced.
+
 # TODO_NEXT.md
 
 ## Backend integration follow-up (2026-11-01)
@@ -107,8 +128,8 @@ Prioritized task list. Each task has a status, owner, dependency, and acceptance
 | Priority | Task                                                                                                          | Status | Owner | Depends On   | Acceptance Criteria                                         |
 | -------- | ------------------------------------------------------------------------------------------------------------- | ------ | ----- | ------------ | ----------------------------------------------------------- |
 | P1       | Implement Task creation, listing, and detail APIs (`GET /api/tasks`, `GET /api/tasks/:id`, `POST /api/tasks`) | DONE   | P3    | Phase 7      | Implemented; auth persistence and DB integration remain pending |
-| P1       | Implement Submission workflow (`DRAFT` -> `SUBMITTED` -> `UNDER_REVIEW` -> `APPROVED`/`REJECTED`)             | IN_PRG | P3/P2 | Tasks API    | Member APIs implemented; admin review transitions remain 503 |
-| P1       | Implement Points Calculation Engine & Streaks Cron                                                            | IN_PRG | P3    | Submissions  | Engine and Cron function implemented; migration/Cron rollout and admin review integration pending |
+| P1       | Implement Submission workflow (`DRAFT` -> `SUBMITTED` -> `UNDER_REVIEW` -> `APPROVED`/`REJECTED`)             | IN_PRG | P3/P2 | Tasks API    | Member/admin APIs implemented; PostgreSQL core-loop suite awaits reachable TEST_DATABASE_URL |
+| P1       | Implement Points Calculation Engine & Streaks Cron                                                            | IN_PRG | P3    | Submissions  | Engine and review integration implemented; verify DB-time fix and live Cron setup in test project |
 | P1       | Install Prisma ORM and generate schema v1                                                                     | DONE   | P3    | D-024        | Prisma 7 schema/migrations generated; latest additive migration pending deployment |
 
 ---
@@ -268,7 +289,8 @@ User supplied a screenshot of magic-link mode showing a development token. Read-
 - [x] Add unit, route and opt-in DB integration tests.
 - [ ] Configure a separate disposable `TEST_DATABASE_URL`, apply migrations there, and run PostgreSQL transition/ownership/duplicate tests.
 - [ ] Connect persisted auth/user creation; current local fixture is not present in Supabase.
-- [ ] Implement the existing admin review queue/approve/reject/revision routes and transition claimed submissions to `UNDER_REVIEW`; this remains necessary for end-to-end review-state operation and points integration.
+- [x] Implement admin review queue/approve/reject/revision routes and connect approval to the points transaction (Phase 10).
+- [ ] Run the PostgreSQL route-handler core-loop suite against a reachable isolated migrated test database.
 - [ ] Confirm D-025 attempt/revision semantics with Persons 1 and 2.
 
 # Phase 5 transactional points engine — implemented; PostgreSQL integration pending (2026-10-31)
@@ -279,7 +301,8 @@ User supplied a screenshot of magic-link mode showing a development token. Read-
 - [x] Derive weekly (Monday 00:00 IST) and all-time leaderboard totals from the ledger.
 - [x] Document D-026, DB/API behavior, and Person 1 integration boundary.
 - [ ] Configure a separate disposable PostgreSQL `TEST_DATABASE_URL`, apply both migrations there, and run award/rollback/concurrency/aggregate integration tests.
-- [ ] Person 1 must connect the admin approval route to `dispatchApprovedPoints`; current review/rubric endpoints remain 503.
+- [x] Connect the admin approval route to `dispatchApprovedPoints` (Phase 10).
+- [ ] Implement the configurable rubric API/storage; the current review flow uses the server-owned fixed MVP version until then.
 - [ ] Connect persisted auth/current-user lifecycle and provision approved users before end-to-end review and leaderboard usage.
 
 # Phase 6 leaderboard APIs — implemented locally; migration/integration pending (2026-10-31)
@@ -302,7 +325,7 @@ User supplied a screenshot of magic-link mode showing a development token. Read-
 - [x] Add route/unit tests and opt-in PostgreSQL coverage for IST boundaries, same-day duplicates, consecutive/missed days, invalid status, and concurrent retries.
 - [ ] Apply `20261031233000_ist_streak_engine` to the intended Supabase project after confirming the local connection target; then create and verify the one-time Cron job in Supabase Dashboard → SQL Editor.
 - [ ] Run the PostgreSQL integration suites on a separate migrated `TEST_DATABASE_URL`; 27 integration tests are currently skipped because it is not configured.
-- [ ] Person 1 must connect admin approval routes to `dispatchApprovedPoints`; they remain 503 stubs, so real UI approvals cannot yet create streak activity.
+- [x] Connect admin approval route to `dispatchApprovedPoints` (Phase 10); verify its PostgreSQL streak behavior in the isolated integration suite.
 
 # Phase 8 isolation & security audit (2026-10-31)
 
@@ -316,3 +339,28 @@ User supplied a screenshot of magic-link mode showing a development token. Read-
 - [ ] Review removal of `authorEmail` from the owner/admin submission detail DTO with API owners; current contract includes it, but no frontend usage was found.
 - [ ] Run the 28 PostgreSQL integration tests against a separate migrated `TEST_DATABASE_URL`; do not use primary Supabase for synthetic fixtures.
 - [ ] Verify RLS and StreakDay security-definer functions in a non-production migrated Supabase branch before deployment.
+# Phase 11 — Release readiness & handoff (2026-11-01)
+
+- [x] Document clean install and env placeholders; preserve secrets in ignored `.env.local` only.
+- [x] Document Prisma migration order, no-seed policy, verification commands, auth/RBAC boundaries, scheduler steps, idempotency, safe logging, performance results, and rollback notes in README and handoff docs.
+- [x] Run unit tests, lint, typecheck, Prisma validation, production build; results recorded in TEST_LOG.md.
+- [x] Record user-reported database integration result (31/31) and the agent environment's unreachable-host preflight honestly.
+- [ ] Coordinate with Person 5 on target environment, release commands, smoke checks, and rollback owner; no deployment until explicit approval.
+- [ ] Confirm intended production/staging Supabase project, all four migration statuses, backup/PITR and access policy with its owner before migration/deployment.
+- [ ] Configure/verify Supabase Cron job `prax-refresh-streaks` after target migration review.
+- [ ] Treat real persisted auth/register/current-user, admin bootstrap, and configurable rubric as release blockers; coordinate owners (Persons 1/2).
+- [ ] Do not call the product production-ready until blocking seams and operational checks above are closed.
+
+# Persisted auth/onboarding continuation (2026-11-01)
+
+- [x] Connect registration, invite verification, login and current-user lookup to persisted User/InviteCode tables without duplicating auth or schema.
+- [x] Add admin invite CRUD needed for onboarding, pending-member list/approval, one-time invite display, and guarded one-time first-admin bootstrap.
+- [x] Add auth handler unit tests, admin user route tests and separate-database auth flow integration tests; include the integration suite in the guarded runner.
+- [x] Update README, API contract, schema status, security notes, decisions, test log and handoff.
+- [ ] Run `npm run test:integration` from a machine that can reach the separate `TEST_DATABASE_URL`; this environment's safety preflight stopped before tests because the DB host was unreachable. New auth flow coverage is therefore not yet verified against PostgreSQL.
+- [ ] For real onboarding, first have the DB owner confirm the intended local `DATABASE_URL`; start the app, use the README bootstrap procedure to create the first admin, remove `FIRST_ADMIN_BOOTSTRAP_TOKEN` and restart, then create an invite in the Admin UI. Do not insert records manually in Supabase.
+- [ ] Coordinate a shared/distributed rate limiter and durable admin audit approach before production; the current limiter is process-local and the schema has no audit model.
+- [ ] Implement remaining admin reject/suspend/disable/unsuspend actions and configurable rubric; magic-link auth also remains unimplemented.
+- [ ] Continue Phase 11 release tasks: coordinate with Person 5, confirm target project/migrations/backups, verify Supabase Cron, and obtain explicit deployment approval before any deploy.
+
+This entry supersedes older checklist statements that persisted registration/login/current-user and admin approval are unimplemented. Phase 8 security notes about these specific routes being 503 are historical; see the 2026-11-01 auth handoff in `AGENT_HANDOFF.md`.

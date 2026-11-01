@@ -13,15 +13,48 @@ const userIds: string[] = [];
 const taskIds: string[] = [];
 const submissionIds: string[] = [];
 
+async function cleanAbandonedPointsFixtures() {
+  const fixtures = await prisma!.user.findMany({
+    where: {
+      AND: [
+        { email: { endsWith: "@example.test" } },
+        {
+          OR: [
+            { email: { startsWith: "points-member-" } },
+            { email: { startsWith: "points-admin-" } },
+          ],
+        },
+      ],
+    },
+    select: { id: true },
+  });
+  const ids = fixtures.map(({ id }) => id);
+  if (!ids.length) return;
+
+  await prisma!.$transaction([
+    prisma!.pointTransaction.deleteMany({
+      where: { OR: [{ userId: { in: ids } }, { reviewedById: { in: ids } }] },
+    }),
+    prisma!.streakDay.deleteMany({ where: { userId: { in: ids } } }),
+    prisma!.streak.deleteMany({ where: { userId: { in: ids } } }),
+    prisma!.submission.deleteMany({ where: { userId: { in: ids } } }),
+    prisma!.task.deleteMany({ where: { createdById: { in: ids } } }),
+    prisma!.user.deleteMany({ where: { id: { in: ids } } }),
+  ]);
+}
+
 suite("points engine PostgreSQL integration", () => {
   beforeAll(async () => {
     await prisma!.$connect();
+    await cleanAbandonedPointsFixtures();
   });
 
   afterEach(async () => {
     await prisma!.pointTransaction.deleteMany({
       where: { OR: [{ userId: { in: userIds } }, { reviewedById: { in: userIds } }] },
     });
+    await prisma!.streakDay.deleteMany({ where: { userId: { in: userIds } } });
+    await prisma!.streak.deleteMany({ where: { userId: { in: userIds } } });
     await prisma!.submission.deleteMany({
       where: { OR: [{ id: { in: submissionIds } }, { userId: { in: userIds } }] },
     });
