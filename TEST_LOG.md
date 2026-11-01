@@ -1207,3 +1207,16 @@ Passed:
 Failed (pre-existing, unchanged): `npm run lint` exit 1 with 13 errors and 73 warnings, all in `praxora-admin/`; zero in any other path. Not fixed, per instruction.
 
 Not run: browser or manual UI check, `npm run test:integration` (no database configured), production build, any request to the real routes (they do not exist yet). The UI tests mock the hooks or `fetch`; the mocks are labelled and nothing is simulated by the application.
+
+## Stage 4 verification — schema and migration SQL (2026-11-01, Person 4)
+
+Passed:
+
+- `npx prisma validate`: exit 0 (schema valid).
+- `npx prisma generate`: exit 0; Prisma Client 7.10.1 generated with `Todo`, `Note`, `Goal`, `ChatMessage`, `MessageReaction` and `UserPreferences.chatRulesAcceptedAt`.
+- `npx prisma migrate diff --from-schema <schema before> --to-schema prisma/schema.prisma --script`: exit 0; no database contacted.
+- Migration checker (ad hoc script, not committed): the final SQL contains only CREATE TYPE (2), CREATE TABLE (5), CREATE INDEX (8), CREATE UNIQUE INDEX (1), one ALTER TABLE ADD COLUMN and five ENABLE ROW LEVEL SECURITY; no DROP, DELETE, INSERT, UPDATE, RENAME or policy; no change to other tables; all five FKs to `User` are ON DELETE CASCADE; `Todo.taskId` is ON DELETE SET NULL; `Goal_progress_range` CHECK is present; the unique index on `(messageId, userId, emoji)` is present; every generated type, column, key and index is present in the final SQL, and the only addition is the CHECK. The checker detected all seven deliberately broken copies it was given.
+- `npm test`: exit 0; 43 files passed, 7 skipped; 440 tests passed, 35 skipped.
+- `npx eslint src`: exit 0. `npm run typecheck`: exit 0.
+
+Not run: the migration against any PostgreSQL (so SQL syntax and constraint behavior are unexecuted), `prisma migrate dev`/`deploy`/`status` (no database), integration tests, `npm run lint` for the whole repo (unchanged since Stage 3: 13 errors and 73 warnings, all in `praxora-admin/`), production build.

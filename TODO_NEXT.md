@@ -489,3 +489,10 @@ Latest diagnostic: `P2028` at transaction stage. Explicit 10-second max wait and
 - [ ] Stage 6: D-003 (Pusher vs Socket.io) stays PROPOSED until the team confirms; install nothing before then.
 - [ ] Last: chat attachments, blocked on a team answer (files versus links, storage). The Attach button is untouched and fails against the 503 stub until then.
 - [ ] Chat Report button: waiting on Juel's moderation work; out of scope for now.
+
+## Person 4 — Stage 4 (2026-11-01)
+
+- [x] Stage 4: Prisma models, enums, `chatRulesAcceptedAt` and migration SQL `20261101190000_personal_space_and_chat` written and checked.
+- [ ] Owner review of the migration SQL; then, on a "go", apply it to the owner's development database only (`npx prisma migrate status`, `npm run db:migrate:deploy`).
+- [ ] Mariya reviews the schema on the PR.
+- [ ] Stage 5: routes, services and tests (owner-scoped queries; integration tests need `TEST_DATABASE_URL`).

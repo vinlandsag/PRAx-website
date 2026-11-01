@@ -746,3 +746,8 @@ Documentation updated for this handoff: `PROJECT_STATE.md`, `CHANGELOG_DEV.md`, 
 - 44px targets set on the controls touched. Attach button and `ChatComposer` untouched.
 - New tests: `filter.test.ts`, `use-chat.test.tsx`, `use-space.test.tsx`, `chat-reactions.test.tsx`, `app/chat/page.test.tsx`; `interactions.test.tsx` updated for the split.
 - The routes these screens call (`/api/space`, `/api/chat/messages…`, `/api/chat/rules/accept`) and the database models do not exist yet (Stages 4–5). No schema, migration, package or `package-lock.json` change.
+
+## 2026-11-01 — Stage 4: schema and migration SQL for Personal Space and chat (Person 4)
+
+- Added `Todo`, `Note`, `Goal`, `ChatMessage`, `MessageReaction`, the `TodoDifficulty` and `TodoPriority` enums, and `UserPreferences.chatRulesAcceptedAt` to `prisma/schema.prisma` (100 lines added, none changed or removed; relation fields added to `User` and `Task`).
+- Added migration `20261101190000_personal_space_and_chat` (generated with `prisma migrate diff`, then arranged to match the existing migration style, with a goal progress CHECK and RLS on every new table). It was not applied to any database. No API route, package or `package-lock.json` change.

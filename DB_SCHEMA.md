@@ -133,3 +133,20 @@ No database or migration changes were made for the global sign-out control. Logo
 No database or migration change. This update adds only safe server-side diagnostic context for registration failures.
 
 The observed registration P2028 prompted explicit bounded transaction limits matching bootstrap; there is no schema or data change.
+
+# 2026-11-01 — Personal Space and chat models (Stage 4, Person 4) — migration written, NOT APPLIED
+
+Migration `20261101190000_personal_space_and_chat` adds the models for Personal Space and the shared `#general` chat, plus one column on the existing preferences row. It was generated schema-to-schema with `prisma migrate diff` (no database was contacted) and has not been applied to any database. Apply it only to the owner's development database after review (`npx prisma migrate status`, then `npm run db:migrate:deploy`); do not apply it to the shared Supabase project without the schema reviewer's approval.
+
+| Model | Purpose and key controls |
+| --- | --- |
+| `Todo` | Personal to-do: title ≤200, description ≤5000, `TodoDifficulty` (EASY/MEDIUM/HARD) and `TodoPriority` (LOW/MEDIUM/HIGH), optional `dueDate` (DATE), `completed`, optional `taskId`. `userId` → `User` ON DELETE CASCADE; `taskId` → `Task` ON DELETE SET NULL. Indexes `(userId, completed, dueDate)` and `(taskId)`. |
+| `Note` | Plain-text personal note: title ≤200, content ≤5000. `userId` → `User` CASCADE. Index `(userId, updatedAt)`. |
+| `Goal` | Personal goal: title ≤200, description ≤5000, `progress` with `CHECK ("progress" BETWEEN 0 AND 100)` (`Goal_progress_range`). `userId` → `User` CASCADE. Index `(userId, createdAt)`. |
+| `ChatMessage` | Message in the single `#general` channel: content ≤500, `pinned`, `editedAt`, soft-delete `deletedAt`. `authorId` → `User` CASCADE. Indexes `(createdAt DESC, id DESC)` for cursor paging, `(pinned, createdAt)`, `(updatedAt)` for change polling. `updatedAt` must be bumped by the API on every edit, pin, delete and reaction change. |
+| `MessageReaction` | One reaction per member per emoji per message: unique `(messageId, userId, emoji)`; `emoji` is `VARCHAR(16)` and the six-emoji palette is enforced by the API, not the database. `messageId` → `ChatMessage` CASCADE, `userId` → `User` CASCADE. Extra index `(userId)`. |
+| `UserPreferences` (existing) | New nullable `chatRulesAcceptedAt TIMESTAMPTZ(3)`; set only by the server when the member accepts the community rules. |
+
+All five new tables have RLS enabled with no policies, like the earlier migrations. The app reaches them only through server-side routes. Personal Space rows (`Todo`, `Note`, `Goal`) are private to the owner by application rule (D-039): every query must filter by the session user's id. The database does not enforce that, and whether the Prisma connection role bypasses RLS has not been verified.
+
+Notes: relation fields were added to `User` (`todos`, `notes`, `goals`, `chatMessages`, `reactions`) and `Task` (`todos`) in `schema.prisma`; they create no columns on those tables. Foreign keys are written inline in `CREATE TABLE` (like `20261101173000_user_preferences`) instead of Prisma's separate `ALTER TABLE ... ADD CONSTRAINT`; names and definitions are identical to the generated output. The planned `MessageReaction(messageId)` index was dropped because the unique index already leads with `messageId`; `(userId)` was added for user-delete cascades. Soft-deleted messages keep their text in the database. Item caps (100 per collection) and nonblank titles are validated by the API, not by CHECK constraints. The SQL has not been run against PostgreSQL. Note that the earlier streak migration grants to the `service_role` and `postgres` roles, so a development database must be a Supabase project (or define those roles) for the full migration history to apply.

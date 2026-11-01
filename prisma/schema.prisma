@@ -81,6 +81,11 @@ model User {
   streak         Streak?
   streakDays     StreakDay[]
   preferences    UserPreferences?
+  todos          Todo[]
+  notes          Note[]
+  goals          Goal[]
+  chatMessages   ChatMessage[]
+  reactions      MessageReaction[]
 
   @@index([status, role])
 }
@@ -101,6 +106,7 @@ model Task {
   publishedAt   DateTime?         @db.Timestamptz(3)
   createdBy     User              @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
   submissions   Submission[]
+  todos         Todo[]
 
   @@index([lifecycle, dueAt, createdAt])
   @@index([category])
@@ -184,6 +190,7 @@ model UserPreferences {
   streakReminder      Boolean         @default(true)
   chatNotifications   Boolean         @default(false)
   showPortfolio       Boolean         @default(true)
+  chatRulesAcceptedAt DateTime?       @db.Timestamptz(3)
   createdAt           DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime        @default(now()) @updatedAt @db.Timestamptz(3)
   user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -203,4 +210,97 @@ model InviteCode {
 
   @@index([status, expiresAt])
   @@index([createdById, createdAt])
+}
+
+enum TodoDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum TodoPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// Personal Space to-do. Private to its owner: every query must filter by userId taken from the session.
+/// The task link is optional and is cleared (not deleted) if the platform task is removed.
+model Todo {
+  id          String         @id @default(cuid())
+  userId      String
+  title       String         @db.VarChar(200)
+  description String         @default("") @db.VarChar(5000)
+  difficulty  TodoDifficulty @default(MEDIUM)
+  priority    TodoPriority   @default(MEDIUM)
+  dueDate     DateTime?      @db.Date
+  completed   Boolean        @default(false)
+  taskId      String?
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime       @default(now()) @updatedAt @db.Timestamptz(3)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task        Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, completed, dueDate])
+  @@index([taskId])
+}
+
+/// Personal Space note (plain text). Private to its owner.
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String   @db.VarChar(200)
+  content   String   @default("") @db.VarChar(5000)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+/// Personal Space goal. progress is bounded to 0..100 by a CHECK constraint in the migration SQL.
+model Goal {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String   @db.VarChar(200)
+  description String   @default("") @db.VarChar(5000)
+  progress    Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// Message in the single shared #general channel. Removal is a soft delete (deletedAt); updatedAt is
+/// bumped on every edit, pin, delete and reaction change so clients can poll for changes.
+model ChatMessage {
+  id        String            @id @default(cuid())
+  authorId  String
+  content   String            @db.VarChar(500)
+  pinned    Boolean           @default(false)
+  editedAt  DateTime?         @db.Timestamptz(3)
+  deletedAt DateTime?         @db.Timestamptz(3)
+  createdAt DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime          @default(now()) @updatedAt @db.Timestamptz(3)
+  author    User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions MessageReaction[]
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([pinned, createdAt])
+  @@index([updatedAt])
+}
+
+/// One reaction per member per emoji per message. The allowed emoji palette is enforced by the API.
+model MessageReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String      @db.VarChar(16)
+  createdAt DateTime    @default(now()) @db.Timestamptz(3)
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([userId])
 }
