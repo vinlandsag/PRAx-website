@@ -1191,3 +1191,46 @@ Session close results: `npm run typecheck` passed; targeted `npx eslint src/comp
 - `npm test -- --run src/app/api/auth/auth-routes.test.ts src/app/onboarding/page.test.tsx src/lib/auth/rbac.test.ts` — passed, 3 files / 52 tests. Covers signed pending registration cookie, onboarding access, dashboard redirect and protected API denial, waiting-page polling and approval redirect, plus existing RBAC cases.
 - `npm run typecheck`, targeted ESLint and Prettier checks, and `git diff --check` passed. `npx next build --webpack` passed and generated 50/50 pages.
 - PostgreSQL auth integration remains opt-in and was not run against the separate test DB in this environment; real browser approval polling was not exercised.
+
+## Stage 3 verification — chat and Personal Space UI (2026-11-01, Person 4)
+
+Environment: Node v24.21.0, npm 11.19.0; installed versions match package.json (next 16.4.3, react 19.3.0, prisma 7.10.1, vitest 3.2.7, typescript 5.9.3, eslint 9.39.5). `package-lock.json` was not read or changed. Nothing failed in a way that points to version drift.
+
+Passed:
+
+- `npm test`: exit 0; 43 test files passed, 7 skipped (database-gated); 440 tests passed, 35 skipped. (Before Stage 3: 383 passed, 35 skipped.)
+- `npm run typecheck`: exit 0 (after `npx next typegen`; the first run, before the types existed, failed only on `LayoutProps` in `src/app/layout.tsx`).
+- `npx eslint src`: exit 0, no problems.
+- `npx prettier --check` on the files changed or created in Stage 3 (except `src/lib/workspace/interactions.test.tsx`, which was already not Prettier-clean at HEAD and was not reformatted): clean.
+- Mutation check: temporarily making a failed poll blank the chat made the two failed-poll tests in `use-chat.test.tsx` fail (20 of 22 passed); the change was reverted and all 22 pass.
+
+Failed (pre-existing, unchanged): `npm run lint` exit 1 with 13 errors and 73 warnings, all in `praxora-admin/`; zero in any other path. Not fixed, per instruction.
+
+Not run: browser or manual UI check, `npm run test:integration` (no database configured), production build, any request to the real routes (they do not exist yet). The UI tests mock the hooks or `fetch`; the mocks are labelled and nothing is simulated by the application.
+
+## Stage 4 verification — schema and migration SQL (2026-11-01, Person 4)
+
+Passed:
+
+- `npx prisma validate`: exit 0 (schema valid).
+- `npx prisma generate`: exit 0; Prisma Client 7.10.1 generated with `Todo`, `Note`, `Goal`, `ChatMessage`, `MessageReaction` and `UserPreferences.chatRulesAcceptedAt`.
+- `npx prisma migrate diff --from-schema <schema before> --to-schema prisma/schema.prisma --script`: exit 0; no database contacted.
+- Migration checker (ad hoc script, not committed): the final SQL contains only CREATE TYPE (2), CREATE TABLE (5), CREATE INDEX (8), CREATE UNIQUE INDEX (1), one ALTER TABLE ADD COLUMN and five ENABLE ROW LEVEL SECURITY; no DROP, DELETE, INSERT, UPDATE, RENAME or policy; no change to other tables; all five FKs to `User` are ON DELETE CASCADE; `Todo.taskId` is ON DELETE SET NULL; `Goal_progress_range` CHECK is present; the unique index on `(messageId, userId, emoji)` is present; every generated type, column, key and index is present in the final SQL, and the only addition is the CHECK. The checker detected all seven deliberately broken copies it was given.
+- `npm test`: exit 0; 43 files passed, 7 skipped; 440 tests passed, 35 skipped.
+- `npx eslint src`: exit 0. `npm run typecheck`: exit 0.
+
+Not run: the migration against any PostgreSQL (so SQL syntax and constraint behavior are unexecuted), `prisma migrate dev`/`deploy`/`status` (no database), integration tests, `npm run lint` for the whole repo (unchanged since Stage 3: 13 errors and 73 warnings, all in `praxora-admin/`), production build.
+
+## Stage 5 verification — Personal Space and chat API (2026-11-01, Person 4)
+
+Passed:
+
+- `npm test`: exit 0; 47 test files passed, 9 skipped; 609 tests passed, 56 skipped. (Before Stage 5: 440 passed, 35 skipped.) The 169 new passing tests are `space-route.test.ts` (63), `chat-routes.test.ts` (77), `lib/space/service.test.ts` (6) and `lib/chat/service.test.ts` (23). They use mocked Prisma and check authorization (anonymous, pending, suspended, disabled, rejected, stale and forged-role cookies), cross-origin writes, validation limits, owner scoping of every query, 404/403 behavior, cursor queries, tombstones, rules gating, pin/delete permissions and reaction toggling.
+- `npx eslint src`: exit 0. `npm run typecheck`: exit 0 (uses the generated Prisma client and Next types). `npx prettier --check` on all files created or changed in Stage 5: clean.
+- Mutation check: seven deliberate breakages (owner scoping removed from update, delete and list; non-author delete allowed; admin check removed from pin; rules check removed from post; authorship check removed from edit) were each detected by the unit tests (the pin case after adding a direct service test). Originals restored and verified identical.
+
+Failed (pre-existing, unchanged): `npm run lint` over the whole repo still reports 13 errors and 73 warnings, all in `praxora-admin/`; none elsewhere.
+
+WRITTEN BUT NOT RUN: `src/lib/space/space.integration.test.ts` (11 tests) and `src/lib/chat/chat.integration.test.ts` (10 tests). They need a separate, migrated `TEST_DATABASE_URL` that includes migration `20261101190000_personal_space_and_chat`, and both were added to `scripts/run-integration-tests.mjs`. No database exists yet, so `npm run test:integration` was not run, no migration was applied, and these 21 tests are reported as skipped. They compile (typecheck passes) but their behavior is unverified.
+
+Also not run: browser/manual check of the pages against the new routes, production build.

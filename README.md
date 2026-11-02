@@ -146,3 +146,80 @@ There is no deploy script or seed script. Do not assume a successful build or th
 - `prisma/schema.prisma`, `prisma/migrations/`: schema and reviewed migration history.
 - `API_CONTRACTS.md`, `DB_SCHEMA.md`, `SECURITY_NOTES.md`: contracts, schema/scheduler, security boundaries.
 - `TEST_LOG.md`: actual checks, integration reports, and performance measurements.
+
+## Chat and Personal Space (Aleena)
+
+Status as of 2026-11-01, on branch `aleena`. Details: `API_CONTRACTS.md` (Stage 5 section), `DECISIONS.md` (D-037 to D-041), `DB_SCHEMA.md`, `SECURITY_NOTES.md`.
+
+### What was built
+
+One shared `#general` community chat and a private Personal Space (to-dos, notes, goals). Every route needs a signed-in APPROVED member, and the account is re-checked in the database on each request.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/space` | The signed-in member's to-dos, notes and goals |
+| `PATCH /api/space` | Create, update or delete one to-do, note or goal |
+| `GET /api/chat/messages` | Latest page, an older page (`before`), or newer messages and changes (`after` + `updatedSince`) |
+| `POST /api/chat/messages` | Post a message (refused until the community rules are accepted) |
+| `PATCH` / `DELETE /api/chat/messages/[id]` | Edit own message / soft-delete own message (a persisted admin can delete any) |
+| `POST /api/chat/messages/[id]/pin` | Pin or unpin (admins only) |
+| `POST /api/chat/messages/[id]/reactions` | Toggle one of six emoji reactions |
+| `POST /api/chat/rules/accept` | Record acceptance of the community rules |
+
+Files:
+
+- API and services: `src/app/api/space/`, `src/app/api/chat/messages/`, `src/app/api/chat/rules/`, `src/lib/space/service.ts`, `src/lib/chat/service.ts`.
+- Client: `src/lib/workspace/use-chat.ts` (15-second polling that keeps messages on screen and keeps polling after a failed request), `use-space.ts`, `src/app/chat/page.tsx`, `src/app/space/page.tsx`, `src/components/chat/ChatReactions.tsx`, `ChatRulesDialog.tsx`.
+- Schema: `Todo`, `Note`, `Goal`, `ChatMessage`, `MessageReaction` and `UserPreferences.chatRulesAcceptedAt` in `prisma/schema.prisma`; migration `prisma/migrations/20261101190000_personal_space_and_chat/`. The migration has not been applied to any database yet.
+
+Chat features: avatars, timestamps, six-emoji reactions, first-visit rules dialog (the server refuses posts until accepted), pinned messages, soft delete, paging of older messages. Personal Space features: priority, difficulty and due date on to-dos, Today / Upcoming / Done filters (undated open to-dos appear under Upcoming), an optional link to a published platform task, and goal progress bars.
+
+### How Personal Space privacy works
+
+- The owner id comes only from the database account matched to the session, never from the request. A `userId` in a body or query string is rejected or ignored.
+- Every to-do, note and goal read, update and delete is filtered by that id. Another member's item id, or an admin using it, returns 404.
+- No admin route reads these tables. Admins hold the same space permissions as members, so the separation comes from the queries, not from the role.
+- This is enforced in application code only. Row level security is enabled on the new tables without policies (this blocks Supabase's browser roles), but the database does not stop a server query that forgets the owner filter, and whether the Prisma connection role bypasses RLS has not been verified. Nothing is encrypted.
+- Chat is shared on purpose: every approved member reads the channel. Reactions are returned only as a count per emoji plus whether you reacted yourself; other members' identities are never returned.
+
+### How to run and test
+
+Install without the lockfile. `package-lock.json` has 11 nested `@tailwindcss/oxide-*` entries with no `version` (around line 1372), and `npm ci` is reported to fail on Windows because of it:
+
+```sh
+npm install --no-package-lock
+cp .env.example .env.local
+copy .env.example .env.local   # Windows CMD
+```
+
+Fill `.env.local` yourself (`SESSION_SECRET`, `DATABASE_URL`, `DIRECT_URL`, and a separate `TEST_DATABASE_URL`). Review the migration SQL, then apply it to a development database only:
+
+```sh
+npx prisma migrate status
+npm run db:migrate:deploy
+npm run dev -- --hostname 127.0.0.1 --port 3000
+```
+
+Sign in as a real approved member from the database (see the first-admin steps above). The local `member@prax.build` fixture is not a database row, so these routes reject it. Until the migration is applied, the routes fail with a generic 500.
+
+Unit tests (database not needed):
+
+```sh
+npm test
+npx eslint src
+npm run typecheck
+```
+
+At the last run `npm test` passed 609 tests with 56 skipped (database-gated suites). `npm run typecheck` needs the generated Next types; run `npx next typegen` once if it reports `LayoutProps` not found. `npm run lint` over the whole repo reports 13 errors in `praxora-admin/`, which is not part of this work.
+
+**Integration tests: written but not yet run.** `src/lib/space/space.integration.test.ts` (11 tests) and `src/lib/chat/chat.integration.test.ts` (10 tests) are registered in `scripts/run-integration-tests.mjs` and run with `npm run test:integration`. They need a separate, migrated `TEST_DATABASE_URL` that includes the Chat/Space migration. No database was available, so their behavior is unverified; only the mocked unit tests have passed.
+
+### Not done
+
+- **Chat attachments**: waiting on a team decision (files or links, and where to store them). The Attach button is unchanged and still calls the 503 stub `/api/chat/attachments`; the message route rejects attachment ids.
+- **Real-time**: chat polls every 15 seconds. D-003 (Pusher or Socket.io) is still PENDING in `DECISIONS.md`; no real-time library is installed. The `after` / `updatedSince` reads are the intended seam for a push transport.
+- **Rich-text notes**: notes are plain text (up to 5000 characters); no editor is installed.
+- **Chat rate limiting**: none, so posting is not throttled.
+- **Report button**: not built; the admin reports API (`/api/admin/reports`) is still a 503 stub.
+- **Audit events**: none are written for pin or delete.
+- `/api/workspace` (public profile) is unchanged and still returns 503.

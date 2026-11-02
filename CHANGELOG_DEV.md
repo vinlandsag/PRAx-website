@@ -737,3 +737,23 @@ Documentation updated for this handoff: `PROJECT_STATE.md`, `CHANGELOG_DEV.md`, 
 - Successful registration now sets the existing signed HttpOnly session for its server-created `MEMBER/PENDING_APPROVAL` account. The existing login page routes it to `/onboarding`.
 - Onboarding checks `/api/users/me` every five seconds and routes to `/dashboard` only after the database reports APPROVED; existing proxy rules block pending sessions from workspace pages and APIs.
 - Added coverage for pending-session cookie scope, workspace denial, waiting-state polling, and approval redirect. No database schema or migration change.
+
+## 2026-11-01 — Stage 3: chat and Personal Space UI gaps (Person 4)
+
+- Split chat and Personal Space out of the `useWorkspace` payload. New `useChat` (cursor polling, mutations) and `useSpace` hooks; `WorkspaceData` is now `{user, profile, settings}`. `/api/workspace` is unchanged.
+- Chat page: author avatar images, first-visit community-rules dialog with a saved accepted flag (no localStorage), fixed six-emoji reactions, pinned strip, "Load older messages" paging, reconnecting notice, soft-delete wording ("removes the message … for everyone"). The failed-poll bug (chat blanked and polling stopped after one failed refresh) is fixed.
+- Personal Space: optional linked platform task on to-dos (picker loads published tasks, up to 100). The Upcoming filter now includes open to-dos with no due date. Global search loads private plans only while the search dialog is open.
+- 44px targets set on the controls touched. Attach button and `ChatComposer` untouched.
+- New tests: `filter.test.ts`, `use-chat.test.tsx`, `use-space.test.tsx`, `chat-reactions.test.tsx`, `app/chat/page.test.tsx`; `interactions.test.tsx` updated for the split.
+- The routes these screens call (`/api/space`, `/api/chat/messages…`, `/api/chat/rules/accept`) and the database models do not exist yet (Stages 4–5). No schema, migration, package or `package-lock.json` change.
+
+## 2026-11-01 — Stage 4: schema and migration SQL for Personal Space and chat (Person 4)
+
+- Added `Todo`, `Note`, `Goal`, `ChatMessage`, `MessageReaction`, the `TodoDifficulty` and `TodoPriority` enums, and `UserPreferences.chatRulesAcceptedAt` to `prisma/schema.prisma` (100 lines added, none changed or removed; relation fields added to `User` and `Task`).
+- Added migration `20261101190000_personal_space_and_chat` (generated with `prisma migrate diff`, then arranged to match the existing migration style, with a goal progress CHECK and RLS on every new table). It was not applied to any database. No API route, package or `package-lock.json` change.
+
+## 2026-11-01 — Stage 5: Personal Space and chat API (Person 4)
+
+- Added `GET/PATCH /api/space` and the chat routes (`/api/chat/messages` GET/POST, `/api/chat/messages/[id]` PATCH/DELETE, `…/pin`, `…/reactions`, `/api/chat/rules/accept`) with services in `src/lib/space/service.ts` and `src/lib/chat/service.ts`. Owner-scoped queries, approved-account checks, persisted-account revalidation, same-origin writes, bounded JSON, strict validation, soft delete, cursor paging and change polling.
+- Added error code `CHAT_RULES_NOT_ACCEPTED` and registered the two new integration test files in `scripts/run-integration-tests.mjs`.
+- Added 169 mocked unit tests (all pass) and 21 PostgreSQL integration tests that are written but NOT run (no database yet). No migration was applied, no package changed, nothing committed.

@@ -480,3 +480,29 @@ Latest diagnostic: `P2028` at transaction stage. Explicit 10-second max wait and
 - [x] Add safe stage/Prisma-code diagnostics and regression coverage for unexpected registration failures.
 - [x] Match registration transaction limits to bootstrap after observing P2028.
 - [ ] Restart/reload local server and retry once with a fresh invite; confirm 201 or capture only safe stage/code if it still fails.
+
+## Person 4 — chat and Personal Space (2026-11-01)
+
+- [x] Stage 3: split chat and space hooks/types, avatars, first-visit rules dialog, reactions UI, task link on to-dos, Upcoming filter fix, soft-delete wording, polling-failure fix, tests.
+- [ ] Stage 4: add Todo, Note, Goal, ChatMessage, MessageReaction and `UserPreferences.chatRulesAcceptedAt`; write the migration SQL for review; do not apply it until told "go", and only to the owner's dev database.
+- [ ] Stage 5: build `/api/space` and the `/api/chat/…` routes with `authorize` + `requirePersistedAccount`, owner-scoped queries, and the isolation, state and validation tests.
+- [ ] Stage 6: D-003 (Pusher vs Socket.io) stays PROPOSED until the team confirms; install nothing before then.
+- [ ] Last: chat attachments, blocked on a team answer (files versus links, storage). The Attach button is untouched and fails against the 503 stub until then.
+- [ ] Chat Report button: waiting on Juel's moderation work; out of scope for now.
+
+## Person 4 — Stage 4 (2026-11-01)
+
+- [x] Stage 4: Prisma models, enums, `chatRulesAcceptedAt` and migration SQL `20261101190000_personal_space_and_chat` written and checked.
+- [ ] Owner review of the migration SQL; then, on a "go", apply it to the owner's development database only (`npx prisma migrate status`, `npm run db:migrate:deploy`).
+- [ ] Mariya reviews the schema on the PR.
+- [ ] Stage 5: routes, services and tests (owner-scoped queries; integration tests need `TEST_DATABASE_URL`).
+
+## Person 4 — Stage 5 (2026-11-01)
+
+- [x] Stage 5: Personal Space and chat routes, services, mocked unit tests (169 passing), integration tests written.
+- [ ] Owner: put a development database and a separate migrated `TEST_DATABASE_URL` in `.env.local`; on a "go", review and apply migration `20261101190000_personal_space_and_chat` to the development database only.
+- [ ] Run `npm run test:integration` (21 new tests are written but not run) and fix anything it finds.
+- [ ] Manual check of /space and /chat against the real routes with a real approved account.
+- [ ] Mariya reviews the schema and API on the PR.
+- [ ] Decide on a chat posting rate limit (not built).
+- [ ] Stage 6 (D-003) stays PROPOSED; attachments last.
