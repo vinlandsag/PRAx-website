@@ -4,6 +4,10 @@
 
 Vercel's npm install error persisted on commit `08ae581`. A clean npm 10.9.4 install reproduced the Arborist `Invalid Version:` error at the missing `@esbuild/linux-riscv64` optional package version. Added full registry metadata for that package and `@unrs/resolver-binding-linux-x64-musl`; no resolved package versions changed. A clean npm 10.9.4 install then passed (`added 648 packages in 50s`). Retry deployment with Vercel Root Directory `.`. The Vercel production build/deployment has not been rerun; no Vercel config or app code changed.
 
+## Vercel Prisma schema upload follow-up (2026-11-02)
+
+Vercel installed dependencies on commit `5e1144f`, but `prisma generate` could not find the schema because `.vercelignore` allowed only `src`, `public`, and root config files. Added `!/prisma/` and `!/prisma.config.ts`; the latter selects `prisma/schema.prisma`. Local `npm run prebuild` passed and generated Prisma Client 7.10.1. Deployment after this fix is pending; inspect any new install-script or build errors separately.
+
 ## Phase 4 — Settings persistence handoff (2026-11-01)
 
 The Settings UI now reads profile data from `/api/users/me/profile` and account preferences from `GET /api/users/me/settings`. Account edits reuse `PATCH /api/users/me/profile`; theme, notification preferences, and portfolio visibility use the new `PATCH /api/users/me/settings`. Settings are stored in `UserPreferences`, one-to-one with the existing `User`. Both writes derive ownership from the signed-in account and revalidate persisted approval. ThemeSync reads the server setting; browser local storage remains only an immediate fallback.

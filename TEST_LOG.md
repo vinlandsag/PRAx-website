@@ -39,6 +39,13 @@
 
 # TEST_LOG.md
 
+## 2026-11-02 — Vercel Prisma schema packaging
+
+- Vercel log for `5e1144f`: dependency install passed; `prisma generate` failed because the `.vercelignore` allowlist omitted `prisma/schema.prisma`.
+- Added `prisma/` and `prisma.config.ts` to the upload allowlist.
+- `npm run prebuild` — passed; Prisma config and schema loaded, Prisma Client 7.10.1 generated.
+- Not run: full Vercel build/deployment, app test suite, lint, typecheck. No database operation.
+
 # 2026-11-02 — Vercel npm install failure
 
 - Reproduced with `npm install --package-lock-only --dry-run --ignore-scripts --no-audit --no-fund`: failed with `npm error Invalid Version:`. Debug stack traced it to npm Arborist deduplication while resolving optional native packages; lock entries lacked `version` fields.

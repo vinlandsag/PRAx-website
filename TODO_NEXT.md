@@ -1,7 +1,8 @@
 ## Vercel deployment follow-up (2026-11-02)
 
 - [x] Complete optional-platform package metadata in root `package-lock.json`; clean npm 10.9.4 install passes.
-- [ ] Retry Vercel deployment from repository root (`.`) and capture the build result. If installation passes but build fails, diagnose that build output separately.
+- [x] Include `prisma/` and `prisma.config.ts` in `.vercelignore`; local Prisma generation passes.
+- [ ] Retry Vercel deployment from repository root (`.`) and capture the build result. Diagnose any later build or runtime configuration errors from the new log.
 
 ## Profile connection follow-up (2026-11-01)
 

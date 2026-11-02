@@ -2,8 +2,10 @@
 /*
 !/src/
 !/public/
+!/prisma/
 !/package.json
 !/package-lock.json
+!/prisma.config.ts
 !/next.config.ts
 !/tsconfig.json
 !/eslint.config.mjs

@@ -4,6 +4,12 @@
 - Regenerated root lock metadata without changing any resolved package versions. Registry-backed dry-run and normal `npm install --ignore-scripts --no-audit --no-fund` both passed.
 - No application source, API, or Vercel configuration changed. Deployment build has not yet been retried.
 
+## 2026-11-02 — Include Prisma schema in Vercel upload
+
+- Vercel successfully installed dependencies on `5e1144f`, then `prebuild` failed because `.vercelignore` excluded `prisma/schema.prisma` and `prisma.config.ts`.
+- Added the Prisma schema directory and Prisma config to the upload allowlist.
+- `npm run prebuild` passed locally and generated Prisma Client 7.10.1. The complete Vercel build has not been retried.
+
 ## 2026-11-02 — Complete optional native package lock metadata
 
 - The Vercel retry on `08ae581` still failed. A clean npm 10.9.4 install reproduced the error at the `@esbuild/linux-riscv64` placeholder; the lockfile still had two optional-platform records without versions.

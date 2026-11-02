@@ -2,6 +2,10 @@
 
 Reproduced Vercel's `npm error Invalid Version:` locally. Root `package.json` versions are valid; incomplete optional-platform package records in `package-lock.json` caused npm Arborist to fail during deduplication. Commit `08ae581` regenerated most metadata but left two records incomplete, so Vercel still failed on that commit. Added the exact published metadata for those records. A clean npm 10.9.4 install from the corrected lockfile passed (648 packages); resolved package versions were not changed. No application code or Vercel routing config changed. Retry the Vercel deployment from repository root (`.`); build itself remains unverified.
 
+## Vercel Prisma schema upload fix (2026-11-02)
+
+The successful dependency install on commit `5e1144f` exposed the next deployment issue: `.vercelignore`'s root allowlist excluded `prisma/schema.prisma` and `prisma.config.ts`, so `prebuild` could not run Prisma generation. Added both paths to the allowlist. `npm run prebuild` now passes and generates Prisma Client 7.10.1 locally. This config fix has not yet been deployed; later Vercel build stages remain unverified.
+
 # PROJECT_STATE.md
 
 ## Phase 3 — Connect authenticated Profile (2026-11-01)
