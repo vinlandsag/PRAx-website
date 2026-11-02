@@ -1,5 +1,6 @@
 import type { TaskItem } from "./catalog";
-import type { WorkspaceData, Todo } from "./types";
+import type { UserRole } from "@/lib/auth/types";
+import type { SpaceData, Todo } from "./types";
 import { todayIST } from "./types";
 
 export function filterTasks(
@@ -46,7 +47,7 @@ export function filterTodos(
         : filter === "today"
           ? !t.completed && !!t.dueDate && t.dueDate <= today
           : filter === "upcoming"
-            ? !t.completed && t.dueDate > today
+            ? !t.completed && (!t.dueDate || t.dueDate > today)
             : true) &&
       (difficulty === "all" || t.difficulty === difficulty) &&
       `${t.title} ${t.description}`.toLowerCase().includes(q)
@@ -60,8 +61,9 @@ export interface SearchResult {
 }
 export function searchWorkspace(
   query: string,
-  data: WorkspaceData | null,
-  tasks: TaskItem[] = []
+  space: SpaceData | null,
+  tasks: TaskItem[] = [],
+  role?: UserRole
 ): SearchResult[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
@@ -76,7 +78,7 @@ export function searchWorkspace(
     ["My profile", "/profile"],
     ["Settings", "/settings"],
   ];
-  if (data?.user.role === "ADMIN")
+  if (role === "ADMIN")
     pages.push(["Review queue", "/admin"], ["Member management", "/admin/members"]);
   const results: SearchResult[] = pages
     .filter(([title]) => title.toLowerCase().includes(q))
@@ -91,9 +93,9 @@ export function searchWorkspace(
         section: "Tasks",
       }))
   );
-  if (data)
+  if (space)
     for (const resource of ["todos", "notes", "goals"] as const)
-      for (const item of data[resource])
+      for (const item of space[resource])
         if (
           `${item.title} ${"description" in item ? item.description : item.content}`
             .toLowerCase()
