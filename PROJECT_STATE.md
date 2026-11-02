@@ -8,6 +8,10 @@ The successful dependency install on commit `5e1144f` exposed the next deploymen
 
 # PROJECT_STATE.md
 
+## Role-aware admin navigation (2026-11-02)
+
+The member sidebar now reads the authenticated user from the existing `GET /api/users/me` endpoint for the account name, role label, and Admin workspace link. Previously it relied on `/api/workspace`, which remains a 503 placeholder, so admin users browsing member pages saw a fallback “Member / Builder” label and no admin shortcut. Admin routes and server-side authorization are unchanged. The current-user API derives identity from the signed session and persisted database account. Focused sidebar tests (2), typecheck, targeted ESLint/Prettier, diff check, and `npx next build --webpack` passed. The change is local to `main` and must be pushed/deployed before appearing on Vercel.
+
 ## Phase 3 — Connect authenticated Profile (2026-11-01)
 
 The existing Profile editor now reads/writes only the signed-in user's profile through `GET/PATCH /api/users/me/profile`. The endpoint revalidates the persisted approved User, derives ownership exclusively from the signed session, validates all submitted fields, returns only the profile projection plus server-derived points/weekly rank/streak/approved-task metrics, handles unique-handle conflicts, and refreshes the signed name claim after name edits. Profile optional fields have explicit empty states, loading/retry behavior, save errors, and save success feedback.

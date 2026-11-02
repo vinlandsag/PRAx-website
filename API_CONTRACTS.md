@@ -1,5 +1,9 @@
 # API_CONTRACTS.md
 
+## 2026-11-02 — Current-user API reused by member navigation
+
+No API contract changed. The member sidebar now consumes the existing authenticated `GET /api/users/me` response (`{ user }`) for the persisted account name and role. `/api/workspace` remains disconnected and is not used for access decisions. Admin route/API authorization continues to be enforced server-side.
+
 ## Phase 11 release handoff status (2026-11-01)
 
 Review, points, task, submission, leaderboard, streak, persisted auth, own-profile, and own-settings endpoints are database-backed as described below. Configurable rubric, broad Workspace/Chat/Personal Space, and notification delivery remain unimplemented seams. `npm run test:integration` was user-reported passing with 31/31 tests in a separate test project; a subsequent agent attempt could not reach that host and did not execute Vitest. Release setup, safe smoke-check limits, and deployment gates are documented in README.

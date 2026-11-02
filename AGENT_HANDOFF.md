@@ -1,5 +1,9 @@
 # AGENT_HANDOFF.md
 
+## Role-aware admin navigation (2026-11-02)
+
+The member sidebar was showing a fallback Member/Builder identity because it read role/name from `/api/workspace`, which is intentionally still a 503 stub. It now uses the persisted signed-in account from `GET /api/users/me` for role-aware labeling and an Admin link. The admin route still enforces authorization server-side. Added a two-case sidebar test. Focused tests, typecheck, targeted lint/format, whitespace check, and webpack production build passed. To see this change on Vercel, commit/push the current local changes to the branch configured for the deployment and redeploy; no deployment was performed.
+
 ## Vercel npm install repair (2026-11-02)
 
 Vercel's npm install error persisted on commit `08ae581`. A clean npm 10.9.4 install reproduced the Arborist `Invalid Version:` error at the missing `@esbuild/linux-riscv64` optional package version. Added full registry metadata for that package and `@unrs/resolver-binding-linux-x64-musl`; no resolved package versions changed. A clean npm 10.9.4 install then passed (`added 648 packages in 50s`). Retry deployment with Vercel Root Directory `.`. The Vercel production build/deployment has not been rerun; no Vercel config or app code changed.

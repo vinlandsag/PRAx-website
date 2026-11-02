@@ -1,5 +1,12 @@
 # 2026-11-02 — Repair npm install metadata for Vercel
 
+## 2026-11-02 — Show admin navigation from authenticated role
+
+- Updated `src/components/layout/MemberSidebar.tsx` to obtain the signed-in account from `GET /api/users/me`, rather than relying on the disconnected `/api/workspace` response to decide whether an Admin workspace shortcut should appear.
+- The member sidebar now uses the persisted account name/role while profile/workspace data is unavailable. Server-side admin route authorization remains the authority.
+- Added `src/components/layout/MemberSidebar.test.tsx` for admin/member visibility with workspace data unavailable.
+- Checks passed: focused 2-test suite, `npx tsc --noEmit`, targeted `npx eslint`, targeted `npx prettier --check`, `git diff --check`, and `npx next build --webpack` (53 static pages).
+
 - Reproduced `npm error Invalid Version:` with root npm 11.12.1. The lockfile contained incomplete optional-platform entries (for packages such as Tailwind Oxide, esbuild, Next SWC, Rollup, sharp, and unrs-resolver) without version metadata.
 - Regenerated root lock metadata without changing any resolved package versions. Registry-backed dry-run and normal `npm install --ignore-scripts --no-audit --no-fund` both passed.
 - No application source, API, or Vercel configuration changed. Deployment build has not yet been retried.

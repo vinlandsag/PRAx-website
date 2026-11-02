@@ -1,5 +1,9 @@
 # DECISIONS.md
 
+## D-033 — Base member-shell admin shortcut on authenticated account (2026-11-02)
+
+The member sidebar must use the existing `GET /api/users/me` response for the signed-in user's role, because `/api/workspace` is not implemented and must not be treated as an identity source. This affects navigation visibility only; admin pages and APIs continue to enforce authorization on the server. No new identity store or endpoint is introduced.
+
 ## D-032 — Persist the authenticated member profile on the existing User row (2026-11-01)
 
 Reuse Prisma's existing `User` model and the existing signed-session identity. Add profile fields to that row through an additive migration, and expose only a self-scoped `/api/users/me/profile` API. Do not use the broad Workspace/Chat contract for profile reads or writes, accept a target user ID, or create another user/auth/database client. Keep other members' profiles out of this self API; public member profile access remains a separate unresolved Workspace contract. The migration must be applied only after confirming the intended Supabase target.

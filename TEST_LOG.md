@@ -1255,3 +1255,12 @@ Failed (pre-existing, unchanged): `npm run lint` over the whole repo still repor
 WRITTEN BUT NOT RUN: `src/lib/space/space.integration.test.ts` (11 tests) and `src/lib/chat/chat.integration.test.ts` (10 tests). They need a separate, migrated `TEST_DATABASE_URL` that includes migration `20261101190000_personal_space_and_chat`, and both were added to `scripts/run-integration-tests.mjs`. No database exists yet, so `npm run test:integration` was not run, no migration was applied, and these 21 tests are reported as skipped. They compile (typecheck passes) but their behavior is unverified.
 
 Also not run: browser/manual check of the pages against the new routes, production build.
+# 2026-11-02 — Role-aware admin navigation
+
+- `npx vitest run src/components/layout/MemberSidebar.test.tsx` — passed, 2 tests (admin shortcut shown for ADMIN; hidden for MEMBER when workspace data is unavailable).
+- `npx tsc --noEmit` — passed.
+- `npx eslint src/components/layout/MemberSidebar.tsx src/components/layout/MemberSidebar.test.tsx` — passed.
+- `npx prettier --check src/components/layout/MemberSidebar.tsx src/components/layout/MemberSidebar.test.tsx` — passed.
+- `git diff --check` — passed.
+- `npx next build --webpack` — passed; generated 53 static pages.
+- Initial focused test attempt used jest-dom matchers unavailable in this repository and failed. Replaced those assertions with native DOM/Chai assertions; the final focused run passed.

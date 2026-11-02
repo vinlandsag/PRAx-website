@@ -3,8 +3,10 @@
 import React from "react";
 import Link from "next/link";
 import { useWorkspace } from "@/lib/workspace/use-workspace";
+import { useResource } from "@/lib/api/use-resource";
 import { usePathname } from "next/navigation";
 import { Avatar } from "../ui/Avatar";
+import type { SessionUser } from "@/lib/auth/types";
 
 export interface NavItem {
   label: string;
@@ -191,6 +193,10 @@ export const memberNavItems: NavItem[] = [
 function MemberSidebarContent({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const pathname = usePathname();
   const { data } = useWorkspace();
+  // Workspace data is still unavailable, so use the persisted authenticated-user API for
+  // identity and role-aware navigation instead of inferring a role from profile text.
+  const currentUser = useResource<{ user: SessionUser }>("/api/users/me");
+  const user = currentUser.data?.user;
 
   return (
     <aside className="w-64 bg-sidebar text-white flex flex-col justify-between shrink-0 h-screen select-none border-r border-sidebar-hover">
@@ -269,21 +275,21 @@ function MemberSidebarContent({ onCloseMobile }: { onCloseMobile?: () => void })
         <div className="flex items-center justify-between px-2 py-1.5 rounded-xl hover:bg-sidebar-hover/50 transition-colors">
           <div className="flex items-center gap-2.5 min-w-0">
             <Avatar
-              name={data?.profile.name || "Member"}
+              name={data?.profile.name || user?.name || "Member"}
               src={data?.profile.avatarUrl || undefined}
               size="sm"
               colorScheme="purple"
             />
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-semibold text-white truncate">
-                {data?.profile.name || "Member"}
+                {data?.profile.name || user?.name || "Member"}
               </span>
               <span className="text-[10px] text-sidebar-subtext truncate">
-                {data?.user.role === "ADMIN" ? "Administrator" : "Builder"}
+                {user?.role === "ADMIN" ? "Administrator" : "Builder"}
               </span>
             </div>
           </div>
-          {data?.user.role === "ADMIN" && (
+          {user?.role === "ADMIN" && (
             <Link
               href="/admin"
               title="Switch to Admin workspace"

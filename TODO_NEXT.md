@@ -1,5 +1,8 @@
 ## Vercel deployment follow-up (2026-11-02)
 
+- [x] Show the Admin workspace shortcut from the authenticated account role in the member sidebar; focused tests and production webpack build pass.
+- [ ] Commit/push this navigation fix to the branch configured as Vercel Production, then redeploy and verify the link from `/settings`.
+
 - [x] Complete optional-platform package metadata in root `package-lock.json`; clean npm 10.9.4 install passes.
 - [x] Include `prisma/` and `prisma.config.ts` in `.vercelignore`; local Prisma generation passes.
 - [ ] Retry Vercel deployment from repository root (`.`) and capture the build result. Diagnose any later build or runtime configuration errors from the new log.
