@@ -46,6 +46,13 @@
 - `npm install --ignore-scripts --no-audit --no-fund`: passed (`changed 6 packages in 3s`). No resolved lockfile package versions changed.
 - Not run: Vercel deployment/build, application tests, lint, typecheck. No database operations.
 
+## 2026-11-02 — Follow-up for Vercel npm install failure
+
+- Vercel retried commit `08ae581` and still failed during `npm install`.
+- Clean install using npm 10.9.4 reproduced `Invalid Version:` while resolving the incomplete `@esbuild/linux-riscv64` optional package record. Added exact published metadata for that record and `@unrs/resolver-binding-linux-x64-musl`.
+- Clean install from a temporary copy of the corrected root manifests: `npm install --ignore-scripts --no-audit --no-fund` with npm 10.9.4 — passed (`added 648 packages in 50s`).
+- Not run: Vercel build/deployment, app tests, lint, typecheck. No database operations.
+
 ## Merge of origin/main into milan (2026-11-01)
 
 - `npm install --package-lock-only --ignore-scripts --offline`: passed; lockfile regenerated for Prisma dependencies only; audit reported 0 vulnerabilities.

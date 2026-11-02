@@ -1,6 +1,6 @@
 ## Vercel deployment follow-up (2026-11-02)
 
-- [x] Repair incomplete optional-platform package metadata in root `package-lock.json`; npm 11 install now passes locally.
+- [x] Complete optional-platform package metadata in root `package-lock.json`; clean npm 10.9.4 install passes.
 - [ ] Retry Vercel deployment from repository root (`.`) and capture the build result. If installation passes but build fails, diagnose that build output separately.
 
 ## Profile connection follow-up (2026-11-01)

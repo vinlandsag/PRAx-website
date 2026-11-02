@@ -4,6 +4,12 @@
 - Regenerated root lock metadata without changing any resolved package versions. Registry-backed dry-run and normal `npm install --ignore-scripts --no-audit --no-fund` both passed.
 - No application source, API, or Vercel configuration changed. Deployment build has not yet been retried.
 
+## 2026-11-02 — Complete optional native package lock metadata
+
+- The Vercel retry on `08ae581` still failed. A clean npm 10.9.4 install reproduced the error at the `@esbuild/linux-riscv64` placeholder; the lockfile still had two optional-platform records without versions.
+- Added the exact version, tarball, integrity, and platform metadata for `@esbuild/linux-riscv64@0.28.2` and `@unrs/resolver-binding-linux-x64-musl@1.12.2`.
+- A clean npm 10.9.4 install using the corrected lockfile passed (`added 648 packages in 50s`). App tests and the Vercel build remain unrun.
+
 ## 2026-11-01 — Phase 9 performance reconnaissance
 
 - Benchmarked seven route-handler reads against the separate migrated Supabase test project in `eu-north-1` using a synthetic dataset (501 users, 2,500 tasks, 10,000 approved submissions, 10,000 point transactions, 42 streak days; 5 warmups and 30 measurements).

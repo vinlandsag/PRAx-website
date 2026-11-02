@@ -2,7 +2,7 @@
 
 ## Vercel npm install repair (2026-11-02)
 
-Vercel's `npm install` error was reproduced using npm 11.12.1. Root package manifests and direct dependency versions were valid; `package-lock.json` held optional platform-package placeholders with no `version`, triggering an Arborist `SemVer` exception. Root lock metadata was regenerated; no resolved package version changed. Verified with `npm install --package-lock-only --dry-run --ignore-scripts --no-audit --no-fund` (passed) and `npm install --ignore-scripts --no-audit --no-fund` (passed). Retry deployment with Vercel Root Directory `.`. The production build/deployment has not been rerun; no Vercel config or app code was changed.
+Vercel's npm install error persisted on commit `08ae581`. A clean npm 10.9.4 install reproduced the Arborist `Invalid Version:` error at the missing `@esbuild/linux-riscv64` optional package version. Added full registry metadata for that package and `@unrs/resolver-binding-linux-x64-musl`; no resolved package versions changed. A clean npm 10.9.4 install then passed (`added 648 packages in 50s`). Retry deployment with Vercel Root Directory `.`. The Vercel production build/deployment has not been rerun; no Vercel config or app code changed.
 
 ## Phase 4 — Settings persistence handoff (2026-11-01)
 

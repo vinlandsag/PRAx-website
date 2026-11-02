@@ -1,6 +1,6 @@
 # Deployment install repair (2026-11-02)
 
-Reproduced Vercel's `npm error Invalid Version:` locally with npm 11.12.1. Root `package.json` versions are valid; `package-lock.json` contained incomplete optional-platform package records without versions, which caused Arborist to fail during deduplication. Regenerated lock metadata with `npm install --ignore-scripts --no-audit --no-fund`; it passed and kept all previously resolved package versions unchanged. No application code or Vercel routing config changed. Retry the Vercel deployment from repository root (`.`); build itself remains unverified.
+Reproduced Vercel's `npm error Invalid Version:` locally. Root `package.json` versions are valid; incomplete optional-platform package records in `package-lock.json` caused npm Arborist to fail during deduplication. Commit `08ae581` regenerated most metadata but left two records incomplete, so Vercel still failed on that commit. Added the exact published metadata for those records. A clean npm 10.9.4 install from the corrected lockfile passed (648 packages); resolved package versions were not changed. No application code or Vercel routing config changed. Retry the Vercel deployment from repository root (`.`); build itself remains unverified.
 
 # PROJECT_STATE.md
 
