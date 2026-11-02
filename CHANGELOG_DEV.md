@@ -1,3 +1,9 @@
+# 2026-11-02 — Repair npm install metadata for Vercel
+
+- Reproduced `npm error Invalid Version:` with root npm 11.12.1. The lockfile contained incomplete optional-platform entries (for packages such as Tailwind Oxide, esbuild, Next SWC, Rollup, sharp, and unrs-resolver) without version metadata.
+- Regenerated root lock metadata without changing any resolved package versions. Registry-backed dry-run and normal `npm install --ignore-scripts --no-audit --no-fund` both passed.
+- No application source, API, or Vercel configuration changed. Deployment build has not yet been retried.
+
 ## 2026-11-01 — Phase 9 performance reconnaissance
 
 - Benchmarked seven route-handler reads against the separate migrated Supabase test project in `eu-north-1` using a synthetic dataset (501 users, 2,500 tasks, 10,000 approved submissions, 10,000 point transactions, 42 streak days; 5 warmups and 30 measurements).

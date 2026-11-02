@@ -1,3 +1,8 @@
+## Vercel deployment follow-up (2026-11-02)
+
+- [x] Repair incomplete optional-platform package metadata in root `package-lock.json`; npm 11 install now passes locally.
+- [ ] Retry Vercel deployment from repository root (`.`) and capture the build result. If installation passes but build fails, diagnose that build output separately.
+
 ## Profile connection follow-up (2026-11-01)
 
 - [x] Connect Profile reads/writes to the persisted signed-in User through a self-only API.

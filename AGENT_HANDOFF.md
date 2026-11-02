@@ -1,5 +1,9 @@
 # AGENT_HANDOFF.md
 
+## Vercel npm install repair (2026-11-02)
+
+Vercel's `npm install` error was reproduced using npm 11.12.1. Root package manifests and direct dependency versions were valid; `package-lock.json` held optional platform-package placeholders with no `version`, triggering an Arborist `SemVer` exception. Root lock metadata was regenerated; no resolved package version changed. Verified with `npm install --package-lock-only --dry-run --ignore-scripts --no-audit --no-fund` (passed) and `npm install --ignore-scripts --no-audit --no-fund` (passed). Retry deployment with Vercel Root Directory `.`. The production build/deployment has not been rerun; no Vercel config or app code was changed.
+
 ## Phase 4 — Settings persistence handoff (2026-11-01)
 
 The Settings UI now reads profile data from `/api/users/me/profile` and account preferences from `GET /api/users/me/settings`. Account edits reuse `PATCH /api/users/me/profile`; theme, notification preferences, and portfolio visibility use the new `PATCH /api/users/me/settings`. Settings are stored in `UserPreferences`, one-to-one with the existing `User`. Both writes derive ownership from the signed-in account and revalidate persisted approval. ThemeSync reads the server setting; browser local storage remains only an immediate fallback.

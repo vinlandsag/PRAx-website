@@ -39,6 +39,13 @@
 
 # TEST_LOG.md
 
+# 2026-11-02 — Vercel npm install failure
+
+- Reproduced with `npm install --package-lock-only --dry-run --ignore-scripts --no-audit --no-fund`: failed with `npm error Invalid Version:`. Debug stack traced it to npm Arborist deduplication while resolving optional native packages; lock entries lacked `version` fields.
+- Removed invalid optional placeholders and regenerated `package-lock.json` metadata. A registry-backed dry run passed (`up to date in 11s`).
+- `npm install --ignore-scripts --no-audit --no-fund`: passed (`changed 6 packages in 3s`). No resolved lockfile package versions changed.
+- Not run: Vercel deployment/build, application tests, lint, typecheck. No database operations.
+
 ## Merge of origin/main into milan (2026-11-01)
 
 - `npm install --package-lock-only --ignore-scripts --offline`: passed; lockfile regenerated for Prisma dependencies only; audit reported 0 vulnerabilities.
